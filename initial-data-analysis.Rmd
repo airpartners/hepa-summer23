@@ -2,12 +2,13 @@
 ```{r}
 # Imports
 library(tidyverse)
+library(openair)
 ```
 
 ```{r}
 # Define indoor file to be imported, set time of HEPA purifier install
-indoor_file <- 'data/CM_250.csv'
-outdoor_file <- 'data/CM_250.csv'
+indoor_file <- 'data/CM_250_indoor.csv'
+outdoor_file <- 'data/CM_250_outdoor.csv'
 hepa_time <- "2023-02-10 15:30:00"
 ```
 
@@ -16,24 +17,64 @@ hepa_time <- "2023-02-10 15:30:00"
 # Import indoor data
 indoor_data <- read.csv(indoor_file)
 
+# Import outdoor data
+outdoor_data <- read.csv(outdoor_file)
+
 ```
 
 ```{r}
 # Reformat timestamps to time object
-indoor_data$date <- strptime(indoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York")
+
+indoor_data$date <- as.POSIXct(strptime(indoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
+
+outdoor_data$date <- as.POSIXct(strptime(outdoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
 ```
-```{r}
-# (Skipping import outdoor data part)
-```
+
 ```{r}
 # # Remove duplicate rows based on date
 # indoor_data <- distinct(indoor_data, indoor_data$date, .keep_all = TRUE)
-
+# outdoor_data <- distinct(outdoor_data, outdoor_data$date, .keep_all = TRUE)
 
 ```
+
+```{r}
+# Append all variables with "outdoor_" or "indoor_" respectively
+colnames(indoor_data) <- paste0('indoor_', colnames(indoor_data))
+colnames(outdoor_data) <- paste0('outdoor_', colnames(outdoor_data))
+```
+
+```{r}
+# Time-sync indoor, outdoor data
+# Join dataframes by syncing indoor_date and outdoor_date columns
+joined_data <- left_join(indoor_data, outdoor_data, by = c("indoor_date" = "outdoor_date"))
+
+# Renaming synced date columns back to just 'date'
+joined_data$date <- joined_data$indoor_date
+
+# Keeping distinct time-stamps
+joined_data %>% distinct(joined_data$indoor_date, .keep_all = TRUE)
+
+# # Attach for easier reference while graphing
+# attach(joined_data)
+
+```
+
+```{r}
+outdoor_data <- outdoor_data %>% rename_at('outdoor_date', ~'date')
+```
+
+```{r}
+# #Initial time series
+# timePlot(joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), normalize = TRUE)
+
+timePlot(joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), normalize = TRUE)
+```
+
 
 ## Questions for Scott
 1) What is sample_rh, sample_pres in mod_PM dataset
 2) Do we filter for rows where device is only ACTIVE
 3) No duplicate rows so far - do we need that code chunk?
+4) Committing data files to github- is this a good idea and what are alternatives?
+5) How does dataframe merging work if the timestamps are continuous and not exactly synced?? Aren't most values just going to be NAN then? (Update: joined data does not plot)
 
