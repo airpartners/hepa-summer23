@@ -1,0 +1,39 @@
+# Data Extraction and Cleaning
+```{r}
+# Imports
+library(tidyverse)
+```
+
+```{r}
+# Define indoor file to be imported, set time of HEPA purifier install
+indoor_file <- 'data/CM_250.csv'
+outdoor_file <- 'data/CM_250.csv'
+hepa_time <- "2023-02-10 15:30:00"
+```
+
+## Import and prepare data
+```{r}
+# Import indoor data
+indoor_data <- read.csv(indoor_file)
+
+```
+
+```{r}
+# Reformat timestamps to time object
+indoor_data$date <- strptime(indoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York")
+```
+```{r}
+# (Skipping import outdoor data part)
+```
+```{r}
+# # Remove duplicate rows based on date
+# indoor_data <- distinct(indoor_data, indoor_data$date, .keep_all = TRUE)
+
+
+```
+
+## Questions for Scott
+1) What is sample_rh, sample_pres in mod_PM dataset
+2) Do we filter for rows where device is only ACTIVE
+3) No duplicate rows so far - do we need that code chunk?
+
