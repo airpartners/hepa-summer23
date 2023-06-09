@@ -3,6 +3,7 @@
 # Imports
 library(tidyverse)
 library(openair)
+library(corrplot)
 ```
 
 ```{r}
@@ -68,6 +69,30 @@ outdoor_data <- outdoor_data %>% rename_at('outdoor_date', ~'date')
 # timePlot(joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), normalize = TRUE)
 
 timePlot(joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), normalize = TRUE)
+```
+
+
+```{r}
+# Indoor data timevariation
+# timeVariation(joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
+
+# Outdoor data timevariation
+timeVariation(outdoor_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
+
+
+```
+
+
+```{r}
+indoor_cordata <- select(joined_data, indoor_pm1, indoor_pm25, indoor_pm10)
+N <- cor(na.omit(indoor_cordata), use = "p")
+corrplot(N, method = 'number')
+```
+
+```{r}
+outdoor_cordata <- select(outdoor_data, outdoor_pm1, outdoor_pm25, outdoor_pm10)
+N <- cor(na.omit(outdoor_cordata), use = "p")
+corrplot(N, method = 'number')
 ```
 
 
