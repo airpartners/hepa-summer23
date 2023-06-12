@@ -31,7 +31,12 @@ outdoor_data <- read.csv(outdoor_file)
 
 indoor_data$date <- as.POSIXct(strptime(indoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
 
+indoor_data$date_round <- round_date(indoor_data$date, unit = "minute")
 outdoor_data$date <- as.POSIXct(strptime(outdoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
+outdoor_data$date_round <- round_date(outdoor_data$date, unit = "minute")
+
+
+head(outdoor_data, 5)
 ```
 
 ```{r}
@@ -50,7 +55,7 @@ colnames(outdoor_data) <- paste0('outdoor_', colnames(outdoor_data))
 ```{r, results = 'hide'}
 # Time-sync indoor, outdoor data
 # Join dataframes by syncing indoor_date and outdoor_date columns
-joined_data <- left_join(indoor_data, outdoor_data, by = c("indoor_date" = "outdoor_date"))
+joined_data <- left_join(indoor_data, outdoor_data, by = c("indoor_date_round" = "outdoor_date_round"))
 
 # Renaming synced date columns back to just 'date'
 joined_data$date <- joined_data$indoor_date
@@ -77,10 +82,10 @@ timePlot(joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10
 
 ```{r}
 # Indoor data timevariation
-# timeVariation(joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
+timeVariation(joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
 
 # Outdoor data timevariation
-timeVariation(outdoor_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
+timeVariation(joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
 
 
 ```
@@ -107,12 +112,17 @@ ggplot(joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
 ```
 
+```{r}
+joined_data
+```
+
+
 
 ## Questions for Scott
-1) What is sample_rh, sample_pres in mod_PM dataset
-2) Do we filter for rows where device is only ACTIVE
+1) What is sample_rh, sample_pres in mod_PM dataset - relative humidity, temperature
+2) Do we filter for rows where device is only ACTIVE - yes
 3) No duplicate rows so far - do we need that code chunk?
 4) Committing data files to github- is this a good idea and what are alternatives?
-5) How does dataframe merging work if the timestamps are continuous and not exactly synced?? Aren't most values just going to be NAN then? (Update: joined data does not plot)
+5) How does dataframe merging work if the timestamps are continuous and not exactly synced?? Aren't most values just going to be NAN then? (Update: joined data does not plot) - round to minute, merge on dummy vectors.
 6) What counts as high enough correlation to scatterplot?
 
