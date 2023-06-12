@@ -1,0 +1,148 @@
+# Data Extraction and Cleaning
+```{r}
+# Imports
+library(tidyverse)
+library(openair)
+library(corrplot)
+library(ggplot2)
+library(ggpmisc)
+
+```
+
+```{r}
+# Define indoor file to be imported, set time of HEPA purifier install
+is_file <- 'data/HAFTRAP_sham_indoor.csv'
+os_file <- 'data/HAFTRAP_sham_outdoor.csv'
+ih_file <- 'data/HAFTRAP_hepa_indoor.csv'
+oh_file <- 'data/HAFTRAP_hepa_outdoor.csv'
+```
+
+## Import and prepare data
+```{r}
+# Import indoor sham data
+sham_indoor <- read.csv(is_file)
+
+# Import outdoor sham data
+sham_outdoor <- read.csv(os_file)
+
+# Import indoor hepa data
+hepa_indoor <- read.csv(ih_file)
+
+# Import outdoor hepa data
+hepa_outdoor <- read.csv(oh_file)
+
+```
+
+```{r}
+# View dataframes
+head(hepa_indoor, 5)
+```
+
+
+```{r}
+# Reformat timestamps to time object
+
+sham_indoor$date <- as.POSIXct(strptime(sham_indoor$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
+sham_indoor$date_round <- round_date(sham_indoor$date, unit = "minute")
+
+sham_outdoor$date <- as.POSIXct(strptime(sham_outdoor$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
+sham_outdoor$date_round <- round_date(sham_outdoor$date, unit = "minute")
+
+hepa_indoor$date <- as.POSIXct(strptime(hepa_indoor$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
+hepa_indoor$date_round <- round_date(hepa_indoor$date, unit = "minute")
+
+hepa_outdoor$date <- as.POSIXct(strptime(hepa_outdoor$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
+hepa_outdoor$date_round <- round_date(hepa_outdoor$date, unit = "minute")
+```
+
+```{r}
+head(hepa_indoor, 3)
+```
+
+```{r}
+# # Remove duplicate rows based on date
+# indoor_data <- distinct(indoor_data, indoor_data$date, .keep_all = TRUE)
+# outdoor_data <- distinct(outdoor_data, outdoor_data$date, .keep_all = TRUE)
+
+```
+
+```{r}
+# Append all variables with "outdoor_" or "indoor_" respectively
+colnames(indoor_data) <- paste0('indoor_', colnames(indoor_data))
+colnames(outdoor_data) <- paste0('outdoor_', colnames(outdoor_data))
+```
+
+```{r, results = 'hide'}
+# Time-sync indoor, outdoor data
+# Join dataframes by syncing indoor_date and outdoor_date columns
+joined_data <- left_join(indoor_data, outdoor_data, by = c("indoor_date_round" = "outdoor_date_round"))
+
+# Renaming synced date columns back to just 'date'
+joined_data$date <- joined_data$indoor_date
+
+# Keeping distinct time-stamps
+joined_data %>% distinct(joined_data$indoor_date, .keep_all = TRUE);
+
+# # Attach for easier reference while graphing
+# attach(joined_data)
+
+```
+
+```{r}
+outdoor_data <- outdoor_data %>% rename_at('outdoor_date', ~'date')
+```
+
+```{r}
+# #Initial time series
+# timePlot(joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), normalize = TRUE)
+
+timePlot(joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), normalize = TRUE)
+```
+
+
+```{r}
+# Indoor data timevariation
+timeVariation(joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
+
+# Outdoor data timevariation
+timeVariation(joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
+
+
+```
+
+
+```{r}
+indoor_cordata <- select(joined_data, indoor_pm1, indoor_pm25, indoor_pm10)
+N <- cor(na.omit(indoor_cordata), use = "p")
+corrplot(N, method = 'number')
+```
+
+```{r}
+outdoor_cordata <- select(outdoor_data, outdoor_pm1, outdoor_pm25, outdoor_pm10)
+N <- cor(na.omit(outdoor_cordata), use = "p")
+corrplot(N, method = 'number')
+```
+
+```{r}
+# Indoor PM 1 vs. PM 2.5
+ggplot(joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+```
+
+```{r}
+joined_data
+```
+
+
+
+## Questions for Scott
+1) What is sample_rh, sample_pres in mod_PM dataset - relative humidity, temperature
+2) Do we filter for rows where device is only ACTIVE - yes
+3) No duplicate rows so far - do we need that code chunk?
+4) Committing data files to github- is this a good idea and what are alternatives?
+5) How does dataframe merging work if the timestamps are continuous and not exactly synced?? Aren't most values just going to be NAN then? (Update: joined data does not plot) - round to minute, merge on dummy vectors.
+6) What counts as high enough correlation to scatterplot?
+
