@@ -4,6 +4,9 @@
 library(tidyverse)
 library(openair)
 library(corrplot)
+library(ggplot2)
+library(ggpmisc)
+
 ```
 
 ```{r}
@@ -44,7 +47,7 @@ colnames(indoor_data) <- paste0('indoor_', colnames(indoor_data))
 colnames(outdoor_data) <- paste0('outdoor_', colnames(outdoor_data))
 ```
 
-```{r}
+```{r, results = 'hide'}
 # Time-sync indoor, outdoor data
 # Join dataframes by syncing indoor_date and outdoor_date columns
 joined_data <- left_join(indoor_data, outdoor_data, by = c("indoor_date" = "outdoor_date"))
@@ -53,7 +56,7 @@ joined_data <- left_join(indoor_data, outdoor_data, by = c("indoor_date" = "outd
 joined_data$date <- joined_data$indoor_date
 
 # Keeping distinct time-stamps
-joined_data %>% distinct(joined_data$indoor_date, .keep_all = TRUE)
+joined_data %>% distinct(joined_data$indoor_date, .keep_all = TRUE);
 
 # # Attach for easier reference while graphing
 # attach(joined_data)
@@ -95,6 +98,15 @@ N <- cor(na.omit(outdoor_cordata), use = "p")
 corrplot(N, method = 'number')
 ```
 
+```{r}
+# Indoor PM 1 vs. PM 2.5
+ggplot(joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+```
+
 
 ## Questions for Scott
 1) What is sample_rh, sample_pres in mod_PM dataset
@@ -102,4 +114,5 @@ corrplot(N, method = 'number')
 3) No duplicate rows so far - do we need that code chunk?
 4) Committing data files to github- is this a good idea and what are alternatives?
 5) How does dataframe merging work if the timestamps are continuous and not exactly synced?? Aren't most values just going to be NAN then? (Update: joined data does not plot)
+6) What counts as high enough correlation to scatterplot?
 
