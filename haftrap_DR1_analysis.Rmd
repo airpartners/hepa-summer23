@@ -68,20 +68,29 @@ head(hepa_indoor, 3)
 
 ```{r}
 # Append all variables with "outdoor_" or "indoor_" respectively
-colnames(indoor_data) <- paste0('indoor_', colnames(indoor_data))
-colnames(outdoor_data) <- paste0('outdoor_', colnames(outdoor_data))
+colnames(sham_indoor) <- paste0('indoor_', colnames(sham_indoor))
+colnames(sham_outdoor) <- paste0('outdoor_', colnames(sham_outdoor))
+
+colnames(hepa_indoor) <- paste0('indoor_', colnames(hepa_indoor))
+colnames(hepa_outdoor) <- paste0('outdoor_', colnames(hepa_outdoor))
 ```
 
 ```{r, results = 'hide'}
 # Time-sync indoor, outdoor data
 # Join dataframes by syncing indoor_date and outdoor_date columns
-joined_data <- left_join(indoor_data, outdoor_data, by = c("indoor_date_round" = "outdoor_date_round"))
+sham_joined_data <- left_join(sham_indoor, sham_outdoor, by = c("indoor_date_round" = "outdoor_date_round"))
+
+hepa_joined_data <- left_join(hepa_indoor, hepa_outdoor, by = c("indoor_date_round" = "outdoor_date_round"))
 
 # Renaming synced date columns back to just 'date'
-joined_data$date <- joined_data$indoor_date
+sham_joined_data$date <- sham_joined_data$indoor_date
+
+hepa_joined_data$date <- hepa_joined_data$indoor_date
 
 # Keeping distinct time-stamps
-joined_data %>% distinct(joined_data$indoor_date, .keep_all = TRUE);
+sham_joined_data %>% distinct(sham_joined_data$indoor_date, .keep_all = TRUE);
+
+hepa_joined_data %>% distinct(hepa_joined_data$indoor_date, .keep_all = TRUE);
 
 # # Attach for easier reference while graphing
 # attach(joined_data)
@@ -89,60 +98,94 @@ joined_data %>% distinct(joined_data$indoor_date, .keep_all = TRUE);
 ```
 
 ```{r}
-outdoor_data <- outdoor_data %>% rename_at('outdoor_date', ~'date')
-```
-
-```{r}
 # #Initial time series
-# timePlot(joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), normalize = TRUE)
+timePlot(sham_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
 
-timePlot(joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), normalize = TRUE)
+timePlot(sham_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+
+timePlot(hepa_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+
+timePlot(hepa_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
 ```
 
 
 ```{r}
 # Indoor data timevariation
-timeVariation(joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
+timeVariation(sham_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
+
+timeVariation(hepa_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
 
 # Outdoor data timevariation
-timeVariation(joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
+timeVariation(sham_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
 
-
+timeVariation(hepa_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
 ```
 
 
 ```{r}
-indoor_cordata <- select(joined_data, indoor_pm1, indoor_pm25, indoor_pm10)
-N <- cor(na.omit(indoor_cordata), use = "p")
-corrplot(N, method = 'number')
+sham_corr_data <- select(sham_joined_data, indoor_pm1, indoor_pm25, indoor_pm10, outdoor_pm1, outdoor_pm25, outdoor_pm10)
+N <- cor(na.omit(sham_corr_data), use = "p")
+corrplot(N, method = 'color', main = "Sham Correlation Plot")
+
+hepa_corr_data <- select(hepa_joined_data, indoor_pm1, indoor_pm25, indoor_pm10, outdoor_pm1, outdoor_pm25, outdoor_pm10)
+N <- cor(na.omit(hepa_corr_data), use = "p")
+corrplot(N, method = 'color', main = "HEPA Correlation Plot")
 ```
 
 ```{r}
-outdoor_cordata <- select(outdoor_data, outdoor_pm1, outdoor_pm25, outdoor_pm10)
-N <- cor(na.omit(outdoor_cordata), use = "p")
-corrplot(N, method = 'number')
-```
-
-```{r}
-# Indoor PM 1 vs. PM 2.5
-ggplot(joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
-  geom_point() +
+# Sham Indoor PM 1 vs. Indoor PM 2.5
+ggplot(sham_joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
+  geom_point(alpha = 0.1) +
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = expression("Sham Correlation Plot (Indoor PM"[1]*" vs. Indoor PM"[2.5]*")"), x = expression("Indoor PM"[1]), y = expression("Indoor PM"[2.5]) +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+
+# Sham Outdoor PM 1 vs. Outdoor PM 2.5
+ggplot(sham_joined_data, aes(x = outdoor_pm1, y = outdoor_pm25)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = "Sham Correlation Plot (Outdoor PM1 vs. Outdoor PM2.5)", x = "Outdoor PM1", y = "Outdoor PM2.5") +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+
+# HEPA Indoor PM 1 vs. Indoor PM 2.5
+ggplot(hepa_joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = "HEPA Correlation Plot (Indoor PM1 vs. Indoor PM2.5)", x = "Indoor PM1", y = "Indoor PM2.5") +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+
+# HEPA Indoor PM 2.5 vs. Indoor PM 10
+ggplot(hepa_joined_data, aes(x = indoor_pm25, y = indoor_pm10)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = "HEPA Correlation Plot (Indoor PM2.5 vs. Indoor PM10)", x = "Indoor PM2.5", y = "Indoor PM10") +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+
+# HEPA Outdoor PM 2.5 vs. Outdoor PM 10
+ggplot(hepa_joined_data, aes(x = outdoor_pm25, y = outdoor_pm10)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = "HEPA Correlation Plot (Outdoor PM2.5 vs. Outdoor PM10)", x = "Outdoor PM2.5", y = "Outdoor PM10") +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+
+# HEPA Indoor PM 2.5 vs. Outdoor PM 2.5
+ggplot(hepa_joined_data, aes(x = indoor_pm25, y = outdoor_pm25)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = "HEPA Correlation Plot (Indoor PM2.5 vs. Outdoor PM2.5)", x = "Indoor PM2.5", y = "Outdoor PM2.5") +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+
+# Sham Indoor PM 2.5 vs. Outdoor PM 2.5
+ggplot(sham_joined_data, aes(x = indoor_pm25, y = outdoor_pm25)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = "Sham Correlation Plot (Indoor PM2.5 vs. Outdoor PM2.5)", x = "Indoor PM2.5", y = "Outdoor PM2.5") +
   stat_poly_eq(formula = x ~ y,
                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
 ```
-
-```{r}
-joined_data
-```
-
-
-
-## Questions for Scott
-1) What is sample_rh, sample_pres in mod_PM dataset - relative humidity, temperature
-2) Do we filter for rows where device is only ACTIVE - yes
-3) No duplicate rows so far - do we need that code chunk?
-4) Committing data files to github- is this a good idea and what are alternatives?
-5) How does dataframe merging work if the timestamps are continuous and not exactly synced?? Aren't most values just going to be NAN then? (Update: joined data does not plot) - round to minute, merge on dummy vectors.
-6) What counts as high enough correlation to scatterplot?
-
