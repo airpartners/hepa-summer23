@@ -137,7 +137,7 @@ corrplot(N, method = 'color', main = "HEPA Correlation Plot")
 ggplot(sham_joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
   geom_point(alpha = 0.1) +
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = expression("Sham Correlation Plot (Indoor PM"[1]*" vs. Indoor PM"[2.5]*")"), x = expression("Indoor PM"[1]), y = expression("Indoor PM"[2.5]) +
+  labs(title = expression("Sham Correlation Plot (Indoor PM"[1]*" vs. Indoor PM"[2.5]*")"), x = expression("Indoor PM"[1]), y = expression("Indoor PM"[2.5])) +
   stat_poly_eq(formula = x ~ y,
                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
 
@@ -188,4 +188,62 @@ ggplot(sham_joined_data, aes(x = indoor_pm25, y = outdoor_pm25)) +
   labs(title = "Sham Correlation Plot (Indoor PM2.5 vs. Outdoor PM2.5)", x = "Indoor PM2.5", y = "Outdoor PM2.5") +
   stat_poly_eq(formula = x ~ y,
                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+
+
+```
+```{r}
+# Sham Indoor PM 1 vs. Outdoor PM 1
+ggplot(sham_joined_data, aes(x = indoor_pm1, y = outdoor_pm1)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = "Sham Correlation Plot (Indoor PM1 vs. Outdoor PM1)", x = "Indoor PM10", y = "Outdoor PM1") +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+```
+
+```{r}
+# Hepa Indoor PM 1 vs. Outdoor PM 1
+ggplot(hepa_joined_data, aes(x = indoor_pm1, y = outdoor_pm1)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = "Hepa Correlation Plot (Indoor PM1 vs. Outdoor PM1)", x = "Indoor PM1", y = "Outdoor PM1") +
+  stat_poly_eq(formula = x ~ y,
+               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+```
+
+```{r}
+si_mean <- mean(sham_indoor$indoor_pm25, na.rm = TRUE)
+hi_mean <- mean(hepa_indoor$indoor_pm25, na.rm=TRUE)
+so_mean <- mean(sham_outdoor$outdoor_pm25, na.rm = TRUE)
+ho_mean <- mean(hepa_outdoor$outdoor_pm25, na.rm=TRUE)
+
+
+```
+
+```{r}
+100*(si_mean - hi_mean)/si_mean
+```
+```{r}
+100*(so_mean - ho_mean)/so_mean
+```
+
+```{r}
+si_median <- median(sham_indoor$indoor_pm25, na.rm = TRUE)
+hi_median <- median(hepa_indoor$indoor_pm25, na.rm=TRUE)
+so_median <- median(sham_outdoor$outdoor_pm25, na.rm = TRUE)
+ho_median <- median(hepa_outdoor$outdoor_pm25, na.rm=TRUE)
+```
+
+```{r}
+100*(median(sham_indoor$indoor_pm25, na.rm = TRUE) - median(hepa_indoor$indoor_pm25, na.rm=TRUE))/median(sham_indoor$indoor_pm25, na.rm=TRUE)
+```
+```{r}
+100*(median(sham_outdoor$outdoor_pm25, na.rm = TRUE) - median(hepa_outdoor$outdoor_pm25, na.rm=TRUE))/median(sham_outdoor$outdoor_pm25, na.rm=TRUE)
+```
+```{r}
+100*((si_mean/so_mean) - (hi_mean/ho_mean))/(si_mean/so_mean)
+```
+
+```{r}
+100*((si_median/so_median) - (hi_median/ho_median))/(si_median/so_median)
 ```
