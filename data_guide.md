@@ -1,3 +1,7 @@
+---
+title: Data Guide for Air Partners
+---
+
 # Data Guide
 
 This document describes the organization of data, code files, and outputs in the Summer 2023 phase of the Air Partners HEPA air purifier pilot. The reliability and continued maintenance of this document cannot be guaranteed after August 4, 2023. The information in this document assumes reasonable familiarity with this project. For further questions regarding this document, feel free to contact [Vedaant Kuchhal](mailto:vedaantk22@gmail.com).
@@ -7,14 +11,27 @@ This document describes the organization of data, code files, and outputs in the
 ## Location Coding
 At its very core, the location where data is collected central to categorizing the data, analyzing it, and interpreting insights. For this reason, all files will be coded by a standard set of location codes. The following codes will be used to organize folders, name data files, and refer to locations throughout this repository:
 
+Roxbury:
+
 1. CM – Cardinal Medeiros, an elderly care [? Check with team] building in Roxbury.
 2. IB – Indigo Block, an affordable housing [? Check with team] building in Roxbury.
 3. RH – Individual homes in Roxbury.
+
+East Boston:
+
 4. DC – Daycares in East Boston
 5. PS – Pre-schools in East Boston
+
+Revere:
+
 6. CH – City Hall of Revere
 7. HS – High school in Revere
-[HAFTRAP later]
+
+HAFTRAP:
+
+8. SC - HAFTRAP data from SCOPE project
+9. OL - Olin's HAFTRAP data
+10. TU - Tuft's HAFTRAP data
 
 ## Data Pipeline
 The data pipeline for this project can be considered to be made up of four components [maybe redo this as a simple figure later]:
@@ -46,25 +63,45 @@ The sensors deployed in various phases of this project are each coded by a singl
 #### Field Notes
 N – In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location. [is this true?]
 
-#### Sensor ID 
-Each sensor has a unique ID number assigned to it on deployment. The numbers do have some significance, but for now this is not necessary to understand for data organization.
+#### ID 
+Each sensor has an ID number that uniquely identifies it (regardless of where it is placed). In different situations, this ID number will signify different things. For MOD-PM, there are two basic situations to be aware of:
+
+1. Regular: in this case, the sensor stays in one place for the entire duration of data sampling and is identified by its unique sensor ID.
+
+2. HAFTRAP: In this case, the sensors were actually moved from one place to another in separate deployments happening weeks apart. The sensor ID is actually irrelevant in this case since the same sensor was moved into different places. Therefore, the data in this case is coded by the *participant* ID. 
+
+In addition to the IDs, the following suffixes are used:
+
+a) `_indoor`: Indoor sensor
+b) `_outdoor`: Outdoor sensor
+c) `_sham`: Sham HEPA purifier deployment
+d) `_hepa`: True HEPA purifier deployment
+
+
 
 #### Naming Convention
 Therefore, raw data files are labelled with the following naming convention:
 `LocationCode_SensorCode_ID`
 
-For example, the csv data file for a Modulair-PM sensor with ID number 221 installed in Cardinal Medeiros will have the file name `CM_M_221.csv`.
+Examples:
+
+* The csv data file for a Modulair-PM sensor with ID number 221 installed indoors Cardinal Medeiros in Roxbury will have the file name `CM_M_221_indoor.csv`.
+
+* The csv data file for a Modulair-PM sensor in the HAFTRAP study with participant ID 41181 deployed indoors with a sham air purifier by Olin will have the file name `OL_M_41181_sham_indoor.csv`
+
 
 ### Folder Organization Structure
 As a reminder, all raw data files are stored in a folder named `data`. Here’s a summary of the organization:
 
-* Each subfolder is organized by location, named after the location code specified in this data guide.
+* Each subfolder is organized by general region, which is one of `Roxbury`, `EastBoston`, `Revere`, or `HAFTRAP` - the general study sites.
+* Each general region subfolder is  subdivided into location folders named after the location code specified in this data guide.
 *	Each location folder is further subdivided into folders by sensor type. The folders are named by a sensible lowercase abbreviation of the sensor type (e.g.- `modpm`, `hobo`, `cpc`). The only exception for this is field notes, where there is usually one file for each location and therefore the file will directly be placed in the location folder.
-* Therefore, for example, the data for Modulair-PM sensor number 221 for Cardinal Medeiros can be found in `data --> CM --> modpm --> CM_M_221.csv` and its relevant field notes can be found in `data --> CM --> CM_N.csv`
-*	(Note that some Modulair-PM sensors will be installed indoors while others are outdoors. Knowing which is installed indoor vs. outdoor is crucial for data analysis, so the specification of which sensor is installed indoor vs. outdoor can be found in the corresponding field notes for that location.)
+* Therefore, for example, the data for Modulair-PM sensor number 221 for Cardinal Medeiros in Roxbury can be found in `data --> Roxbury --> CM --> modpm --> CM_M_221_indoor.csv` and its relevant field notes can be found in `data --> Roxbury --> CM --> CM_N.csv`.
 
 ## Data Processing
 This component of the pipeline concerns code files that are used to clean, filter, and summarize the raw data. They are usually in the form of various scripts in R markdown that handle multiple, complex types of raw data. Here is a description of each code file:
 
-* `initial_data_analysis.Rmd`: Is a starter file to quickly build up working filter, cleaning, and analysis code comparing a single indoor and outdoor sensor in CM.
+* `initial_data_analysis.Rmd`: Is a starter file to quickly build up working filter, cleaning, and analysis code. Kind of like a play testing war zone, ignore this file if you're trying to comprehend clean, logical code.
 
+HAFTRAP:
+* `haftrap_DR1_analysis.Rmd`: The DR1 stands for "Design Review One". It initiall contained scrappily-written code for a design review with Doug Brugge, but now should have a clean pipeline to compute summary statistics from one participant's deployment with sham and true sensors.

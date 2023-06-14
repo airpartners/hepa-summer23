@@ -1,6 +1,6 @@
 # HAFTRAP Data Cleaning and Summaries
 ```{r}
-# Imports
+# Import relevant libraries
 library(tidyverse)
 library(openair)
 library(corrplot)
@@ -34,12 +34,12 @@ hepa_outdoor <- read.csv(oh_file)
 ```
 
 ```{r}
-# View sample of dataframe
+# Visual check
 head(hepa_indoor, 5)
 ```
 
 ### Reformatting timestamps
-Necessary since the timestamps from QuantAQ are in a weird format and need to be formatted to a format that works with the openair plotting package. An added column rounding the times to the nearest minute is calculated since two dataframes will be merged in the future based on time. 
+Necessary since the timestamps from QuantAQ are in a weird format and need to be formatted to a format that works with the openair plotting package. An added column rounding the times to the nearest minute is calculated since two data-frames will be merged later in this script on the basis of time. 
 ```{r}
 # Function to reformat timestamps to time object and round to nearest minute
 improve_timestamps <- function(df) {
@@ -61,14 +61,14 @@ hepa_outdoor <- improve_timestamps(hepa_outdoor)
 ```
 
 ```{r}
-# Check if data frame updated
+# Visual check
 head(hepa_indoor, 3)
 ```
 
 ### Particle counts and removing unnecessary data
 Alongside particle masses, we are concerned with the counts of particles that fall under certain size bins. To approximate the counts under pm1, sum up bin 0 to 2. Discard all other data columns that are not relevant.
 ```{r}
-# function to calculate sums of particle counts, remove rest
+# Function to calculate sums of particle counts, remove rest
 sum_bins <- function(df) {
   df %>%
     # Sum particle counts
@@ -91,13 +91,13 @@ hepa_outdoor <- sum_bins(hepa_outdoor)
 ```
 
 ```{r}
-# View dataframe
+# Visual check
 head(sham_indoor)
 ```
 
 
 ### Rename and merge
-Merge indoor and outdoor data into a single dataframe for easier comparison and calculation of correlation
+Merge indoor and outdoor data into a single dataframe for easier comparison and calculation of various metrics using indoor/outdoor relationships. Note that rows with NaNs aren't being dropped yet to preserve as much data as possible.
 ```{r}
 # Append all variables with "outdoor_" or "indoor_" respectively
 colnames(sham_indoor) <- paste0('indoor_', colnames(sham_indoor))
@@ -110,9 +110,9 @@ colnames(hepa_outdoor) <- paste0('outdoor_', colnames(hepa_outdoor))
 ```{r, results = 'hide'}
 # Time-sync indoor, outdoor data
 # Join dataframes by syncing rounded date columns. Run this only ONCE!
-sham_joined_data <- left_join(sham_indoor, sham_outdoor, by = c("indoor_date_round" = "outdoor_date_round")) %>% drop_na()
+sham_joined_data <- left_join(sham_indoor, sham_outdoor, by = c("indoor_date_round" = "outdoor_date_round"))
 
-hepa_joined_data <- left_join(hepa_indoor, hepa_outdoor, by = c("indoor_date_round" = "outdoor_date_round")) %>% drop_na()
+hepa_joined_data <- left_join(hepa_indoor, hepa_outdoor, by = c("indoor_date_round" = "outdoor_date_round"))
 
 # Renaming synced date columns back to just 'date'
 sham_joined_data$date <- sham_joined_data$indoor_date
@@ -124,12 +124,14 @@ hepa_joined_data <- select(hepa_joined_data, -contains("_date"))
 ```
 
 ```{r}
+# Visual check
 colnames(sham_joined_data)
 ```
 
-
 ### Compute indoor/outdoor ratios
-To ascertain whether changes in indoor air pollution are due to changes in indoor conditions, as opposed to changes in outdoor air pollution.
+To ascertain whether changes in indoor air pollution are due to changes in indoor conditions, as opposed to changes in outdoor air pollution. 
+
+Note that this dataframe would continue to have lots of NaN values where indoor and outdoor data are not available for a given time stamp. Once again, this is intentional to preserve as much raw data as possible.
 
 ```{r}
 # Function to calculate indoor-outdoor ratios
@@ -140,34 +142,41 @@ calc_ratios <- function(joined_data) {
   
   # Rename columns
   colnames(df_ratio) <- sub("indoor_", "ratio_", colnames(df_ratio))
-  # Merge back into original data-frame and return
+  # Merge back with joined dataframe and return
   cbind(joined_data, df_ratio)
 }
 ```
 ```{r}
-# Calculate ratios for sham and hepa data. Run this only ONCE!
+# Calculate ratios for sham and hepa data. 
 sham_joined_data <- calc_ratios(sham_joined_data)
 hepa_joined_data <- calc_ratios(hepa_joined_data)
 ```
 
 
+
+```{r}
+# Visual check
+colnames(hepa_joined_data)
+
+```
+
 ### Calculate various summary statistics of the data
-Now comes the step where we use all the processed and merged data so far to calculate summary statistics about indoor, outdoor, and ratio data.
+Now comes the step where we use all the processed data so far to calculate summary statistics about indoor, outdoor, and ratio data.
 ```{r}
 # Function to calculate mean, median, and various quantiles of a given vector
 sum_data <- function(time_series) {
-  my_mean <- mean(time_series)
-  quantiles <- quantile(time_series, probs=c(0.05, 0.25, 0.5, 0.75, 0.95), na.rm = TRUE)
+  # Calculate mean
+  my_mean <- mean(na.omit(time_series))
+  # Calculate median, 5th, 25th, 75th, and 95th percentile
+  quantiles <- quantile(na.omit(time_series), 
+    probs=c(0.05, 0.25, 0.5, 0.75, 0.95))
+  
   # Reorganizing vector so that mean and median are at beginning
   median <- quantiles[3]
   c("mean"=my_mean, median, quantiles[-3])
 }
 ```
 
-```{r}
-colnames(hepa_joined_data)
-
-```
 
 ```{r}
 # Compute the summary statistics for all columns except date (obviously)
@@ -176,72 +185,25 @@ summary_hepa <- apply(select(hepa_joined_data , -date), 2, sum_data)
 ```
 
 ```{r}
-head(summary_sham, 2)
-```
-
-
-
-```{r}
-# Function to calculate percent reduction between sham and hepa
-pr_func <- function(sham, hepa) {
-  100*(sham - hepa)/sham
-}
-```
-
-```{r}
-100*(summary_sham - summary_hepa)/summary_sham
+# Visual check
+summary_sham
 ```
 
 
 ```{r}
-s <- quantile(sham_indoor$indoor_pm25, probs=c(0.05, 0.25, 0.5, 0.75, 0.95), na.rm = TRUE)
-h <- quantile(hepa_indoor$indoor_pm25, probs=c(0.05, 0.25, 0.5, 0.75, 0.95), na.rm = TRUE)
-
+# Compute percentage reduction in all variables between sham and hepa
+perc_red <- 100*(summary_sham - summary_hepa)/summary_sham
 ```
 
 ```{r}
-m <- s[3]
-temp <- s[-3]
-temp_s <- c("mean"=mean(s), m, temp)
-temp_s
-```
-
-
-```{r}
-perc_reduct(s, h)
-```
-
-
-```{r}
-perc_reduct(si_mean, hi_mean)
+# Visual check
+perc_red
 ```
 
 ```{r}
-si_median <- median(sham_indoor$indoor_pm25, na.rm = TRUE)
-hi_median <- median(hepa_indoor$indoor_pm25, na.rm=TRUE)
-so_median <- median(sham_outdoor$outdoor_pm25, na.rm = TRUE)
-ho_median <- median(hepa_outdoor$outdoor_pm25, na.rm=TRUE)
-```
+# Save summary statistic files to CSVs
 
-```{r}
-si_median <- median(sham_indoor$indoor_pm25, na.rm = TRUE)
 ```
-
-
-```{r}
-100*(si_median - hi_median)/si_median
-```
-```{r}
-100*(so_median - ho_median)/so_median
-```
-```{r}
-100*((si_mean/so_mean) - (hi_mean/ho_mean))/(si_mean/so_mean)
-```
-
-```{r}
-100*((si_median/so_median) - (hi_median/ho_median))/(si_median/so_median)
-```
-
 
 
 ```{r}
