@@ -1,4 +1,4 @@
-# Data Extraction and Cleaning
+# HAFTRAP Data Cleaning and Summaries
 ```{r}
 # Imports
 library(tidyverse)
@@ -10,7 +10,7 @@ library(ggpmisc)
 ```
 
 ```{r}
-# Define indoor file to be imported, set time of HEPA purifier install
+# Define files to be imported
 is_file <- 'data/HAFTRAP_sham_indoor.csv'
 os_file <- 'data/HAFTRAP_sham_outdoor.csv'
 ih_file <- 'data/HAFTRAP_hepa_indoor.csv'
@@ -34,38 +34,70 @@ hepa_outdoor <- read.csv(oh_file)
 ```
 
 ```{r}
-# View dataframes
+# View sample of dataframe
 head(hepa_indoor, 5)
 ```
 
-
+### Reformatting timestamps
+Necessary since the timestamps from QuantAQ are in a weird format and need to be formatted to a format that works with the openair plotting package. An added column rounding the times to the nearest minute is calculated since two dataframes will be merged in the future based on time. 
 ```{r}
-# Reformat timestamps to time object
-
-sham_indoor$date <- as.POSIXct(strptime(sham_indoor$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
-sham_indoor$date_round <- round_date(sham_indoor$date, unit = "minute")
-
-sham_outdoor$date <- as.POSIXct(strptime(sham_outdoor$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
-sham_outdoor$date_round <- round_date(sham_outdoor$date, unit = "minute")
-
-hepa_indoor$date <- as.POSIXct(strptime(hepa_indoor$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
-hepa_indoor$date_round <- round_date(hepa_indoor$date, unit = "minute")
-
-hepa_outdoor$date <- as.POSIXct(strptime(hepa_outdoor$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
-hepa_outdoor$date_round <- round_date(hepa_outdoor$date, unit = "minute")
+# Function to reformat timestamps to time object and round to nearest minute
+improve_timestamps <- function(df) {
+  df %>%
+    # Reformat timestamps to sensible format
+    mutate(date = as.POSIXct(strptime(timestamp_local, 
+      format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))) %>%
+    # Round times to nearest minute
+    mutate(date_round = round_date(date, unit = "minute"))
+}
 ```
 
 ```{r}
+# Reformat timestamps and add rounding for future merges
+sham_indoor <- improve_timestamps(sham_indoor)
+sham_outdoor <- improve_timestamps(sham_outdoor)
+hepa_indoor <- improve_timestamps(hepa_indoor)
+hepa_outdoor <- improve_timestamps(hepa_outdoor)
+```
+
+```{r}
+# Check if data frame updated
 head(hepa_indoor, 3)
 ```
 
+### Particle counts and removing unnecessary data
+Alongside particle masses, we are concerned with the counts of particles that fall under certain size bins. To approximate the counts under pm1, sum up bin 0 to 2. Discard all other data columns that are not relevant.
 ```{r}
-# # Remove duplicate rows based on date
-# indoor_data <- distinct(indoor_data, indoor_data$date, .keep_all = TRUE)
-# outdoor_data <- distinct(outdoor_data, outdoor_data$date, .keep_all = TRUE)
+# function to calculate sums of particle counts, remove rest
+sum_bins <- function(df) {
+  df %>%
+    # Sum particle counts
+    mutate(pm1_num = bin0 + bin1 + bin2) %>%
+    # Delete unnecessary columns
+    select(pm1:pm1_num) %>%
+    select(-ends_with("_model_id"))
+}
 
 ```
 
+
+```{r}
+# Calculate particle counts and remove unnecessary columns
+sham_indoor <- sum_bins(sham_indoor)
+sham_outdoor <- sum_bins(sham_outdoor)
+hepa_indoor <- sum_bins(hepa_indoor)
+hepa_outdoor <- sum_bins(hepa_outdoor)
+
+```
+
+```{r}
+# View dataframe
+head(sham_indoor)
+```
+
+
+### Rename and merge
+Merge indoor and outdoor data into a single dataframe for easier comparison and calculation of correlation
 ```{r}
 # Append all variables with "outdoor_" or "indoor_" respectively
 colnames(sham_indoor) <- paste0('indoor_', colnames(sham_indoor))
@@ -77,49 +109,139 @@ colnames(hepa_outdoor) <- paste0('outdoor_', colnames(hepa_outdoor))
 
 ```{r, results = 'hide'}
 # Time-sync indoor, outdoor data
-# Join dataframes by syncing indoor_date and outdoor_date columns
-sham_joined_data <- left_join(sham_indoor, sham_outdoor, by = c("indoor_date_round" = "outdoor_date_round"))
+# Join dataframes by syncing rounded date columns. Run this only ONCE!
+sham_joined_data <- left_join(sham_indoor, sham_outdoor, by = c("indoor_date_round" = "outdoor_date_round")) %>% drop_na()
 
-hepa_joined_data <- left_join(hepa_indoor, hepa_outdoor, by = c("indoor_date_round" = "outdoor_date_round"))
+hepa_joined_data <- left_join(hepa_indoor, hepa_outdoor, by = c("indoor_date_round" = "outdoor_date_round")) %>% drop_na()
 
 # Renaming synced date columns back to just 'date'
 sham_joined_data$date <- sham_joined_data$indoor_date
-
 hepa_joined_data$date <- hepa_joined_data$indoor_date
 
-# Keeping distinct time-stamps
-sham_joined_data %>% distinct(sham_joined_data$indoor_date, .keep_all = TRUE);
+# Removing extra date columns
+sham_joined_data <- select(sham_joined_data, -contains("_date"))
+hepa_joined_data <- select(hepa_joined_data, -contains("_date"))
+```
 
-hepa_joined_data %>% distinct(hepa_joined_data$indoor_date, .keep_all = TRUE);
+```{r}
+colnames(sham_joined_data)
+```
 
-# # Attach for easier reference while graphing
-# attach(joined_data)
+
+### Compute indoor/outdoor ratios
+To ascertain whether changes in indoor air pollution are due to changes in indoor conditions, as opposed to changes in outdoor air pollution.
+
+```{r}
+# Function to calculate indoor-outdoor ratios
+calc_ratios <- function(joined_data) {
+  # Divide indoor by outdoor to calculate ratios
+  df_ratio <- select(joined_data, starts_with("indoor_"))/
+    select(joined_data, starts_with("outdoor_"))
+  
+  # Rename columns
+  colnames(df_ratio) <- sub("indoor_", "ratio_", colnames(df_ratio))
+  # Merge back into original data-frame and return
+  cbind(joined_data, df_ratio)
+}
+```
+```{r}
+# Calculate ratios for sham and hepa data. Run this only ONCE!
+sham_joined_data <- calc_ratios(sham_joined_data)
+hepa_joined_data <- calc_ratios(hepa_joined_data)
+```
+
+
+### Calculate various summary statistics of the data
+Now comes the step where we use all the processed and merged data so far to calculate summary statistics about indoor, outdoor, and ratio data.
+```{r}
+# Function to calculate mean, median, and various quantiles of a given vector
+sum_data <- function(time_series) {
+  my_mean <- mean(time_series)
+  quantiles <- quantile(time_series, probs=c(0.05, 0.25, 0.5, 0.75, 0.95), na.rm = TRUE)
+  # Reorganizing vector so that mean and median are at beginning
+  median <- quantiles[3]
+  c("mean"=my_mean, median, quantiles[-3])
+}
+```
+
+```{r}
+colnames(hepa_joined_data)
 
 ```
 
 ```{r}
-# #Initial time series
-timePlot(sham_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+# Compute the summary statistics for all columns except date (obviously)
+summary_sham <- apply(select(sham_joined_data , -date), 2, sum_data)
+summary_hepa <- apply(select(hepa_joined_data , -date), 2, sum_data)
+```
 
-timePlot(sham_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+```{r}
+head(summary_sham, 2)
+```
 
-timePlot(hepa_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
 
-timePlot(hepa_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+
+```{r}
+# Function to calculate percent reduction between sham and hepa
+pr_func <- function(sham, hepa) {
+  100*(sham - hepa)/sham
+}
+```
+
+```{r}
+100*(summary_sham - summary_hepa)/summary_sham
 ```
 
 
 ```{r}
-# Indoor data timevariation
-timeVariation(sham_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
+s <- quantile(sham_indoor$indoor_pm25, probs=c(0.05, 0.25, 0.5, 0.75, 0.95), na.rm = TRUE)
+h <- quantile(hepa_indoor$indoor_pm25, probs=c(0.05, 0.25, 0.5, 0.75, 0.95), na.rm = TRUE)
 
-timeVariation(hepa_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
-
-# Outdoor data timevariation
-timeVariation(sham_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
-
-timeVariation(hepa_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
 ```
+
+```{r}
+m <- s[3]
+temp <- s[-3]
+temp_s <- c("mean"=mean(s), m, temp)
+temp_s
+```
+
+
+```{r}
+perc_reduct(s, h)
+```
+
+
+```{r}
+perc_reduct(si_mean, hi_mean)
+```
+
+```{r}
+si_median <- median(sham_indoor$indoor_pm25, na.rm = TRUE)
+hi_median <- median(hepa_indoor$indoor_pm25, na.rm=TRUE)
+so_median <- median(sham_outdoor$outdoor_pm25, na.rm = TRUE)
+ho_median <- median(hepa_outdoor$outdoor_pm25, na.rm=TRUE)
+```
+
+```{r}
+si_median <- median(sham_indoor$indoor_pm25, na.rm = TRUE)
+```
+
+
+```{r}
+100*(si_median - hi_median)/si_median
+```
+```{r}
+100*(so_median - ho_median)/so_median
+```
+```{r}
+100*((si_mean/so_mean) - (hi_mean/ho_mean))/(si_mean/so_mean)
+```
+
+```{r}
+100*((si_median/so_median) - (hi_median/ho_median))/(si_median/so_median)
+```
+
 
 
 ```{r}
@@ -131,6 +253,7 @@ hepa_corr_data <- select(hepa_joined_data, indoor_pm1, indoor_pm25, indoor_pm10,
 N <- cor(na.omit(hepa_corr_data), use = "p")
 corrplot(N, method = 'color', main = "HEPA Correlation Plot")
 ```
+
 
 ```{r}
 # Sham Indoor PM 1 vs. Indoor PM 2.5
@@ -211,39 +334,28 @@ ggplot(hepa_joined_data, aes(x = indoor_pm1, y = outdoor_pm1)) +
                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
 ```
 
-```{r}
-si_mean <- mean(sham_indoor$indoor_pm25, na.rm = TRUE)
-hi_mean <- mean(hepa_indoor$indoor_pm25, na.rm=TRUE)
-so_mean <- mean(sham_outdoor$outdoor_pm25, na.rm = TRUE)
-ho_mean <- mean(hepa_outdoor$outdoor_pm25, na.rm=TRUE)
 
 
+```{r}
+# #Initial time series
+timePlot(sham_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+
+timePlot(sham_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+
+timePlot(hepa_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+
+timePlot(hepa_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
 ```
 
-```{r}
-100*(si_mean - hi_mean)/si_mean
-```
-```{r}
-100*(so_mean - ho_mean)/so_mean
-```
 
 ```{r}
-si_median <- median(sham_indoor$indoor_pm25, na.rm = TRUE)
-hi_median <- median(hepa_indoor$indoor_pm25, na.rm=TRUE)
-so_median <- median(sham_outdoor$outdoor_pm25, na.rm = TRUE)
-ho_median <- median(hepa_outdoor$outdoor_pm25, na.rm=TRUE)
-```
+# Indoor data timevariation
+timeVariation(sham_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
 
-```{r}
-100*(median(sham_indoor$indoor_pm25, na.rm = TRUE) - median(hepa_indoor$indoor_pm25, na.rm=TRUE))/median(sham_indoor$indoor_pm25, na.rm=TRUE)
-```
-```{r}
-100*(median(sham_outdoor$outdoor_pm25, na.rm = TRUE) - median(hepa_outdoor$outdoor_pm25, na.rm=TRUE))/median(sham_outdoor$outdoor_pm25, na.rm=TRUE)
-```
-```{r}
-100*((si_mean/so_mean) - (hi_mean/ho_mean))/(si_mean/so_mean)
-```
+timeVariation(hepa_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
 
-```{r}
-100*((si_median/so_median) - (hi_median/ho_median))/(si_median/so_median)
+# Outdoor data timevariation
+timeVariation(sham_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
+
+timeVariation(hepa_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
 ```
