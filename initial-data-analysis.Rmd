@@ -95,13 +95,13 @@ timeVariation(joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor
 ```{r}
 indoor_cordata <- select(joined_data, indoor_pm1, indoor_pm25, indoor_pm10)
 N <- cor(na.omit(indoor_cordata), use = "p")
-corrplot(N, method = 'number')
+corrplot(N, method = 'color')
 ```
 
 ```{r}
 outdoor_cordata <- select(outdoor_data, outdoor_pm1, outdoor_pm25, outdoor_pm10)
 N <- cor(na.omit(outdoor_cordata), use = "p")
-corrplot(N, method = 'number')
+corrplot(N, method = 'color')
 ```
 
 ```{r}
@@ -112,150 +112,5 @@ ggplot(joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
   stat_poly_eq(formula = x ~ y,
                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
 ```
-# Initial decay analysis testing for only pm1
 
-```{r}
-# Imports
-library(reticulate)
-library(pracma)
-library(dplyr)
-```
-
-```{r}
-# Get indoor/outdoor ratio and add that to dataframe
-joined_data$in_out_pm1 <-
-    joined_data$indoor_pm1 / joined_data$outdoor_pm1
-```
-
-```{r}
-# Create separate variables to replace NA values
-in_out_pm1 <- joined_data$in_out_pm1
-```
-
-```{r}
-# Replace NA values with 0
-in_out_pm1[is.na(in_out_pm1)] <- 0
-```
-
-```{r}
-# Plot indoor/outdoor ratios for each pollutant
-timePlot(joined_data, pollutant = 'in_out_pm1', normalize = TRUE)
-```
-
-```{r}
-# Find peaks and store in new dataframe
-peaks_pm1 <- findpeaks(in_out_pm1,
-                   nups = 1,
-                   ndowns = 1,
-                   minpeakheight = 10,
-                   minpeakdistance = 200,
-                   threshold = 0)
-```
-
-```{r}
-# Find the first valley after each peak
-valleys_pm1 <- get_first_valleys(in_out_pm1, peaks_pm1, 2)
-```
-
-```{r}
-# Find the decay value (k constant) for each peak
-decays_pm1 <- curve_fitting(in_out_pm1, peaks_pm1, valleys_pm1)
-```
-
-```{r}
-# Plot the peaks and valleys on top of current time series
-plot(in_out_pm1,
-  type = "l",
-  main = "Indoor/Outdoor Ratio",
-  xlab = "Time (indices)",
-  ylab = "Ratio of indoor/outdoor concentrations",
-  col = "navy")
-  grid()
-points(peaks_pm1[, 2], peaks_pm1[, 1], pch = 20, col = "maroon")
-points(valleys_pm1[, 2], valleys_pm1[, 1], pch = 20, col = "green")
-```
-
-```{r}
-# Necessary functions to find valleys and decay constants
-get_first_valleys <- function(data, peaks, min_threshold) {
-  # Iterate through rows of peaks matrix
-  valley_mat <- matrix(nrow = nrow(peaks), ncol = 2)
-  for (row in 1:nrow(peaks)) { #nolint
-    idx <- peaks[row, 2]
-    n <- TRUE
-    # create while loop to check for local minima
-    while (n) {
-      # if we're at the end of y, break out of loop
-      if (idx == length(data)) {
-        n <- FALSE
-      } else {
-        # otherwise, get slope (approximately)
-        # NOTE: difference between idx and (idx+1) is 1
-        slope <- data[idx + 1] - data[idx]
-        if (data[idx] <= min_threshold && slope > 0) {
-          n <- FALSE
-        } else {
-          idx <- idx + 1
-        }
-      }
-    }
-    # set values of matrix so that column 1 is height of valley and 2 is index
-    valley_mat[row, 1] <- data[idx]
-    valley_mat[row, 2] <- idx
-  }
-  valley_mat
-}
- 
-curve_fitting <- function(data, peaks, valleys) {
-    # Create empty DataFrame for storing k values
-  alphas.data <- data.frame(
-    "peak_idx" = numeric(0),
-    "valley_idx" = numeric(0),
-    "peak_hgt" = numeric(0),
-    "k_val" = numeric(0),
-    "conv_tol" = numeric(0)
-  )
-  # Define parameters for curve fitting function for each row
-  for (row in 1:nrow(peaks)) { # nolint
-    row <- as.double(row)
-    i_range <- peaks[row, 2]:valleys[row, 2]
-    sect <- data[i_range]
-    t <- i_range - peaks[row, 2] + 1
-    df <- data.frame(t = t, y = sect)
-    # Get exponential fit
-    nlc <- nls.control(maxiter = 1000)
-    fit <- try(nls(y ~ SSasymp(t, yf, y0, log_alpha), data = df, control = nlc))
-    if (class(fit) != "nls") {
-      next
-    }
-    # Get parameters of the fit
-    params <- coef(fit)
-    # Extract the log_alpha value and put it in form e^(log(a)) to get a
-    log_alpha <- as.double(params["log_alpha"])
-    alpha <- exp(log_alpha)
-    # Get achieved convergence tolerance as metric for accuracy of fit
-    # NOTE: R^2 value can be calculated but is not a useful metric
-    # for nonlinear models
-    conv <- fit$convInfo$finTol
-    # Add alpha to dataframe
-    alphas.newdata <- data.frame(
-      "peak_idx" = c(peaks[row, 2]),
-      "valley_idx" = c(valleys[row, 2]),
-      "peak_hgt" = c(peaks[row, 1]),
-      "k_val" = c(alpha),
-      "conv_tol" = c(conv)
-    )
-    alphas.data <- rbind(alphas.data, alphas.newdata)
-  }
-  alphas.data <- arrange_all(alphas.data)
-}
-```
-
-## Questions for Scott
-1) What is sample_rh, sample_pres in mod_PM dataset - relative humidity, temperature
-2) Do we filter for rows where device is only ACTIVE - yes
-3) No duplicate rows so far - do we need that code chunk?
-4) Committing data files to github- is this a good idea and what are alternatives?
-5) How does dataframe merging work if the timestamps are continuous and not exactly synced?? Aren't most values just going to be NAN then? (Update: joined data does not plot) - round to minute, merge on dummy vectors.
-6) What counts as high enough correlation to scatterplot?
 
