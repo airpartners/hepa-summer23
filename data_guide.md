@@ -2,11 +2,9 @@
 title: Data Guide for Air Partners
 ---
 
-# Data Guide
 
 This document describes the organization of data, code files, and outputs in the Summer 2023 phase of the Air Partners HEPA air purifier pilot. The reliability and continued maintenance of this document cannot be guaranteed after August 4, 2023. The information in this document assumes reasonable familiarity with this project. For further questions regarding this document, feel free to contact [Vedaant Kuchhal](mailto:vedaantk22@gmail.com).
 
----
 
 ## Location Coding
 At its very core, the location where data is collected central to categorizing the data, analyzing it, and interpreting insights. For this reason, all files will be coded by a standard set of location codes. The following codes will be used to organize folders, name data files, and refer to locations throughout this repository:
@@ -36,7 +34,7 @@ HAFTRAP:
 ## Data Pipeline
 The data pipeline for this project can be considered to be made up of four components [maybe redo this as a simple figure later]:
 
-Raw data --> Data Processing --> Summative Figures and Reports --> Final Insight Generation
+Raw data --> Data Processing --> Summative Statistics and Figures --> Final Insight Generation
 
 Each of these components has multiple file types and layers of complexity, and the structure of these is dictated in detail in this document. It’s important to note that, to maintain code modularity, the actual nature of the project and analysis won’t be apparent until the description of component 4. The explanation in each section in this guide assumes knowledge from all preceding sections.
 
@@ -45,7 +43,13 @@ Each component will have its own folder with uniquely named files. It's importan
 Let’s walk through each of the components:
 
 ## Raw Data
-Raw data is the original, ‘on the ground’ data collected by multiple kinds of sensors as well as people. All files in this component is stored in the `data` folder. This component of the pipeline contains the most files and therefore requires a clear naming system and hierarchical organization structure for best file management. As a result, this component is outlined in two parts:
+Raw data is the original, ‘on the ground’ data collected by multiple kinds of sensors as well as people. All files in this component is stored in the `data` folder. Crucially, *this folder is not tracked by Git*. Since committing multiple large data files would greatly slow down Git and Github and is generally considered bad practice, this folder is instead hosted on Google Drive for Air Partners 2023 in the [Data for Codebase](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n) folder. 
+
+To get or update to the latest version of the data, navigate to the provided link and download the `data` folder inside it. The folder will be downloaded as a ZIP which should then be extracted. Move the extracted `data` folder (it should have four direct sub-folders specifying the regions) to the root folder of the `hepa-summer23` respository clone, i.e. the same location where this data guide is hosted. In case the folder name is changed during download/unzipping, rename it to `data` otherwise the file paths won't work. The folder should be untracked automatically by the `.gitignore` so modifying it shouldn't make a difference.
+
+**To add/delete/reorganize files in this folder, always do it in the Google Drive and download to PC. Do *not* make changes your local copy of this folder. They will not be reflected anywhere else.**
+
+This component of the pipeline contains the most files and therefore requires a clear naming system and hierarchical organization structure for best file management. As a result, this component is outlined in two parts:
 
 1. File Categorization and Naming
 2. Folder Organization Structure. 
@@ -68,7 +72,7 @@ Each sensor has an ID number that uniquely identifies it (regardless of where it
 
 1. Regular: in this case, the sensor stays in one place for the entire duration of data sampling and is identified by its unique sensor ID.
 
-2. HAFTRAP: In this case, the sensors were actually moved from one place to another in separate deployments happening weeks apart. The sensor ID is actually irrelevant in this case since the same sensor was moved into different places. Therefore, the data in this case is coded by the *participant* ID. 
+2. HAFTRAP: In this case, the sensors were actually moved from one place to another in separate deployments happening weeks apart. The sensor ID is irrelevant since the same sensor was moved into different places. Therefore, the data in this case is coded by the *participant* ID. 
 
 In addition to the IDs, the following suffixes are used:
 
@@ -104,4 +108,8 @@ This component of the pipeline concerns code files that are used to clean, filte
 * `initial_data_analysis.Rmd`: Is a starter file to quickly build up working filter, cleaning, and analysis code. Kind of like a play testing war zone, ignore this file if you're trying to comprehend clean, logical code.
 
 HAFTRAP:
+
 * `haftrap_DR1_analysis.Rmd`: The DR1 stands for "Design Review One". It initiall contained scrappily-written code for a design review with Doug Brugge, but now should have a clean pipeline to compute summary statistics from one participant's deployment with sham and true sensors.
+
+## Summative Statistics and Figures
+

@@ -37,3 +37,5 @@ initial-data-analysis.html
 hepa-summer23.Rproj
 data_guide.html
 haftrap_DR1_analysis.html
+# Folder for raw data
+data/

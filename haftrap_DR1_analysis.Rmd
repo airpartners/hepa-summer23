@@ -200,124 +200,146 @@ perc_red <- 100*(summary_sham - summary_hepa)/summary_sham
 perc_red
 ```
 
+
+### Calculate correlation matrices
+Helps better understand the relationship between different variables in sham and true HEPA conditions.
+```{r}
+# Function to calculate correlation matrices
+get_corr <- function (joined_data) {
+  joined_data %>%
+    # Select all columns except date
+    select(-date) %>%
+    # Remove NaN values
+    na.omit() %>%
+    # Calculate correlations for all complete pairs
+    cor(use = "p")
+}
+```
+
+```{r}
+# Calculate correlation matrices for sham and hepa
+N_sham <- get_corr(sham_joined_data)
+N_hepa <- get_corr(hepa_joined_data)
+```
+
+
+### Save to file
+Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
 ```{r}
 # Save summary statistic files to CSVs
 
 ```
 
-
+### Plotting
+(We'll get to this eventually - may not be required.)
 ```{r}
-sham_corr_data <- select(sham_joined_data, indoor_pm1, indoor_pm25, indoor_pm10, outdoor_pm1, outdoor_pm25, outdoor_pm10)
-N <- cor(na.omit(sham_corr_data), use = "p")
-corrplot(N, method = 'color', main = "Sham Correlation Plot")
-
-hepa_corr_data <- select(hepa_joined_data, indoor_pm1, indoor_pm25, indoor_pm10, outdoor_pm1, outdoor_pm25, outdoor_pm10)
-N <- cor(na.omit(hepa_corr_data), use = "p")
-corrplot(N, method = 'color', main = "HEPA Correlation Plot")
+# # Plot correlation plots
+# corrplot(N_sham, method = 'color', main = "Sham Correlation Plot")
+# corrplot(N_hepa, method = 'color', main = "HEPA Correlation Plot")
 ```
 
 
 ```{r}
-# Sham Indoor PM 1 vs. Indoor PM 2.5
-ggplot(sham_joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = expression("Sham Correlation Plot (Indoor PM"[1]*" vs. Indoor PM"[2.5]*")"), x = expression("Indoor PM"[1]), y = expression("Indoor PM"[2.5])) +
-  stat_poly_eq(formula = x ~ y,
-               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
-
-# Sham Outdoor PM 1 vs. Outdoor PM 2.5
-ggplot(sham_joined_data, aes(x = outdoor_pm1, y = outdoor_pm25)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = "Sham Correlation Plot (Outdoor PM1 vs. Outdoor PM2.5)", x = "Outdoor PM1", y = "Outdoor PM2.5") +
-  stat_poly_eq(formula = x ~ y,
-               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
-
-# HEPA Indoor PM 1 vs. Indoor PM 2.5
-ggplot(hepa_joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = "HEPA Correlation Plot (Indoor PM1 vs. Indoor PM2.5)", x = "Indoor PM1", y = "Indoor PM2.5") +
-  stat_poly_eq(formula = x ~ y,
-               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
-
-# HEPA Indoor PM 2.5 vs. Indoor PM 10
-ggplot(hepa_joined_data, aes(x = indoor_pm25, y = indoor_pm10)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = "HEPA Correlation Plot (Indoor PM2.5 vs. Indoor PM10)", x = "Indoor PM2.5", y = "Indoor PM10") +
-  stat_poly_eq(formula = x ~ y,
-               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
-
-# HEPA Outdoor PM 2.5 vs. Outdoor PM 10
-ggplot(hepa_joined_data, aes(x = outdoor_pm25, y = outdoor_pm10)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = "HEPA Correlation Plot (Outdoor PM2.5 vs. Outdoor PM10)", x = "Outdoor PM2.5", y = "Outdoor PM10") +
-  stat_poly_eq(formula = x ~ y,
-               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
-
-# HEPA Indoor PM 2.5 vs. Outdoor PM 2.5
-ggplot(hepa_joined_data, aes(x = indoor_pm25, y = outdoor_pm25)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = "HEPA Correlation Plot (Indoor PM2.5 vs. Outdoor PM2.5)", x = "Indoor PM2.5", y = "Outdoor PM2.5") +
-  stat_poly_eq(formula = x ~ y,
-               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
-
-# Sham Indoor PM 2.5 vs. Outdoor PM 2.5
-ggplot(sham_joined_data, aes(x = indoor_pm25, y = outdoor_pm25)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = "Sham Correlation Plot (Indoor PM2.5 vs. Outdoor PM2.5)", x = "Indoor PM2.5", y = "Outdoor PM2.5") +
-  stat_poly_eq(formula = x ~ y,
-               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
-
-
-```
-```{r}
-# Sham Indoor PM 1 vs. Outdoor PM 1
-ggplot(sham_joined_data, aes(x = indoor_pm1, y = outdoor_pm1)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = "Sham Correlation Plot (Indoor PM1 vs. Outdoor PM1)", x = "Indoor PM10", y = "Outdoor PM1") +
-  stat_poly_eq(formula = x ~ y,
-               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
-```
-
-```{r}
-# Hepa Indoor PM 1 vs. Outdoor PM 1
-ggplot(hepa_joined_data, aes(x = indoor_pm1, y = outdoor_pm1)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
-  labs(title = "Hepa Correlation Plot (Indoor PM1 vs. Outdoor PM1)", x = "Indoor PM1", y = "Outdoor PM1") +
-  stat_poly_eq(formula = x ~ y,
-               aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+# # Sham Indoor PM 1 vs. Indoor PM 2.5
+# ggplot(sham_joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
+#   geom_point(alpha = 0.1) +
+#   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+#   labs(title = expression("Sham Correlation Plot (Indoor PM"[1]*" vs. Indoor PM"[2.5]*")"), x = expression("Indoor PM"[1]), y = expression("Indoor PM"[2.5])) +
+#   stat_poly_eq(formula = x ~ y,
+#                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+# 
+# # Sham Outdoor PM 1 vs. Outdoor PM 2.5
+# ggplot(sham_joined_data, aes(x = outdoor_pm1, y = outdoor_pm25)) +
+#   geom_point(alpha = 0.1) +
+#   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+#   labs(title = "Sham Correlation Plot (Outdoor PM1 vs. Outdoor PM2.5)", x = "Outdoor PM1", y = "Outdoor PM2.5") +
+#   stat_poly_eq(formula = x ~ y,
+#                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+# 
+# # HEPA Indoor PM 1 vs. Indoor PM 2.5
+# ggplot(hepa_joined_data, aes(x = indoor_pm1, y = indoor_pm25)) +
+#   geom_point(alpha = 0.1) +
+#   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+#   labs(title = "HEPA Correlation Plot (Indoor PM1 vs. Indoor PM2.5)", x = "Indoor PM1", y = "Indoor PM2.5") +
+#   stat_poly_eq(formula = x ~ y,
+#                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+# 
+# # HEPA Indoor PM 2.5 vs. Indoor PM 10
+# ggplot(hepa_joined_data, aes(x = indoor_pm25, y = indoor_pm10)) +
+#   geom_point(alpha = 0.1) +
+#   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+#   labs(title = "HEPA Correlation Plot (Indoor PM2.5 vs. Indoor PM10)", x = "Indoor PM2.5", y = "Indoor PM10") +
+#   stat_poly_eq(formula = x ~ y,
+#                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+# 
+# # HEPA Outdoor PM 2.5 vs. Outdoor PM 10
+# ggplot(hepa_joined_data, aes(x = outdoor_pm25, y = outdoor_pm10)) +
+#   geom_point(alpha = 0.1) +
+#   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+#   labs(title = "HEPA Correlation Plot (Outdoor PM2.5 vs. Outdoor PM10)", x = "Outdoor PM2.5", y = "Outdoor PM10") +
+#   stat_poly_eq(formula = x ~ y,
+#                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+# 
+# # HEPA Indoor PM 2.5 vs. Outdoor PM 2.5
+# ggplot(hepa_joined_data, aes(x = indoor_pm25, y = outdoor_pm25)) +
+#   geom_point(alpha = 0.1) +
+#   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+#   labs(title = "HEPA Correlation Plot (Indoor PM2.5 vs. Outdoor PM2.5)", x = "Indoor PM2.5", y = "Outdoor PM2.5") +
+#   stat_poly_eq(formula = x ~ y,
+#                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+# 
+# # Sham Indoor PM 2.5 vs. Outdoor PM 2.5
+# ggplot(sham_joined_data, aes(x = indoor_pm25, y = outdoor_pm25)) +
+#   geom_point(alpha = 0.1) +
+#   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+#   labs(title = "Sham Correlation Plot (Indoor PM2.5 vs. Outdoor PM2.5)", x = "Indoor PM2.5", y = "Outdoor PM2.5") +
+#   stat_poly_eq(formula = x ~ y,
+#                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
+# 
+# 
+# ```
+# ```{r}
+# # Sham Indoor PM 1 vs. Outdoor PM 1
+# ggplot(sham_joined_data, aes(x = indoor_pm1, y = outdoor_pm1)) +
+#   geom_point(alpha = 0.1) +
+#   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+#   labs(title = "Sham Correlation Plot (Indoor PM1 vs. Outdoor PM1)", x = "Indoor PM10", y = "Outdoor PM1") +
+#   stat_poly_eq(formula = x ~ y,
+#                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
 ```
 
-
-
 ```{r}
-# #Initial time series
-timePlot(sham_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
-
-timePlot(sham_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
-
-timePlot(hepa_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
-
-timePlot(hepa_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+# # Hepa Indoor PM 1 vs. Outdoor PM 1
+# ggplot(hepa_joined_data, aes(x = indoor_pm1, y = outdoor_pm1)) +
+#   geom_point(alpha = 0.1) +
+#   geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+#   labs(title = "Hepa Correlation Plot (Indoor PM1 vs. Outdoor PM1)", x = "Indoor PM1", y = "Outdoor PM1") +
+#   stat_poly_eq(formula = x ~ y,
+#                aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")))
 ```
 
 
+
 ```{r}
-# Indoor data timevariation
-timeVariation(sham_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
+# # #Initial time series
+# timePlot(sham_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+# 
+# timePlot(sham_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor Sham Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+# 
+# timePlot(hepa_joined_data, pollutant = c('indoor_pm1', 'indoor_pm25', 'indoor_pm10'), main = "Indoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+# 
+# timePlot(hepa_joined_data, pollutant = c('outdoor_pm1', 'outdoor_pm25', 'outdoor_pm10'), main = "Outdoor HEPA Data", normalize = TRUE, name.pol = c("pm1", "pm25", "pm10"))
+```
 
-timeVariation(hepa_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
 
-# Outdoor data timevariation
-timeVariation(sham_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
-
-timeVariation(hepa_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
+```{r}
+# # Indoor data timevariation
+# timeVariation(sham_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
+# 
+# timeVariation(hepa_joined_data, pollutant = c("indoor_pm1", "indoor_pm25", "indoor_pm10"))
+# 
+# # Outdoor data timevariation
+# timeVariation(sham_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
+# 
+# timeVariation(hepa_joined_data, pollutant = c("outdoor_pm1", "outdoor_pm25", "outdoor_pm10"))
 ```
