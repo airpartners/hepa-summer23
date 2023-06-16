@@ -85,10 +85,7 @@ Each deployment has an ID number that uniquely identifies it, but to make this p
 | OH | Study Participant # |
 | TU | TBD |
 
-
-1. Regular: in this case, the sensor stays in one place for the entire duration of data sampling and is identified by its unique sensor ID.
-
-2. HAFTRAP: In this case, the sensors were actually moved from one place to another in separate deployments happening weeks apart. The sensor ID is irrelevant since the same sensor was moved into different places. Therefore, the data in this case is coded by the *participant* ID. 
+#### Suffix
 
 In addition to the IDs, the following suffixes are used:
 
@@ -101,7 +98,7 @@ d) `_hepa`: True HEPA purifier deployment
 
 #### Naming Convention
 Therefore, raw data files are labelled with the following naming convention:
-`LocationCode_SensorCode_ID`
+`LocationCode_SensorCode_ID_suffix`
 
 Examples:
 
@@ -118,14 +115,27 @@ As a reminder, all raw data files are stored in a folder named `data`. Here’s 
 *	Each location folder is further subdivided into folders by sensor type. The folders are named by a sensible lowercase abbreviation of the sensor type (e.g.- `modpm`, `hobo`, `cpc`). The only exception for this is field notes, where there is usually one file for each location and therefore the file will directly be placed in the location folder.
 * Therefore, for example, the data for Modulair-PM sensor number 221 for Cardinal Medeiros in Roxbury can be found in `data --> Roxbury --> CM --> modpm --> CM_M_221_indoor.csv` and its relevant field notes can be found in `data --> Roxbury --> CM --> CM_N.csv`.
 
-## Data Processing
+## Initial Analysis
 This component of the pipeline concerns code files that are used to clean, filter, and summarize the raw data. They are usually in the form of various scripts in R markdown that handle multiple, complex types of raw data. Here is a description of each code file:
 
 * `initial_data_analysis.Rmd`: Is a starter file to quickly build up working filter, cleaning, and analysis code. Kind of like a play testing war zone, ignore this file if you're trying to comprehend clean, logical code.
 
 HAFTRAP:
 
-* `haftrap_DR1_analysis.Rmd`: The DR1 stands for "Design Review One". It initiall contained scrappily-written code for a design review with Doug Brugge, but now should have a clean pipeline to compute summary statistics from one participant's deployment with sham and true sensors.
+* `haftrap_OH_single_summary.Rmd`: The DR1 stands for "Design Review One". It initially contained scrappily-written code for a design review with Doug Brugge, but now should have a clean pipeline to compute summary statistics from one participant's deployment with sham and true sensors.
 
-## Summative Statistics and Figures
+## Summary Data
+Summary data is the output of the code in Initial Analysis. It contains summary statistics, key figures, and other insights at the participant level. All summary data is stored in the `summary` folder.
 
+Luckily for you, summary data follows the exact same organization and naming structure as Raw Data! To reference that structure, click [here](#file-categorization-and-naming).
+
+There are two key differences with Summary Data compared to Raw Data:
+
+1) The `summary` folder *is* tracked by Git. This is because the summary data files are much tinier than the raw data they are produced from. Committing CSV files around the size of 3 kilobytes doesn't greatly slow down Git.
+
+2) While the files follow the same file naming structure, they are prepended with the suffix `s_` to distinguish them as summary data files. Additionally, a different set of suffixes is used:
+
+* `quants` contains summary statistics such as mean, median, 5th, 25th, 75th, and 95th percentile.
+* `corr` contains the correlation matrix for the dataset analyzed
+
+Note that other [suffixes from the raw data naming](#suffix), such as `_sham`, may also be used.
