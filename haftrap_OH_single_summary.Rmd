@@ -12,10 +12,10 @@ library(ggpmisc)
 
 ```{r}
 # Define files to be imported
-is_file <- 'data/HAFTRAP/OL/modpm/OL_M_41181_sham_indoor.csv'
-os_file <- 'data/HAFTRAP/OL/modpm/OL_M_41181_sham_outdoor.csv'
-ih_file <- 'data/HAFTRAP/OL/modpm/OL_M_41181_hepa_indoor.csv'
-oh_file <- 'data/HAFTRAP/OL/modpm/OL_M_41181_hepa_outdoor.csv'
+is_file <- 'data/HAFTRAP/OH/modpm/OH_M_41181_sham_indoor.csv'
+os_file <- 'data/HAFTRAP/OH/modpm/OH_M_41181_sham_outdoor.csv'
+ih_file <- 'data/HAFTRAP/OH/modpm/OH_M_41181_hepa_indoor.csv'
+oh_file <- 'data/HAFTRAP/OH/modpm/OH_M_41181_hepa_outdoor.csv'
 ```
 
 ### Import and prepare data
@@ -149,6 +149,7 @@ calc_ratios <- function(joined_data) {
   cbind(joined_data, df_ratio)
 }
 ```
+
 ```{r}
 # Calculate ratios for sham and hepa data. 
 sham_joined_data <- calc_ratios(sham_joined_data)
@@ -204,7 +205,7 @@ head(perc_redu, 2)
 ```
 
 ```{r}
-# Rename columns to unique category. Run this block only ONCE!
+# Rename columns. Run this block only ONCE!
 
 # Append 'sham_' to all sham summary columns
 colnames(summary_sham) <- paste("sham", colnames(summary_sham), sep = "_")
@@ -255,7 +256,7 @@ head(N_sham, 2)
 Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
 ```{r}
 # Save summary statistic files to CSVs
-write.csv(summary_all, "summary/HAFTRAP/OL/modpm/s_OL_M_41181_quants.csv")
-write.csv(N_sham, "summary/HAFTRAP/OL/modpm/s_OL_M_41181_corr_sham.csv")
-write.csv(N_hepa, "summary/HAFTRAP/OL/modpm/s_OL_M_41181_corr_hepa.csv")
+write.csv(summary_all, "summary/HAFTRAP/OH/modpm/s_OH_M_41181_quants.csv")
+write.csv(N_sham, "summary/HAFTRAP/OH/modpm/s_OH_M_41181_corr_sham.csv")
+write.csv(N_hepa, "summary/HAFTRAP/OH/modpm/s_OH_M_41181_corr_hepa.csv")
 ```

@@ -7,45 +7,47 @@ This document describes the organization of data, code files, and outputs in the
 
 
 ## Location Coding
-At its very core, the location where data is collected central to categorizing the data, analyzing it, and interpreting insights. For this reason, all files will be coded by a standard set of location codes. The following codes will be used to organize folders, name data files, and refer to locations throughout this repository:
+At its very core, the location where data is collected central to categorizing the data, analyzing it, and interpreting insights. For this reason, a standard set of location codes will be used throughout this project. 
+
+The following codes will be used to organize folders, name files, and refer to locations throughout this repository:
 
 Roxbury:
 
-1. CM – Cardinal Medeiros, an elderly care [? Check with team] building in Roxbury.
-2. IB – Indigo Block, an affordable housing [? Check with team] building in Roxbury.
-3. RH – Individual homes in Roxbury.
+1. CM – Cardinal Medeiros, an elderly care [? Check with team] building in Roxbury. Unique identification by apartment number.
+2. IB – Indigo Block, an affordable housing [? Check with team] building in Roxbury. Unique identification by apartment number.
+3. RH – Individual homes in Roxbury. Unique identification by participant serial number (Participant # 1, 2, 3 etc.).
 
 East Boston:
 
-4. DC – Daycares in East Boston
-5. PS – Pre-schools in East Boston
+4. DC – Daycares in East Boston [ask Scott]
+5. PS – Pre-schools in East Boston [ask Scott]
 
 Revere:
 
-6. CH – City Hall of Revere
-7. HS – High school in Revere
+6. CH – City Hall of Revere [ask Scott]
+7. HS – High school in Revere [ask Scott]
 
 HAFTRAP:
 
-8. SC - HAFTRAP data from SCOPE project
-9. OL - Olin's HAFTRAP data
-10. TU - Tuft's HAFTRAP data
+8. SC - HAFTRAP data from SCOPE project. Unique identification by study participant number. [follow up with Francesca]
+9. OH - Olin's HAFTRAP data. Unique identification by study participant number.
+10. TU - Tuft's HAFTRAP data [chaos TBD]
 
 ## Data Pipeline
-The data pipeline for this project can be considered to be made up of four components [maybe redo this as a simple figure later]:
+The data pipeline for this project can be considered to be made up of four components:
 
-Raw data --> Data Processing --> Summative Statistics and Figures --> Final Insight Generation
-
-Each of these components has multiple file types and layers of complexity, and the structure of these is dictated in detail in this document. It’s important to note that, to maintain code modularity, the actual nature of the project and analysis won’t be apparent until the description of component 4. The explanation in each section in this guide assumes knowledge from all preceding sections.
+![](.pipeline.png)
 
 Each component will have its own folder with uniquely named files. It's important to note that these folder may be nested [include final diagram of final structure of four folders once finalized].
 
-Let’s walk through each of the components:
+Let's walk through each of these components:
 
 ## Raw Data
-Raw data is the original, ‘on the ground’ data collected by multiple kinds of sensors as well as people. All files in this component is stored in the `data` folder. Crucially, *this folder is not tracked by Git*. Since committing multiple large data files would greatly slow down Git and Github and is generally considered bad practice, this folder is instead hosted on Google Drive for Air Partners 2023 in the [Data for Codebase](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n) folder. 
+Raw data is the original, ‘on the ground’ data collected by multiple kinds of sensors as well as people. 
 
-To get or update to the latest version of the data, navigate to the provided link and download the `data` folder inside it. The folder will be downloaded as a ZIP which should then be extracted. Move the extracted `data` folder (it should have four direct sub-folders specifying the regions) to the root folder of the `hepa-summer23` respository clone, i.e. the same location where this data guide is hosted. In case the folder name is changed during download/unzipping, rename it to `data` otherwise the file paths won't work. The folder should be untracked automatically by the `.gitignore` so modifying it shouldn't make a difference.
+All files in this component is stored in the `data` folder. Crucially, *this folder is not tracked by Git*. Since committing multiple large data files would greatly slow down Git and Github and is generally considered bad practice, this folder is instead hosted on Google Drive for Air Partners 2023 in the [Data for Codebase](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n) folder. 
+
+To get or update to the latest version of the data, navigate to the provided link and download the `data` folder inside it. The folder will be downloaded as a ZIP which should then be extracted. Move the extracted `data` folder (it should have four direct sub-folders specifying the regions) to the root folder of the `hepa-summer23` respository clone, i.e. the same location where this data guide is hosted. In case the folder name is changed during download/unzipping, rename it to `data` otherwise the file paths won't work. The folder should be untracked automatically by the `.gitignore` so modifying or replacing it shouldn't make a difference.
 
 **To add/delete/reorganize files in this folder, always do it in the Google Drive and download to PC. Do *not* make changes your local copy of this folder. They will not be reflected anywhere else.**
 
@@ -58,17 +60,31 @@ This component of the pipeline contains the most files and therefore requires a 
 #### Sensors
 The sensors deployed in various phases of this project are each coded by a single uppercase letter, and they are the following:
 
-1. M – Modulair-PM sensors are the most common air quality monitoring device in this project. They measure concentrations of PM 1, PM 2.5, and PM 10. Installed both indoors and outdoors in Roxbury, East Boston (daycares and preschool), and Revere (high school and city hall) [check with Scott + Francesca].
+1. M – Modulair-PM sensors are the most common air quality monitoring device in this project. They measure concentrations of PM 1, PM 2.5, and PM 10. Installed both indoors and outdoors in Roxbury, East Boston, Revere, and the Olin-installed purifiers in the HAFTRAP study. [check with Scott + Francesca].
 2. H – HOBO sensors are connected to the air purifiers and detect power usage. They enhance Modulair-PM data since they provide information about when the air purifier was switched on and its fan speed. Installed only in East Boston daycares [is this true?].
 3. C – CPC sensors are very important since they detect counts of ultrafine particles (UFP). They supplement data from Modulair-PMs, which cannot detect UFPs. Installed in East Boston preschools, Revere (high school and city hall).
 4. A – Modulair [to do later]
 [Etc. etc.]
 
 #### Field Notes
-N – In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location. [is this true?]
+N – In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location.
 
 #### ID 
-Each sensor has an ID number that uniquely identifies it (regardless of where it is placed). In different situations, this ID number will signify different things. For MOD-PM, there are two basic situations to be aware of:
+Each deployment has an ID number that uniquely identifies it, but to make this project extra fun for us, each location has a different method of coding unique participants. The ID numbers can be found in the corresponding field notes for that location. The following table shows the various ID numbers used:
+
+| Location Code      | Unique Identifier |
+| ----------- | ----------- |
+| CM | Apartment # |
+| IB | Apartment # |
+| RH | Self-Assigned Serial #    |
+| DC | TBD         |
+| PS | TBD         |
+| CH | TBD         | 
+| HS | TBD         |
+| SC | Study Participant #|
+| OH | Study Participant # |
+| TU | TBD |
+
 
 1. Regular: in this case, the sensor stays in one place for the entire duration of data sampling and is identified by its unique sensor ID.
 
