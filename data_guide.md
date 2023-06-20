@@ -89,10 +89,10 @@ Each deployment has an ID number that uniquely identifies it, but to make this p
 
 In addition to the IDs, the following suffixes are used:
 
-a) `_indoor`: Indoor sensor
-b) `_outdoor`: Outdoor sensor
-c) `_sham`: Sham HEPA purifier deployment
-d) `_hepa`: True HEPA purifier deployment
+a. `_indoor`: Indoor sensor
+b. `_outdoor`: Outdoor sensor
+c. `_sham`: Sham HEPA purifier deployment
+d. `_hepa`: True HEPA purifier deployment
 
 
 
@@ -131,7 +131,7 @@ Luckily for you, summary data follows the exact same organization and naming str
 
 There are two key differences with Summary Data compared to Raw Data:
 
-1) The `summary` folder *is* tracked by Git. This is because the summary data files are much tinier than the raw data they are produced from. Committing CSV files around the size of 3 kilobytes doesn't greatly slow down Git.
+1) The `summary` folder *is* tracked by Git. This is because the summary data files are much tinier than the raw data they are produced from. (E.g.- 4 MB for a raw data file, 3 KB for the equivalent summary data file)
 
 2) While the files follow the same file naming structure, they are prepended with the suffix `s_` to distinguish them as summary data files. Additionally, a different set of suffixes is used:
 

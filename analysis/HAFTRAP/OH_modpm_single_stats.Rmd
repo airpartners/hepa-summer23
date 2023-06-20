@@ -1,4 +1,4 @@
-# HAFTRAP Data Cleaning and Summaries
+# HAFTRAP Data Cleaning and Summaries - initial
 This script is an initial builder to generate figures for a single participant (ID: 41181) in the HAFTRAP study, using deployments by Olin. Pieces of this code may be replicated in future iterations to deal with multiple file processing.
 ```{r}
 # Import relevant libraries
@@ -9,6 +9,15 @@ library(ggplot2)
 library(ggpmisc)
 
 ```
+
+```{r}
+# Get file path
+getwd()
+
+# # If file path doesn't end with the root folder "hepa-summer23", set to that folder on your PC
+# setwd(dir)
+```
+
 
 ```{r}
 # Define files to be imported
