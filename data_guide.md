@@ -104,7 +104,7 @@ Examples:
 
 * The csv data file for a Modulair-PM sensor with ID number 221 installed indoors Cardinal Medeiros in Roxbury will have the file name `CM_M_221_indoor.csv`.
 
-* The csv data file for a Modulair-PM sensor in the HAFTRAP study with participant ID 41181 deployed indoors with a sham air purifier by Olin will have the file name `OL_M_41181_sham_indoor.csv`
+* The csv data file for a Modulair-PM sensor in the HAFTRAP study with participant ID 41181 deployed indoors with a sham air purifier by Olin will have the file name `OH_M_41181_sham_indoor.csv`
 
 
 ### Folder Organization Structure
