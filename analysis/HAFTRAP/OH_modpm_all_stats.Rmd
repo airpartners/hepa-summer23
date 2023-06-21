@@ -3,6 +3,10 @@ FOR TODAY:
 2) Deal with correlation coefficients, find a way to make it summarizable
 3) Test with 2+ files (talk to Sanju for download)
 
+Questions:
+1) Is there a way to do the ratio and reduction calculation code more efficiently
+2) Is there a better way to calculate correlation plots
+
 
 
 # HAFTRAP Data Cleaning and Summaries - multiple
@@ -33,7 +37,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Vector of participant numbers' data to be processed
-participants <- c("41181")
+participants <- c("44241", "41181")
 ```
 
 ```{r}
@@ -85,10 +89,10 @@ This function calculates the correlation matrix for a particular case for a
 single participant and reshapes it into a paired-list format
 ```{r}
 # Function to calculate correlation matrices
-get_corr <- function(df, participant_id, case) {
+get_corr <- function(df, p, c) {
   df %>%
     # Filter for case
-    filter(participant_id == participant_id, case == case) %>%
+    filter(participant_id == p, case == c) %>%
     # Select all columns except date
     select_if(is.numeric) %>%
     # Remove NaN values
@@ -146,7 +150,10 @@ main_df <- main_df %>%
   improve_timestamps() %>%
 
   # Calculate particle counts and remove unnecessary columns
-  sum_bins()
+  sum_bins() %>%
+  
+  # Remove repeat readings
+  distinct(case, participant_id, date, environment, .keep_all = TRUE)
 ```
 
 ### Calculate ratio of indoor and outdoor concentration
