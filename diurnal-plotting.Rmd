@@ -1,0 +1,153 @@
+```{r}
+# Imports
+library(tidyverse)
+library(ggplot2)
+library(ggpmisc)
+library(chron)
+library(resample)
+library(ggthemes)
+```
+
+```{r}
+# Define indoor file to be imported, set time of HEPA purifier install
+indoor_file <- 'data/CM_M_250_indoor.csv'
+outdoor_file <- 'data/CM_M_250_outdoor.csv'
+hepa_time <- "2023-02-10 15:30:00"
+```
+
+## Import and prepare data
+```{r}
+# Import indoor data
+indoor_data <- read.csv(indoor_file)
+
+# Import outdoor data
+outdoor_data <- read.csv(outdoor_file)
+
+```
+
+```{r}
+# reformat timestamps to time object
+indoor_data$date <- as.POSIXct(strptime(indoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
+indoor_data$date_round <- round_date(indoor_data$date, unit = "minute")
+
+outdoor_data$date <- as.POSIXct(strptime(outdoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
+outdoor_data$date_round <- round_date(outdoor_data$date, unit = "minute")
+
+head(outdoor_data, 5)
+```
+
+```{r}
+indoor_data$day <- wday(indoor_data$date) #label = TRUE
+outdoor_data$day <- wday(outdoor_data$date)
+
+indoor_data$is_wknd <- is.weekend(indoor_data$date)
+outdoor_data$is_wknd <- is.weekend(outdoor_data$date)
+
+head(indoor_data, 5)
+```
+```{r}
+# isolate time
+indoor_data$time <- as.ITime(indoor_data$date_round)
+outdoor_data$time <- as.ITime(outdoor_data$date_round)
+
+# convert back to datetime object (will assign today's date to all)
+indoor_data$time <- as.POSIXct(indoor_data$time, format="%H:%M:%S")
+outdoor_data$time <- as.POSIXct(outdoor_data$time, format="%H:%M:%S")
+
+# create new dataframes with summary data to plot (mean/median)
+summary_indoor_data <- indoor_data %>%
+  group_by(is_wknd, time) %>%
+  summarise(mean_pm1 = mean(pm1), mean_pm25 = mean(pm25), mean_pm10 = mean(pm10), median_pm1 = median(pm1), median_pm25 = median(pm25), median_pm10 = median(pm10), percent_5_pm1 = quantile(na.omit(pm1), 0.05), percent_25_pm1 = quantile(na.omit(pm1), 0.25), percent_75_pm1 = quantile(na.omit(pm1), 0.75), percent_95_pm1 = quantile(na.omit(pm1), 0.95), percent_5_pm25 = quantile(na.omit(pm25), 0.05), percent_25_pm25 = quantile(na.omit(pm25), 0.25), percent_75_pm25 = quantile(na.omit(pm25), 0.75), percent_95_pm25 = quantile(na.omit(pm25), 0.95), percent_5_pm10 = quantile(na.omit(pm10), 0.05), percent_25_pm10 = quantile(na.omit(pm10), 0.25), percent_75_pm10 = quantile(na.omit(pm10), 0.75), percent_95_pm10 = quantile(na.omit(pm10), 0.95))
+
+summary_outdoor_data <- outdoor_data %>%
+  group_by(is_wknd, time) %>%
+  summarise(mean_pm1 = mean(pm1), mean_pm25 = mean(pm25), mean_pm10 = mean(pm10))
+
+summary_indoor_data
+summary_outdoor_data
+```
+
+```{r}
+wknd_labels <- as_labeller(c('TRUE' = "Weekend",
+                    'FALSE' = "Weekday"))
+  
+ggplot(summary_indoor_data) +
+  geom_ribbon(aes(x = time, ymin = percent_5_pm1, ymax = percent_95_pm1, fill = "#cfcfcf")) +
+  geom_ribbon(aes(x = time, ymin = percent_25_pm1, ymax = percent_75_pm1, fill = "#7a7a7a")) +
+  geom_line(aes(x = time, y = mean_pm1, color = "red")) +
+  geom_line(aes(x = time, y = median_pm1, color = "blue")) +
+  facet_grid(is_wknd ~ ., labeller = wknd_labels) +
+  scale_color_identity(name = "Average",
+                          breaks = c("red", "blue"),
+                          labels = c("Mean", "Median"),
+                          guide = "legend") +
+  scale_fill_identity(name = "Percentile",
+                          breaks = c("#7a7a7a", "#cfcfcf"),
+                          labels = c("25th - 75th", "5th - 95th"),
+                          guide = "legend") +
+  scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:00") +
+  labs(title = expression("Mean PM"[1]*" Concentration vs. Time of Day on Weekends vs. Weekdays"),
+       x = "Time of Day",
+       y = expression("PM"[1]*" Concentration")) +
+  theme_bw()
+
+
+  
+ggplot(summary_indoor_data) +
+  geom_ribbon(aes(x = time, ymin = percent_5_pm25, ymax = percent_95_pm25, fill = "#cfcfcf")) +
+  geom_ribbon(aes(x = time, ymin = percent_25_pm25, ymax = percent_75_pm25, fill = "#7a7a7a")) +
+  geom_line(aes(x = time, y = mean_pm25, color = "red")) +
+  geom_line(aes(x = time, y = median_pm25, color = "blue")) +
+  facet_grid(is_wknd ~ ., labeller = wknd_labels) +
+  scale_color_identity(name = "Average",
+                          breaks = c("red", "blue"),
+                          labels = c("Mean", "Median"),
+                          guide = "legend") +
+  scale_fill_identity(name = "Percentile",
+                          breaks = c("#7a7a7a", "#cfcfcf"),
+                          labels = c("25th - 75th", "5th - 95th"),
+                          guide = "legend") +
+  scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:00") +
+  labs(title = expression("Mean PM"[2.5]*" Concentration vs. Time of Day on Weekends vs. Weekdays"),
+       x = "Time of Day",
+       y = expression("PM"[2.5]*" Concentration")) +
+  theme_bw()
+
+ggplot(summary_indoor_data) +
+  geom_ribbon(aes(x = time, ymin = percent_5_pm10, ymax = percent_95_pm10, fill = "#cfcfcf")) +
+  geom_ribbon(aes(x = time, ymin = percent_25_pm10, ymax = percent_75_pm10, fill = "#7a7a7a")) +
+  geom_line(aes(x = time, y = mean_pm10, color = "red")) +
+  geom_line(aes(x = time, y = median_pm10, color = "blue")) +
+  facet_grid(is_wknd ~ ., labeller = wknd_labels) +
+  scale_color_identity(name = "Average",
+                          breaks = c("red", "blue"),
+                          labels = c("Mean", "Median"),
+                          guide = "legend") +
+  scale_fill_identity(name = "Percentile",
+                          breaks = c("#7a7a7a", "#cfcfcf"),
+                          labels = c("25th - 75th", "5th - 95th"),
+                          guide = "legend") +
+  scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:00") +
+  labs(title = expression("Mean PM"[10]*" Concentration vs. Time of Day on Weekends vs. Weekdays"),
+       x = "Time of Day",
+       y = expression("PM"[10]*" Concentration")) +
+  theme_bw()
+```
+
+```{r}
+ggplot(summary_indoor_data) +
+  geom_line(aes(x = time, y = mean_pm25, color = is_wknd))
+
+ggplot(summary_indoor_data) +
+  geom_line(aes(x = time, y = mean_pm10, color = is_wknd))
+
+ggplot(summary_outdoor_data) +
+  geom_line(aes(x = time, y = mean_pm1, color = is_wknd))
+
+ggplot(summary_outdoor_data) +
+  geom_line(aes(x = time, y = mean_pm25, color = is_wknd))
+
+ggplot(summary_outdoor_data) +
+  geom_line(aes(x = time, y = mean_pm10, color = is_wknd))
+```
+
