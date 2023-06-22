@@ -228,12 +228,13 @@ main_df %>%
   
   # Calculate summary statistics and pipe to variable 'summary'
   summarise(mean = mean(conc),
-              median = median(conc), 
-              q5 = quantile(conc, probs = 0.05), 
-              q25 = quantile(conc, probs = 0.25),
-              q75 = quantile(conc, probs = 0.75),
-              q95 = quantile(conc, probs = 0.95),
-              .groups = 'drop') -> summary
+            median = median(conc), 
+            q5 = quantile(conc, probs = 0.05), 
+            q25 = quantile(conc, probs = 0.25),
+            q75 = quantile(conc, probs = 0.75),
+            q95 = quantile(conc, probs = 0.95),
+            sd = sd(conc),
+            .groups = 'drop') -> summary
 ```
 
 
@@ -243,7 +244,7 @@ sham/hepa columns that are used to calculate percent reduction in corresponding
 summary pollution concentrations. Then gather dataframe back to original shape.
 ```{r}
 # Spread: Create separate sham, hepa summary statistics columns
-summary_wide <- pivot_wider(summary, names_from = case, values_from = mean:q95)
+summary_wide <- pivot_wider(summary, names_from = case, values_from = mean:sd)
 
 # Calculate percentage reduction in all summary statistics
 summary_redu <- 100*(select(summary_wide, ends_with("sham")) - 
@@ -257,7 +258,7 @@ summary_wide <- cbind(summary_wide, summary_redu)
 
 # Gather: Return to original shape by removing the 'sham/hepa/redu'
 # suffixes by re-forming the case variable
-summary_normal <- pivot_longer(summary_wide, mean_hepa:q95_redu, 
+summary_normal <- pivot_longer(summary_wide, mean_hepa:sd_redu, 
                                names_to = c(".value", "case"), 
                                names_sep = "_")
 ```

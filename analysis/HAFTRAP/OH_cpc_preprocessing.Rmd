@@ -1,0 +1,64 @@
+## Script for pre-processing CPC data from text files
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+
+# # If file path doesn't end with the root folder "hepa-summer23", set to that folder on your PC
+# setwd(dir)
+```
+
+```{r}
+# Set path to data
+path_to_folder <- "data/HAFTRAP/OH/cpc/"
+
+# Set data category
+data_cat <- "OH_C"
+```
+
+```{r}
+# List all directories in raw data
+folders <- list.dirs(path = paste0(path_to_folder, "very_raw_data/"), full.names = TRUE, recursive = TRUE)
+```
+
+```{r}
+# Loop through each subfolder
+for (subfolder in folders) {
+  
+  # Split path into individual parts
+  path_parts <- strsplit(subfolder, split = "/")
+  
+  # Only evauate directories that have a depth of 7 from the root (a.k.a with data files)
+  if (length(path_parts[[1]]) == 7) {
+    # # Get list of all files in that sub-folder
+    # files <- list.files(path = subfolder, full.names = TRUE)
+    # # Create empty dataframe
+    # main_df <- data.frame()
+    # 
+    # print(files)
+    # for (f in files) {
+    #   df <- read.delim(f, header = TRUE, skip = 13)
+    #   rbind(main_df, df)
+    # }
+    
+    main_df <- list.files(path = subfolder, full.names = TRUE) %>% 
+      lapply(read.delim, header = TRUE, skip = 13) %>% 
+      bind_rows %>%
+      select("X.YY.MM.DD", "concent")
+    
+    env <- path_parts[[1]][6]
+    id <- path_parts[[1]][7]
+    new_file_name <- paste(data_cat, id, env, sep = "_")
+    
+    print(new_file_name)
+    write.csv(main_df, paste0(path_to_data, new_file_name, ".csv"))
+    print(paste0("Downloaded ", env, " data for participant ID ", id))
+    stop()
+  }
+}
+```
+
+1) Difference between aveconc, concent, and rawconc?
+2) Update data guide with CPC data pre-processing org, new script
+3) Add more visualizations to guide

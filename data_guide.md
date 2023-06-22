@@ -13,9 +13,9 @@ The following codes will be used to organize folders, name files, and refer to l
 
 Roxbury:
 
-1. CM – Cardinal Medeiros, an elderly care [? Check with team] building in Roxbury. Unique identification by apartment number.
-2. IB – Indigo Block, an affordable housing [? Check with team] building in Roxbury. Unique identification by apartment number.
-3. RH – Individual homes in Roxbury. Unique identification by participant serial number (Participant # 1, 2, 3 etc.).
+1. CM – Cardinal Medeiros, an elderly care [? Check with team] building in Roxbury.
+2. IB – Indigo Block, an affordable housing [? Check with team] building in Roxbury.
+3. RH – Individual homes in Roxbury.
 
 East Boston:
 
@@ -29,8 +29,8 @@ Revere:
 
 HAFTRAP:
 
-8. SC - HAFTRAP data from SCOPE project. Unique identification by study participant number. [follow up with Francesca]
-9. OH - Olin's HAFTRAP data. Unique identification by study participant number.
+8. SC - HAFTRAP data from SCOPE project.
+9. OH - Olin's HAFTRAP data.
 10. TU - Tuft's HAFTRAP data [chaos TBD]
 
 ## Data Pipeline
@@ -62,7 +62,7 @@ The sensors deployed in various phases of this project are each coded by a singl
 
 1. M – Modulair-PM sensors are the most common air quality monitoring device in this project. They measure concentrations of PM 1, PM 2.5, and PM 10. Installed both indoors and outdoors in Roxbury, East Boston, Revere, and the Olin-installed purifiers in the HAFTRAP study. [check with Scott + Francesca].
 2. H – HOBO sensors are connected to the air purifiers and detect power usage. They enhance Modulair-PM data since they provide information about when the air purifier was switched on and its fan speed. Installed only in East Boston daycares [is this true?].
-3. C – CPC sensors are very important since they detect counts of ultrafine particles (UFP). They supplement data from Modulair-PMs, which cannot detect UFPs. Installed in East Boston preschools, Revere (high school and city hall).
+3. C – CPC sensors are very important since they detect counts of ultrafine particles (UFP). They supplement data from Modulair-PMs, which cannot detect UFPs. Installed in East Boston preschools, Revere (high school and city hall), and HAFTRAP study sites.
 4. A – Modulair [to do later]
 [Etc. etc.]
 
@@ -70,7 +70,7 @@ The sensors deployed in various phases of this project are each coded by a singl
 N – In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location.
 
 #### ID 
-Each deployment has an ID number that uniquely identifies it, but to make this project extra fun for us, each location has a different method of coding unique participants. The ID numbers can be found in the corresponding field notes for that location. The following table shows the various ID numbers used:
+Each deployment has an ID number that uniquely identifies it, but (to make this project extra fun for us) different locations have different methods of identifying unique participants. The following table shows the various ID numbers used:
 
 | Location Code      | Unique Identifier |
 | ----------- | ----------- |
@@ -84,6 +84,8 @@ Each deployment has an ID number that uniquely identifies it, but to make this p
 | SC | Study Participant #|
 | OH | Study Participant # |
 | TU | TBD |
+
+ The corresponding field notes can help make sense of the ID numbers.
 
 #### Suffix
 
@@ -102,8 +104,6 @@ Therefore, raw data files are labelled with the following naming convention:
 
 Examples:
 
-* The csv data file for a Modulair-PM sensor with ID number 221 installed indoors Cardinal Medeiros in Roxbury will have the file name `CM_M_221_indoor.csv`.
-
 * The csv data file for a Modulair-PM sensor in the HAFTRAP study with participant ID 41181 deployed indoors with a sham air purifier by Olin will have the file name `OH_M_41181_sham_indoor.csv`
 
 
@@ -113,7 +113,7 @@ As a reminder, all raw data files are stored in a folder named `data`. Here’s 
 * Each subfolder is organized by general region, which is one of `Roxbury`, `EastBoston`, `Revere`, or `HAFTRAP` - the general study sites.
 * Each general region subfolder is  subdivided into location folders named after the location code specified in this data guide.
 *	Each location folder is further subdivided into folders by sensor type. The folders are named by a sensible lowercase abbreviation of the sensor type (e.g.- `modpm`, `hobo`, `cpc`). The only exception for this is field notes, where there is usually one file for each location and therefore the file will directly be placed in the location folder.
-* Therefore, for example, the data for Modulair-PM sensor number 221 for Cardinal Medeiros in Roxbury can be found in `data --> Roxbury --> CM --> modpm --> CM_M_221_indoor.csv` and its relevant field notes can be found in `data --> Roxbury --> CM --> CM_N.csv`.
+* Therefore, for example, the data for the indoor Mod-PM sensor for the HAFTRAP participant number 41811 whose deployment of a sham purifier was conducted by Olin can be found in `data --> Roxbury --> CM --> modpm --> OH_M_41811_sham_indoor.csv` and its relevant field notes can be found in `data --> Roxbury --> OH --> OH_N.csv`.
 
 ## Initial Analysis
 This component of the pipeline concerns code files that are used to clean, filter, and summarize the raw data. They are usually in the form of various scripts in R markdown that handle multiple, complex types of raw data. Here is a description of each code file:
