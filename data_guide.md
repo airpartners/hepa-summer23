@@ -38,36 +38,49 @@ The data pipeline for this project can be considered to be made up of four compo
 
 ![](.pipeline.png)
 
-Each component will have its own folder with uniquely named files. It's important to note that these folder may be nested [include final diagram of final structure of four folders once finalized].
+Each component will have its own folder in the root directory, named `data`, `analysis`, `summary`, and `insight` respectively.
 
 Let's walk through each of these components:
 
 ## Raw Data
 Raw data is the original, ‘on the ground’ data collected by multiple kinds of sensors as well as people. 
 
-All files in this component is stored in the `data` folder. Crucially, *this folder is not tracked by Git*. Since committing multiple large data files would greatly slow down Git and Github and is generally considered bad practice, this folder is instead hosted on Google Drive for Air Partners 2023 in the [Data for Codebase](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n) folder. 
+All files in this component is stored in the `data` folder. Crucially, *this folder is not tracked by Git*. Since committing multiple large data files would greatly slow down Git and Github and is generally considered bad practice, this folder is instead hosted on Google Drive for Air Partners 2023. 
 
-To get or update to the latest version of the data, navigate to the provided link and download the `data` folder inside it. The folder will be downloaded as a ZIP which should then be extracted. Move the extracted `data` folder (it should have four direct sub-folders specifying the regions) to the root folder of the `hepa-summer23` respository clone, i.e. the same location where this data guide is hosted. In case the folder name is changed during download/unzipping, rename it to `data` otherwise the file paths won't work. The folder should be untracked automatically by the `.gitignore` so modifying or replacing it shouldn't make a difference.
+To get or update to the latest version of the data:
 
-**To add/delete/reorganize files in this folder, always do it in the Google Drive and download to PC. Do *not* make changes your local copy of this folder. They will not be reflected anywhere else.**
+1. Go to the provided [Data for Codebase](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n) Google Drive folder
+2. Download and extract the `data` folder inside it. 
+3. Move the extracted `data` folder to the root of your `hepa-summer23` respository clone, i.e. the same location as this data guide. 
+4. Confirm that the folder has the expected four subfolders and is named `data`. 
 
-This component of the pipeline contains the most files and therefore requires a clear naming system and hierarchical organization structure for best file management. As a result, this component is outlined in two parts:
+The folder should be untracked automatically by the `.gitignore` so replacing it locally shouldn't make a difference on your git log.
 
-1. File Categorization and Naming
-2. Folder Organization Structure. 
+**To add/delete/reorganize files in this folder, always do it in the Google Drive and download to PC. Do *not* modify your local copy of this folder. It will not be reflected anywhere else and result in out-of-sync versions.**
 
-### File Categorization and Naming
-#### Sensors
-The sensors deployed in various phases of this project are each coded by a single uppercase letter, and they are the following:
+This component of the pipeline contains the most files and therefore requires a clear naming system and file organization structure. As a result, this component is outlined in two parts:
 
-1. M – Modulair-PM sensors are the most common air quality monitoring device in this project. They measure concentrations of PM 1, PM 2.5, and PM 10. Installed both indoors and outdoors in Roxbury, East Boston, Revere, and the Olin-installed purifiers in the HAFTRAP study. [check with Scott + Francesca].
-2. H – HOBO sensors are connected to the air purifiers and detect power usage. They enhance Modulair-PM data since they provide information about when the air purifier was switched on and its fan speed. Installed only in East Boston daycares [is this true?].
-3. C – CPC sensors are very important since they detect counts of ultrafine particles (UFP). They supplement data from Modulair-PMs, which cannot detect UFPs. Installed in East Boston preschools, Revere (high school and city hall), and HAFTRAP study sites.
-4. A – Modulair [to do later]
-[Etc. etc.]
+1. File Naming
+2. Folder Structure 
 
-#### Field Notes
-N – In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location.
+### File Naming
+Data files are labelled with the following naming convention:
+`LocationCode_SensorCode_ID_suffix`
+
+You should already have looked at the [standard location codes](#location-coding). Now, let's familiarize ourselves with the other parts of the file name.
+
+#### Sensor Codes
+The sensors deployed in various phases of this project are each coded by a single uppercase letter:
+
+| Sensor Code      | Description |
+| :-----: | ----------- |
+| M | Modulair-PM (Mod-PM) sensors - low-cost sensors that monitor PM 1 - PM 10. |
+| C | CPC sensors detect counts of ultrafine particles that Mod-PM sensors cannot detect. |
+| H | HOBO sensors are connected to the air purifiers and detect power usage.  |
+| A | Modulair etc. (rest later)|
+
+##### Field Notes
+N – In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location, coded as `LocationCode_N`.
 
 #### ID 
 Each deployment has an ID number that uniquely identifies it, but (to make this project extra fun for us) different locations have different methods of identifying unique participants. The following table shows the various ID numbers used:
@@ -98,22 +111,25 @@ d. `_hepa`: True HEPA purifier deployment
 
 
 
-#### Naming Convention
-Therefore, raw data files are labelled with the following naming convention:
-`LocationCode_SensorCode_ID_suffix`
-
-Examples:
+#### Examples 
 
 * The csv data file for a Modulair-PM sensor in the HAFTRAP study with participant ID 41181 deployed indoors with a sham air purifier by Olin will have the file name `OH_M_41181_sham_indoor.csv`
 
 
-### Folder Organization Structure
-As a reminder, all raw data files are stored in a folder named `data`. Here’s a summary of the organization:
+### Folder Structure
+As a reminder, all raw data files are stored in a folder named `data`. The organization structure of all its subfolders is designed to mirror the file naming convention to make data files easy to find both manually and in code. Here’s a summary of the organization structure:
 
 * Each subfolder is organized by general region, which is one of `Roxbury`, `EastBoston`, `Revere`, or `HAFTRAP` - the general study sites.
-* Each general region subfolder is  subdivided into location folders named after the location code specified in this data guide.
-*	Each location folder is further subdivided into folders by sensor type. The folders are named by a sensible lowercase abbreviation of the sensor type (e.g.- `modpm`, `hobo`, `cpc`). The only exception for this is field notes, where there is usually one file for each location and therefore the file will directly be placed in the location folder.
+* Each general region subfolder is  subdivided into location folders named after the [location coding specified in this data guide](#location-coding).
+*	Each location folder is further subdivided into folders by sensor type. The folders are named by a sensible lowercase abbreviation of the sensor type (e.g.- `modpm`, `hobo`, `cpc`). The only exception for this is field notes, where the file is directly placed in relevant the location folder.
 * Therefore, for example, the data for the indoor Mod-PM sensor for the HAFTRAP participant number 41811 whose deployment of a sham purifier was conducted by Olin can be found in `data --> Roxbury --> CM --> modpm --> OH_M_41811_sham_indoor.csv` and its relevant field notes can be found in `data --> Roxbury --> OH --> OH_N.csv`.
+
+#### The CPC Exception
+However, there is one exception to this file naming and folder structure. You may see correctly named, 'raw data' CSV files in the `cpc` folders, but in reality these files have been pre-processed from actual sensor output. 
+
+CPC sensors output a large new text file of data for *every day* it runs. Instead of adding a date suffix and renaming hundreds of files, it makes more sense to put all the raw text files in a subfolder of `cpc` (elegantly named `very_raw_data`). A pre-processing script found in `analysis` - location described in [analysis](#initial-analysis) - parses through the text files and outputs one CSV per participant, per environment (indoor/outdoor) which contains the **relevant variables** from the raw data. No other processing/cleaning is done, and the files follow the standard file naming convention above. 
+
+For all intents and purposes, only the correctly named CSV files found directly in the `cpc` folder will be used in further analysis. The the true sensor output files are only present for the sake of completeness.
 
 ## Initial Analysis
 This component of the pipeline concerns code files that are used to clean, filter, and summarize the raw data. They are usually in the form of various scripts in R markdown that handle multiple, complex types of raw data. Here is a description of each code file:
