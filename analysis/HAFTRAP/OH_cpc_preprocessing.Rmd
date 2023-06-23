@@ -36,12 +36,12 @@ for (subfolder in folders) {
   
   # Only evaluate directories that have a depth of 7 from the root (a.k.a with data files)
   if (length(path_parts[[1]]) == 7) {
+    
+    # Isolate environment and participant ID
+    env <- path_parts[[1]][6]
+    id <- path_parts[[1]][7]
   
-  # Isolate environment and participant ID
-  env <- path_parts[[1]][6]
-  id <- path_parts[[1]][7]
-  
-    # Skip already read files
+    # Skip unwanted files
     if (id == "Pre data" || grepl("bad", id)) {
       print(paste("Skipped", env, "data for participant", id))
       next
@@ -64,9 +64,10 @@ for (subfolder in folders) {
         print("Error! Reading file alternatively")
         # Get list of files and read again, except without making concentrations a double
         # Note: the data for 45451 is uniform enough that setting datatype isn't required
+        # Yes this part doesn't make sense, is a patchy coincidental fix for a problem I
+        # don't understand
         temp_df <- list.files(path = subfolder, full.names = TRUE) %>% 
           map_df(~fread(.x, header = TRUE, skip = 13, select = c(1, 2, 4)))
-        
         
         # Return this alternative dataframe instead
         return(temp_df)})
