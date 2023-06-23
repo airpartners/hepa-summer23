@@ -1,3 +1,8 @@
+```{r}
+library(data.table)
+```
+
+
 ## Script for pre-processing CPC data from text files
 ```{r}
 # Get file path
@@ -11,7 +16,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Set path to data
-path_to_folder <- "data/HAFTRAP/OH/cpc/"
+path_to_data <- "data/HAFTRAP/OH/cpc/"
 
 # Set data category
 data_cat <- "OH_C"
@@ -19,7 +24,7 @@ data_cat <- "OH_C"
 
 ```{r}
 # List all directories in raw data
-folders <- list.dirs(path = paste0(path_to_folder, "very_raw_data/"), full.names = TRUE, recursive = TRUE)
+folders <- list.dirs(path = paste0(path_to_data, "very_raw_data/"), full.names = TRUE, recursive = TRUE)
 ```
 
 ```{r}
@@ -29,32 +34,50 @@ for (subfolder in folders) {
   # Split path into individual parts
   path_parts <- strsplit(subfolder, split = "/")
   
-  # Only evauate directories that have a depth of 7 from the root (a.k.a with data files)
+  # Only evaluate directories that have a depth of 7 from the root (a.k.a with data files)
   if (length(path_parts[[1]]) == 7) {
-    # # Get list of all files in that sub-folder
-    # files <- list.files(path = subfolder, full.names = TRUE)
-    # # Create empty dataframe
-    # main_df <- data.frame()
-    # 
-    # print(files)
-    # for (f in files) {
-    #   df <- read.delim(f, header = TRUE, skip = 13)
-    #   rbind(main_df, df)
-    # }
+  
+  # Isolate environment and participant ID
+  env <- path_parts[[1]][6]
+  id <- path_parts[[1]][7]
+  
+    # Skip already read files
+    if (id == "Pre data" || grepl("bad", id)) {
+      print(paste("Skipped", env, "data for participant", id))
+      next
+    }
     
-    main_df <- list.files(path = subfolder, full.names = TRUE) %>% 
-      lapply(read.delim, header = TRUE, skip = 13) %>% 
-      bind_rows %>%
-      select("X.YY.MM.DD", "concent")
+    print(paste("Reading", env, "data for participant", id, "..."))
     
-    env <- path_parts[[1]][6]
-    id <- path_parts[[1]][7]
+    # Try catch statement to handle errors
+    main_df <- tryCatch({
+      # Get list of files in directory
+      list.files(path = subfolder, full.names = TRUE) %>% 
+        # Read into dataframe
+        map_df(~fread(.x, header = TRUE, skip = 13, select = c(1, 2, 4)) %>%
+        # Convert all concentration values to double
+        # Note: pipe is inside map_df - the conversion happens for every file read into dataframe
+        mutate(concent = as.double(concent)))},
+      
+      # Errors here only happened for participant 45451, where mutate didn't work
+      error = function(cond) {
+        print("Error! Reading file alternatively")
+        # Get list of files and read again, except without making concentrations a double
+        # Note: the data for 45451 is uniform enough that setting datatype isn't required
+        temp_df <- list.files(path = subfolder, full.names = TRUE) %>% 
+          map_df(~fread(.x, header = TRUE, skip = 13, select = c(1, 2, 4)))
+        
+        
+        # Return this alternative dataframe instead
+        return(temp_df)})
+      
+    # Make new file name
     new_file_name <- paste(data_cat, id, env, sep = "_")
+    print(paste("Writing", new_file_name, "..."))
     
-    print(new_file_name)
-    write.csv(main_df, paste0(path_to_data, new_file_name, ".csv"))
-    print(paste0("Downloaded ", env, " data for participant ID ", id))
-    stop()
+    # Write into appropriate path
+    fwrite(main_df, paste0(path_to_data, new_file_name, ".csv"))
+    print(paste("Downloaded", env, "data for participant ID", id))
   }
 }
 ```
@@ -62,3 +85,4 @@ for (subfolder in folders) {
 1) Difference between aveconc, concent, and rawconc?
 2) Update data guide with CPC data pre-processing org, new script
 3) Add more visualizations to guide
+4) What is going on with 45451
