@@ -129,7 +129,7 @@ However, there is one exception to this file naming and folder structure. You ma
 
 CPC sensors output a large new text file of data for *every day* it runs. Instead of adding a date suffix and renaming hundreds of files, it makes more sense to put all the raw text files in a subfolder of `cpc` (elegantly named `very_raw_data`). A pre-processing script found in `analysis` - location described in [analysis](#initial-analysis) - parses through the text files and outputs one CSV per participant, per environment (indoor/outdoor) which contains the **relevant variables** from the raw data. No other processing/cleaning is done, and the files follow the standard file naming convention above. 
 
-For all intents and purposes, only the correctly named CSV files found directly in the `cpc` folder will be used in further analysis. The the true sensor output files are only present for the sake of completeness.
+For all intents and purposes, only the correctly named CSV files found directly in the `cpc` folder will be used in further analysis. The the true sensor output files are only present for completeness in documentation.
 
 ## Initial Analysis
 This component of the pipeline concerns code files that are used to clean, filter, and summarize the raw data. They are usually in the form of various scripts in R markdown that handle multiple, complex types of raw data. Here is a description of each code file:

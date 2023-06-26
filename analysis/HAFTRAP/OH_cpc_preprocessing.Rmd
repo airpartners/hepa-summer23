@@ -49,7 +49,9 @@ for (subfolder in folders) {
     
     print(paste("Reading", env, "data for participant", id, "..."))
     
-    # Try catch statement to handle errors
+    # Try catch statement to handle errors 
+    # (Warning: this is a janky fix because I don't really understand why this error 
+    # was happening in the first place)
     main_df <- tryCatch({
       # Get list of files in directory
       list.files(path = subfolder, full.names = TRUE) %>% 
