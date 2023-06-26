@@ -1,8 +1,3 @@
-FOR TODAY:
-1) Refactor code for gathering/spreading
-2) Deal with correlation coefficients, find a way to make it summarizable
-3) Test with 2+ files (talk to Sanju for download)
-
 Questions:
 1) Is there a way to do the ratio and reduction calculation code more efficiently
 2) Is there a better way to calculate correlation plots
@@ -77,8 +72,9 @@ sum_bins <- function(df) {
     # Sum particle counts
     mutate(pm1num = bin0 + bin1 + bin2) %>%
     # Delete unnecessary columns
-    select(pm1:pm1num) %>%
-    select(-ends_with("_model_id"))
+    select(pm1:pm1num, sample_temp) %>%
+    select(-ends_with("_model_id")) %>%
+    rename("temp" = "sample_temp")
 }
 
 ```
@@ -104,10 +100,12 @@ get_corr <- function(df, p, c) {
 }
 ```
 
-### Load all data. Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
+## Main Code Run
+### Load all data. 
+Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
 ```{r}
 # Initialize master dataframe for all data
-main_df <- data.frame()
+all_df <- data.frame()
 
 # Loop through each participant
 for (person in participants) {
@@ -133,7 +131,7 @@ for (person in participants) {
               participant_id = person)
       
       # Append to main dataframe
-      main_df <- rbind(main_df, df)
+      all_df <- rbind(all_df, df)
     }
   }
 }
@@ -145,7 +143,7 @@ This helps in syncing data across different sensors later - functions here can
 be found in the 'Helper Functions' section.
 ```{r}
 # Clean data (look at helper functions)
-main_df <- main_df %>%
+main_df <- all_df %>%
   # Reformat timestamps and round to nearest minute
   improve_timestamps() %>%
 
@@ -160,11 +158,13 @@ main_df <- main_df %>%
 To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that
 are then divided by each other to calculate the ratio. After calculating the
 ratio, the dataframe is 'gathered' back up to its original shape.
+
+Always run this chunk with the previous chunk.
 ```{r}
 # Spread: Create separate indoor and outdoor columns for particle concentration
 main_df_wide <- pivot_wider(main_df,
                   names_from = environment,
-                  values_from = c(pm1, pm25, pm10, pm1num))
+                  values_from = c(pm1, pm25, pm10, pm1num, temp))
 
 # Divide indoor by outdoor to calculate ratios
 df_ratio <- select(main_df_wide, ends_with("indoor"))/
@@ -176,10 +176,12 @@ colnames(df_ratio) <- sub("indoor", "ratio", colnames(df_ratio))
 # Merge back with joined data-frame
 main_df_wide <- cbind(main_df_wide, df_ratio)
 
+# Drop 
+
 # Gather: Return to original shape by removing the 'indoor'/'outdoor'/'ratio'
 # suffixes by re-forming the environment variable
 main_df <- pivot_longer(main_df_wide, 
-                               pm1_indoor:pm1num_ratio, 
+                               pm1_indoor:temp_ratio, 
                                names_to = c(".value", "environment"), 
                                names_sep = "_")
 ```
@@ -188,7 +190,8 @@ main_df <- pivot_longer(main_df_wide,
 ### Calculate correlation matrices
 Helps better understand the relationship between different variables in sham and
 true HEPA conditions for each participant. Matrices are reshaped into longer pair
-format for stacking all the data into single dataframe.
+format for stacking all the data into single dataframe. (Warning: this code
+takes a while to run.)
 
 ```{r}
 # Create dataframe to hold correlation coefficients
@@ -199,7 +202,7 @@ for (person in participants) {
   for (case in c("sham", "hepa")) {
     # Use wide dataframe where indoor/outdoor are separate columns
     main_df_wide %>%
-      # Get correlation coefficients (look at helper functions)
+      # Get correlation coefficients (look at helper function)
       get_corr(person, case) %>%
       # Add the case and participant ID
       mutate(case = case, participant_id = person) -> df
@@ -211,29 +214,25 @@ for (person in participants) {
 
 
 ### Gather, group, and summarize
-To calculate summary statistics of the data, the different particle types (PM1, 
-PM2.5, PM10, PM1_num) are gathered into one variable 'particle'. The resulting
-long dataframe is cleaned for NaN values and grouped. Numerous summary
-statistics are calculated for each particle type for each, case, environment,
-and participant.
+To calculate summary statistics of the data, the different measurements (PM1,  PM2.5, PM10, PM1_num, and temperature) are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
 
 ```{r}
 main_df %>%
-  # Gather dataframe to create single variable for particle concentrations
-  pivot_longer(pm1:pm1num, names_to = "particle", values_to = "conc") %>%
-  # Drop NaN values for summary calculation
-  drop_na() %>%
-  # Group by participant ID, case, environment, and particle type
-  group_by(participant_id, case, environment, particle) %>%
+  # Gather dataframe to create single variable for particle concentrations, temp
+  pivot_longer(pm1:temp, names_to = "type", values_to = "reading") %>%
+  # Drop NaN, inf values for summary calculation
+  filter(is.finite(reading)) %>%
+  # Group by participant ID, case, environment, and type
+  group_by(participant_id, case, environment, type) %>%
   
   # Calculate summary statistics and pipe to variable 'summary'
-  summarise(mean = mean(conc),
-            median = median(conc), 
-            q5 = quantile(conc, probs = 0.05), 
-            q25 = quantile(conc, probs = 0.25),
-            q75 = quantile(conc, probs = 0.75),
-            q95 = quantile(conc, probs = 0.95),
-            sd = sd(conc),
+  summarise(mean = mean(reading),
+            median = median(reading), 
+            q5 = quantile(reading, probs = 0.05), 
+            q25 = quantile(reading, probs = 0.25),
+            q75 = quantile(reading, probs = 0.75),
+            q95 = quantile(reading, probs = 0.95),
+            sd = sd(reading),
             .groups = 'drop') -> summary
 ```
 
@@ -253,17 +252,19 @@ summary_redu <- 100*(select(summary_wide, ends_with("sham")) -
 # Rename computed columns to 'redu' for percentage reduction
 colnames(summary_redu) <- sub("sham", "redu", colnames(summary_redu))
 
-# Merge back with joined data-frame
-summary_wide <- cbind(summary_wide, summary_redu)
+# Reshape data and pipe into variable 'summary_normal'
+summary_wide %>%
+  # Merge back with joined data-frame
+  cbind(summary_redu) %>%
+  # Gather: Return to original shape by removing the 'sham/hepa/redu'
+  # suffixes by re-forming the case variable
+  pivot_longer(mean_hepa:sd_redu, names_to = c(".value", "case"), names_sep = "_") %>%
+  # Drop NaNs
+  drop_na() -> summary_normal
 
-# Gather: Return to original shape by removing the 'sham/hepa/redu'
-# suffixes by re-forming the case variable
-summary_normal <- pivot_longer(summary_wide, mean_hepa:sd_redu, 
-                               names_to = c(".value", "case"), 
-                               names_sep = "_")
 ```
 
-### Save to file
+## Save to file
 Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
 ```{r}
 # Save summary statistic files to CSVs

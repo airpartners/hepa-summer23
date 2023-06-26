@@ -82,6 +82,8 @@ The sensors deployed in various phases of this project are each coded by a singl
 ##### Field Notes
 N – In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location, coded as `LocationCode_N`.
 
+T - The data is complicated, and there are some cases where the readings before and after a HEPA air purifier installation is contained in the same CSV file. The data file needs to be filtered by time to separate either `sham` and `hepa` or `before` and `after` (see [suffixes](#suffix) in case there aren't already separate files. This information is present in field notes, but a distilled, code parse-able format is found in files coded as `LocationCode_T` in the location folder. 
+
 #### ID 
 Each deployment has an ID number that uniquely identifies it, but (to make this project extra fun for us) different locations have different methods of identifying unique participants. The following table shows the various ID numbers used:
 
@@ -102,12 +104,14 @@ Each deployment has an ID number that uniquely identifies it, but (to make this 
 
 #### Suffix
 
-In addition to the IDs, the following suffixes are used:
+In addition to the IDs, the following suffixes may be used:
 
 a. `_indoor`: Indoor sensor
 b. `_outdoor`: Outdoor sensor
 c. `_sham`: Sham HEPA purifier deployment
 d. `_hepa`: True HEPA purifier deployment
+e. `_before`: Before a HEPA purifier is deployed
+f. `_after` After a HEPA purifier is deployed
 
 
 
@@ -129,7 +133,7 @@ However, there is one exception to this file naming and folder structure. You ma
 
 CPC sensors output a large new text file of data for *every day* it runs. Instead of adding a date suffix and renaming hundreds of files, it makes more sense to put all the raw text files in a subfolder of `cpc` (elegantly named `very_raw_data`). A pre-processing script found in `analysis` - location described in [analysis](#initial-analysis) - parses through the text files and outputs one CSV per participant, per environment (indoor/outdoor) which contains the **relevant variables** from the raw data. No other processing/cleaning is done, and the files follow the standard file naming convention above. 
 
-For all intents and purposes, only the correctly named CSV files found directly in the `cpc` folder will be used in further analysis. The the true sensor output files are only present for completeness in documentation.
+For all intents and purposes, only the correctly named CSV files found directly in the `cpc` folder will be used in further analysis. The true sensor output files are only present for completeness in documentation.
 
 ## Initial Analysis
 This component of the pipeline concerns code files that are used to clean, filter, and summarize the raw data. They are usually in the form of various scripts in R markdown that handle multiple, complex types of raw data. Here is a description of each code file:
