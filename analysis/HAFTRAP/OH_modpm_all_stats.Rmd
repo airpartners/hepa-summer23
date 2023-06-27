@@ -19,15 +19,16 @@ library(ggplot2)
 library(ggpmisc)
 library(rstatix)
 ```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+```
 
 ```{r}
 # Get file path
 if (!endsWith(getwd(), "hepa-summer23")) {
   stop("Incorrect working directory")
 }
-
-# # If file path doesn't end with the root folder "hepa-summer23", set to that folder on your PC
-# setwd(dir)
 ```
 
 ```{r}
