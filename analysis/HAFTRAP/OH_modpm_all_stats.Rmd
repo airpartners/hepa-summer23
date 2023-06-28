@@ -140,8 +140,7 @@ for (person in participants) {
 ```
 
 ### Process all data to remove unnecessary columns and round time values 
-This helps in syncing data across different sensors later - functions here can
-be found in the 'Helper Functions' section.
+This helps in syncing data across different sensors later - functions here can be found in the 'Helper Functions' section.
 ```{r}
 # Clean data (look at helper functions)
 main_df <- all_df %>%
