@@ -1,0 +1,900 @@
+---
+title: "API Call"
+author: "Cherry Pham"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+This Markdown file is created with the purpose of obtaining sensor data
+from Quant-AQ through API calls.
+
+There is no prerequisites for using this file. If you are just looking
+to quickly retrieve data, you can simply run this file through the
+command `Ctrl + Alt + R`. The result of running this file is a data
+folder containing data of MOD-PM sensors as of February 2023. If you
+wish to modify the data to be retrieved, please read the data guide
+below. The original file is written for ambient data in [this
+repository](https://github.com/airpartners/ambient-summer23), which
+might be more up-to-date.
+
+## DATA GUIDE
+
+[write instructions here]
+
+[sorry if i forgot to do this at the end, the code below is quite well-
+documented though so good luck]
+
+## PACKAGES AND INITIAL SETTINGS
+
+```{r}
+# Check and install required packages if necessary
+packages <- c("httr", "jsonlite", "purrr", "dplyr")
+install.packages(packages[!sapply(packages, requireNamespace, quietly = TRUE)])
+
+# Load required packages
+invisible(sapply(packages, library, character.only = TRUE))
+
+# Explicit package function calls
+httr::GET
+httr::content
+jsonlite::fromJSON
+purrr::map_df
+dplyr::as_data_frame
+dplyr::filter
+dplyr::lag
+
+# Set options
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+## DEFINE VARIABLES
+
+```{r}
+# Define API info
+base_url <- "https://api.quant-aq.com/device-api/v1/devices/"
+api_key <- "VUOLNUDTM70QZ7Z9G0Z78XA7" # Replace this API key with yours if can
+
+# Define the Sensor class
+setClass(
+  "Sensor",
+  slots = c(
+    sensorNum = "character",
+    locationCode = "character",
+    sensorCode = "character",
+    ID = "integer",
+    case = "character",
+    environment = "character",
+    startDate = "character",
+    endDate = "character"
+  )
+)
+
+# Constructor function for the Sensor class
+Sensor <- function(sensorNum, locationCode, sensorCode, ID, case, environment, startDate, endDate) {
+  new(
+    "Sensor",
+    sensorNum = sensorNum,
+    locationCode = locationCode,
+    sensorCode = sensorCode,
+    ID = ID,
+    case = case,
+    environment = environment,
+    startDate = startDate,
+    endDate = endDate
+  )
+}
+
+# Create Sensor objects corresponding to the table data
+# Sensor 1
+SENSOR_41181_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41181,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2022-10-21",
+  endDate = "2022-10-28"
+)
+
+# Sensor 2
+SENSOR_41181_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41181,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2022-10-21",
+  endDate = "2022-10-28"
+)
+
+# Sensor 3
+SENSOR_41181_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41181,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2022-12-09",
+  endDate = "2022-12-16"
+)
+
+# Sensor 4
+SENSOR_41181_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00126",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41181,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2022-12-09",
+  endDate = "2022-12-16"
+)
+
+# Sensor 5
+SENSOR_44241_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 44241,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2022-10-28",
+  endDate = "2022-11-16"
+)
+
+# Sensor 6
+SENSOR_44241_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 44241,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2022-10-28",
+  endDate = "2022-11-16"
+)
+
+# Sensor 7
+SENSOR_44241_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 44241,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2022-12-20",
+  endDate = "2023-01-06"
+)
+
+# Sensor 8
+SENSOR_44241_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 44241,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2022-12-20",
+  endDate = "2023-01-06"
+)
+
+# Sensor 9
+SENSOR_41271_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00126",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41271,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2022-10-28",
+  endDate = "2022-11-04"
+)
+
+# Sensor 10
+SENSOR_41271_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41271,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2022-10-28",
+  endDate = "2022-11-04"
+)
+
+# Sensor 11
+SENSOR_41271_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00114",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41271,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2023-01-06",
+  endDate = "2023-01-13"
+)
+
+# Sensor 12
+SENSOR_41271_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00126",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41271,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2023-01-06",
+  endDate = "2023-01-13"
+)
+
+# Sensor 13
+SENSOR_42231_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00126",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42231,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2022-11-04",
+  endDate = "2022-11-17"
+)
+
+# Sensor 14
+SENSOR_42231_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42231,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2022-11-04",
+  endDate = "2022-11-17"
+)
+
+# Sensor 15
+SENSOR_42231_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42231,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2023-01-06",
+  endDate = "2023-01-18"
+)
+
+# Sensor 16
+SENSOR_42231_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42231,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2023-01-06",
+  endDate = "2023-01-18"
+)
+
+# Sensor 17
+SENSOR_41211_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00716",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41211,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2022-11-10",
+  endDate = "2022-11-16"
+)
+
+# Sensor 18
+SENSOR_41211_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00718",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41211,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2022-11-10",
+  endDate = "2022-11-16"
+)
+
+# Sensor 19
+SENSOR_41211_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00125",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41211,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2023-01-06",
+  endDate = "2023-01-13"
+)
+
+# Sensor 20
+SENSOR_41211_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41211,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2023-01-06",
+  endDate = "2023-01-13"
+)
+
+# Sensor 21
+SENSOR_42321_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00125",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42321,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2022-11-28",
+  endDate = "2022-12-05"
+)
+
+# Sensor 22
+SENSOR_42321_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42321,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2022-11-28",
+  endDate = "2022-12-05"
+)
+
+# Sensor 23
+SENSOR_42321_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42321,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2023-01-25",
+  endDate = "2023-02-01"
+)
+
+# Sensor 24
+SENSOR_42321_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42321,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2023-01-25",
+  endDate = "2023-02-01"
+)
+
+# Sensor 25
+SENSOR_42281_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42281,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2022-12-07",
+  endDate = "2022-12-14"
+)
+
+# Sensor 26
+SENSOR_42281_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00125",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42281,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2022-12-07",
+  endDate = "2022-12-14"
+)
+
+# Sensor 27
+SENSOR_42281_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00104",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42281,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2023-02-08",
+  endDate = "2023-02-15"
+)
+
+# Sensor 28
+SENSOR_42281_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42281,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2023-02-08",
+  endDate = "2023-02-15"
+)
+
+# Sensor 29
+SENSOR_41421_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00125",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41421,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2022-12-14",
+  endDate = "2022-12-21"
+)
+
+# Sensor 30
+SENSOR_41421_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00104",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 41421,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2022-12-14",
+  endDate = "2022-12-21"
+)
+
+########################################
+
+# Sensor 31
+SENSOR_45361_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00125",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45361,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2022-12-14",
+  endDate = "2022-12-20"
+)
+
+########################################
+
+# Sensor 32
+SENSOR_45361_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45361,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2022-12-14",
+  endDate = "2022-12-20"
+)
+
+########################################
+
+# Sensor 33
+SENSOR_45361_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00104",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45361,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2023-02-09",
+  endDate = "2023-02-15"
+)
+
+########################################
+
+# Sensor 34
+SENSOR_45361_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45361,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2023-02-09",
+  endDate = "2023-02-15"
+)
+
+########################################
+
+# Sensor 35
+SENSOR_42301_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-000114",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42301,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2022-12-13",
+  endDate = "2022-12-20"
+)
+
+########################################
+
+# Sensor 36
+SENSOR_42301_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00715",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42301,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2022-12-13",
+  endDate = "2022-12-20"
+)
+
+########################################
+
+# Sensor 37
+SENSOR_42301_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42301,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2023-02-09",
+  endDate = "2023-02-15"
+)
+
+########################################
+
+# Sensor 38
+SENSOR_42301_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 42301,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2023-02-09",
+  endDate = "2023-02-15"
+)
+
+########################################
+
+# Sensor 39
+SENSOR_45411_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45411,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2023-02-22",
+  endDate = "2023-03-01"
+)
+
+########################################
+
+# Sensor 40
+SENSOR_45411_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45411,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2023-02-22",
+  endDate = "2023-03-01"
+)
+
+########################################
+
+# Sensor 41
+SENSOR_45411_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45411,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2023-04-14",
+  endDate = "2023-04-21"
+)
+
+########################################
+
+# Sensor 42
+SENSOR_45411_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45411,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2023-04-14",
+  endDate = "2023-04-21"
+)
+
+########################################
+
+# Sensor 43
+SENSOR_44621_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 44621,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2023-03-22",
+  endDate = "2023-03-29"
+)
+
+########################################
+
+# Sensor 44
+SENSOR_44621_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00104",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 44621,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2023-03-22",
+  endDate = "2023-03-29"
+)
+
+########################################
+
+# Sensor 45
+SENSOR_44621_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 44621,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2023-05-11",
+  endDate = "2023-05-18"
+)
+
+########################################
+
+# Sensor 46
+SENSOR_44621_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 44621,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2023-05-11",
+  endDate = "2023-05-18"
+)
+
+########################################
+
+# Sensor 47
+SENSOR_45451_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45451,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2023-03-31",
+  endDate = "2023-04-07"
+)
+
+########################################
+
+# Sensor 48
+SENSOR_45451_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00104",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45451,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2023-03-31",
+  endDate = "2023-04-07"
+)
+
+########################################
+
+# Sensor 49
+SENSOR_45451_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45451,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2023-05-18",
+  endDate = "2023-05-24"
+)
+
+########################################
+
+# Sensor 50
+SENSOR_45451_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00104",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 45451,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2023-05-18",
+  endDate = "2023-05-24"
+)
+
+########################################
+
+# Sensor 51
+SENSOR_46591_sham_indoor <- Sensor(
+  sensorNum = "MOD-PM-00099",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 46591,
+  case = "sham",
+  environment = "indoor",
+  startDate = "2023-04-05",
+  endDate = "2023-04-12"
+)
+
+########################################
+
+# Sensor 52
+SENSOR_46591_sham_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 46591,
+  case = "sham",
+  environment = "outdoor",
+  startDate = "2023-04-05",
+  endDate = "2023-04-12"
+)
+
+########################################
+
+# Sensor 53
+SENSOR_46591_hepa_indoor <- Sensor(
+  sensorNum = "MOD-PM-00111",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 46591,
+  case = "hepa",
+  environment = "indoor",
+  startDate = "2023-05-19",
+  endDate = "2023-05-26"
+)
+
+########################################
+
+# Sensor 54
+SENSOR_46591_hepa_outdoor <- Sensor(
+  sensorNum = "MOD-PM-00128",
+  locationCode = "OH",
+  sensorCode = "M",
+  ID = 46591,
+  case = "hepa",
+  environment = "outdoor",
+  startDate = "2023-05-19",
+  endDate = "2023-05-26"
+)
+```
+
+## RETTRIEVING DATA INTO FOLDERS
+
+```{r}
+# Create folder if not initiated
+data_folder_path <- "./data/HAFTRAP/OH/modpm/"
+
+# Check if the folder exists
+if (!file.exists(data_folder_path)) {
+  # Create the folder if it doesn't exist
+  dir.create(data_folder_path, recursive = TRUE)
+}
+
+# Function to process a single device ID
+process_device_id <- function(device_id) {
+  for (date in time_range) {
+    for (state in c("raw/", "")) {
+      # Construct device URL for API call
+      device_url <-
+        paste0(device_id, "/data-by-date/", state, date, "/")
+      # Send GET request
+      raw_data <- GET(
+        url = paste0(base_url, device_url),
+        authenticate(api_key, "", type = "basic"),
+        encoding = "UTF-8"
+      )
+      
+      # Option 1: Un-comment this if you want to just ignore the faulty API responses
+      # Check the HTTP status code of the response
+      if (status_code(raw_data) != 200) {
+        # Skip processing if the response is not successful (not 200)
+        return()
+      }
+      
+      # # Option 2: Un-comment this if you want to see the faulty API responses in error_log.txt
+      # # Check the content type of the response
+      # content_type <- httr::headers(raw_data)$`content-type`
+      # if (!grepl("application/json", content_type, ignore.case = TRUE)) {
+      #   # Handle the error
+      #   error_msg <-
+      #     paste0("Error: Unexpected content type for", device_id, "on", date)
+      #   # Store the raw response or handle it as needed
+      #   raw_response <-
+      #     content(raw_data, as = "text", encoding = "UTF-8")
+      #
+      #   # Write the error message and raw response to a log file
+      #   log_entry <- paste0(error_msg, "\n", raw_response, "\n\n")
+      #   write(log_entry, file = "error_log.txt", append = TRUE)
+      #
+      #   return()
+      # }
+      
+      data <- content(raw_data, as = "text", encoding = "UTF-8")
+      parsed_data <- fromJSON(data)
+      
+      # Check if the data is empty or has zero rows
+      if (is.null(parsed_data) ||
+          is.null(parsed_data$data) || length(parsed_data$data) == 0) {
+        # Skip processing if the data is empty
+        return()
+      }
+      
+      # Extract relevant data
+      df <- as.data.frame(parsed_data$data)
+    }
+  }
+  
+  # Define device folder path
+  device_folder_path <- file.path(data_folder_path, device_id)
+  
+  # Check if the device folder exists
+  if (!dir.exists(device_folder_path)) {
+    # Create the device folder if it doesn't exist
+    dir.create(device_folder_path, recursive = TRUE)
+  }
+  
+  # Save data to CSV file
+  if (state == "raw/") {
+    csv_file_path <-
+      file.path(device_folder_path, paste0(device_id, "-", date, "-raw.csv"))
+  }
+  else {
+    csv_file_path <-
+      file.path(device_folder_path,
+                paste0(device_id, "-", date, "-final.csv"))
+  }
+  
+  # Try writing the CSV file and handle errors
+  tryCatch({
+    write.csv(df, 
+              file = csv_file_path,
+              row.names = FALSE,
+              fileEncoding = "UTF-8")
+  },
+  error = function(e) {
+    cat(
+      paste0("Error writing CSV file for \n"),
+      file = "error_log.txt",
+      append = TRUE
+    )
+  })
+}
+
+# Process each device ID over time range
+for (device_id in device_ids) {
+  process_device_id(device_id, date, state)
+  # Delete the device folder if it is empty
+  device_folder_path <- file.path(data_folder_path, device_id)
+  if (dir.exists(device_folder_path) &&
+      length(list.files(device_folder_path)) == 0) {
+    unlink(device_folder_path, recursive = TRUE)
+  }
+}
+```
