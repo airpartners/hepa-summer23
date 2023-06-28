@@ -5,14 +5,17 @@ library(tidyverse)
 
 
 ## Script for pre-processing CPC data from text files
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+```
+
+Check for working directory
 ```{r}
-# Get file path
+# Check file path
 if (!endsWith(getwd(), "hepa-summer23")) {
   stop("Incorrect working directory")
 }
-
-# # If file path doesn't end with the root folder "hepa-summer23", set to that folder on your PC
-# setwd(dir)
 ```
 
 ```{r}
@@ -87,8 +90,3 @@ for (subfolder in folders) {
   }
 }
 ```
-
-1) Difference between aveconc, concent, and rawconc?
-2) Update data guide with CPC data pre-processing org, new script
-3) Add more visualizations to guide
-4) What is going on with 45451

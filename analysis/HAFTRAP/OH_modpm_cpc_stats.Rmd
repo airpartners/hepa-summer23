@@ -1,5 +1,5 @@
 # HAFTRAP Data Cleaning and Summaries - multiple (for CPC)
-This script is an initial builder to generate figures for multiple participants in the HAFTRAP study, using deployments by Olin. It is largely a copy of `OH_modpm_all_stats.Rmd`, but modified to deal with CPC data. Ensure that each participant has indoor and outdoor data, all files labelled appropriately.
+This script is a combination of `OH_modpm_all_stats` and `OH_cpc_all_stats` to concurrently process CPC and Mod-PM data and compare variables.
 
 
 ## Set up
@@ -36,15 +36,29 @@ time_map <- read_excel(
   # Convert to appropriate variable types
   mutate(across(dt_start:dt_end, 
                   ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
+  mutate(across(dt_start:dt_end, 
+                  ~force_tz(.x, tz = "America/New_York"))) %>%
   mutate(across(participant_id:case, as.factor))
 ```
 
+### Set paths
 ```{r}
+# # For CPC
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/cpc/"
+path_to_data_C <- "data/HAFTRAP/OH/cpc/"
 
 # Set data category
-data_cat <- "OH_C"
+data_cat_C <- "OH_C"
+
+# # For Mod-PM
+# Set path to data
+path_to_data_M <- "data/HAFTRAP/OH/modpm/"
+
+# Set data category
+data_cat_M <- "OH_M"
+
+# Temporary holder for IDs
+participants_M <- c("44241", "41181")
 ```
 
 ## Helper Functions
@@ -69,6 +83,21 @@ include_case <- function(df, person, cd) {
 }
 ```
 
+### Particle counts and removing unnecessary data
+For Mod-PM particle masses, we are concerned with the counts of particles that fall under certain size bins. To approximate the counts under pm1, sum up bin 0 to 2. Discard all other data columns that are not relevant.
+```{r}
+# Function to calculate sums of particle counts, remove rest
+sum_bins <- function(df) {
+  df %>%
+    # Sum particle counts
+    mutate(pm1num = bin0 + bin1 + bin2) %>%
+    # Delete unnecessary columns
+    select(pm1:pm1num, sample_temp) %>%
+    select(-ends_with("_model_id")) %>%
+    rename("temp" = "sample_temp")
+}
+
+```
 
 
 ### Calculating correlation coefficients
@@ -92,7 +121,7 @@ get_corr <- function(df, p, c) {
 ```
 
 ## Main Code Run
-### Load all data. 
+### Load CPC data. 
 Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
 ```{r}
 # Initialize master dataframe for all data
@@ -104,10 +133,10 @@ for (person in participants) {
   for (env in c("indoor", "outdoor")) {
     # Set file path
     # Filename = data category + participant ID + environment
-    file_name <- paste(data_cat, person, env, sep = "_")
+    file_name <- paste(data_cat_C, person, env, sep = "_")
     
     # File path = path to folder, type csv
-    file_path <- paste0(path_to_data, file_name, ".csv")
+    file_path <- paste0(path_to_data_C, file_name, ".csv")
     
     # Read csv
     df <- read_csv(file_path, show_col_types = FALSE) %>%
@@ -119,24 +148,30 @@ for (person in participants) {
     # Append to main dataframe
     all_df <- rbind(all_df, df)
   }
+  print(paste("Read data for participant", person))
 }
-
 ```
 
+#### Filter data to only whole minutes
+Mod-PM data is sampled every minute, so to match the CPC data with it, we only filter out samples taken at whole minutes.
 ```{r}
-# Warning: this code chunk may seem simple but takes FOREVER.
-# Have patience. It deals with datetimes.
-clean_df <- all_df %>%
+# Note this is chunk is different from OH_cpc_all_stats code
+
+# Filter out only whole minutes
+less_df <- filter(all_df, second(all_df$`HR:MN:SC`) == 0)
+```
+
+
+```{r}
+# Deal with datetimes.
+clean_df <- less_df %>%
   # Merge the date and time column
   unite(col = "date", `#YY/MM/DD`, `HR:MN:SC`, sep = " ") %>%
   # Convert to datetime object
-  mutate(date = as.POSIXct(date, format = "%y/%m/%d %H:%M:%S", 
-                           tz = "America/New_York")) %>%
+  mutate(date = as.POSIXct(date, format = "%y/%m/%d %H:%M:%S")) %>%
   # Remove repeat readings
   distinct(participant_id, date, environment, .keep_all = TRUE)
 ```
-
-
 
 ```{r}
 # Filter by time to find whether sham or hepa
@@ -156,12 +191,75 @@ for (person in participants) {
 ```{r}
 # Quick cleaning:
 # Remove values that aren't in relevant time range, make factors
-main_df <- case_df %>%
+cpc_df <- case_df %>%
   drop_na() %>%
   mutate(across(c(environment, case, participant_id), as.factor)) 
   
 ```
 
+
+## Main Code Run
+### Load Mod-PM data. 
+Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
+```{r}
+# Initialize master dataframe for all data
+all_df <- data.frame()
+
+# Loop through each participant
+for (person in participants_M) {
+  # Loop through each case
+  for (case in c("sham", "hepa")) {
+    # Loop through each environment
+    for (env in c("indoor", "outdoor")) {
+      
+      # Set file path
+      # Filename = data category + participant ID + case 
+      # + environment
+      file_name <- paste(data_cat_M, person, case, env, sep = "_")
+      
+      # File path = path to folder, type csv
+      file_path <- paste0(path_to_data_M, file_name, ".csv")
+      
+      # Read csv
+      df <- read_csv(file_path, show_col_types = FALSE)
+      
+      # Add the case and environment type (e.g. sham, indoor)
+      # And participant ID
+      df <- mutate(df, case = case, environment = env,
+              participant_id = person)
+      
+      # Append to main dataframe
+      all_df <- rbind(all_df, df)
+    }
+  }
+}
+
+```
+
+### Process all data to remove unnecessary columns and round time values 
+This helps in syncing data across different sensors later - functions here can be found in the 'Helper Functions' section.
+```{r}
+# Clean data (look at helper functions)
+modpm_df <- all_df %>%
+  # Reformat timestamps and round to nearest minute
+  mutate(date = as.POSIXct(timestamp, tz = "America/New_York")) %>%
+  # Round times to nearest minute
+  mutate(date = round_date(date, unit = "minute")) %>%
+
+  # Remove unnecessary columns, add sum of bins (see helper function)
+  sum_bins() %>%
+  
+  # Remove repeat readings
+  distinct(case, participant_id, date, environment, .keep_all = TRUE)
+```
+
+### Merge CPC and Mod-PM Data
+Merge is conducted over matching dates for each participant in a particlular environment and case
+```{r}
+main_df <- merge(cpc_df, modpm_df, 
+                   by = c("date", "participant_id", 
+                          "environment", "case"))
+```
 
 ### Calculate ratio of indoor and outdoor concentration
 To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that are then divided by each other to calculate the ratio. After calculating the ratio, the dataframe is 'gathered' back up to its original shape.
@@ -169,7 +267,7 @@ To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that
 # Spread: Create separate indoor and outdoor columns for measurements
 main_df_wide <- pivot_wider(main_df,
                   names_from = environment,
-                  values_from = c(concent, inlttmp))
+                  values_from = c(concent, inlttmp - CHANGE))
 
 # Divide indoor by outdoor to calculate ratios
 df_ratio <- select(main_df_wide, ends_with("indoor"))/
@@ -183,12 +281,11 @@ main_df_wide <- cbind(main_df_wide, df_ratio)
 
 # Gather: Return to original shape by re-forming the environment variable
 main_df <- pivot_longer(main_df_wide, 
-                               concent_indoor:inlttmp_ratio, 
+                               concent_indoor:inlttmp_ratio - CHANGE, 
                                names_to = c(".value", "environment"), 
                                names_sep = "_") %>%
   mutate(environment = as.factor(environment))
 ```
-
 
 ### Calculate correlation matrices
 Helps better understand the relationship between different variables in sham and true HEPA conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
@@ -212,7 +309,6 @@ for (person in participants) {
 }
 ```
 
-
 ### Gather, group, and summarize
 To calculate summary statistics of the data, the different measurements are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
 
@@ -235,41 +331,4 @@ main_df %>%
             q95 = quantile(reading, probs = 0.95),
             sd = sd(reading),
             .groups = 'drop') -> summary
-```
-
-### Calculate percentage reduction in concentration from sham to hepa
-Follows the same logic as calculating indoor-outdoor ratios. Spread to form sham/hepa columns that are used to calculate percent reduction in corresponding measurements. Then gather dataframe back to original shape.
-```{r}
-# Spread: Create separate sham, hepa summary statistics columns
-summary_wide <- pivot_wider(summary, 
-                            names_from = case, values_from = mean:sd)
-
-# Calculate percentage reduction in all summary statistics
-summary_redu <- 100*(select(summary_wide, ends_with("sham")) - 
-  select(summary_wide, ends_with("hepa"))) / 
-  select(summary_wide, ends_with("sham"))
-
-# Rename computed columns to 'redu' for percentage reduction
-colnames(summary_redu) <- sub("sham", "redu", colnames(summary_redu))
-
-# Reshape data and pipe into variable 'summary_normal'
-summary_wide %>%
-  # Merge back with joined data-frame
-  cbind(summary_redu) %>%
-  # Gather: Return to original shape by removing the 'sham/hepa/redu'
-  # suffixes by re-forming the case variable
-  pivot_longer(mean_hepa:sd_redu, 
-               names_to = c(".value", "case"), names_sep = "_") %>%
-  # Filter out all NaN and Inf values
-  filter_all(all_vars(!is.infinite(.))) %>%
-  # Change to factors
-  mutate(across(c(type, case), as.factor)) -> summary_normal
-```
-
-## Save to file
-Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
-```{r}
-# Save summary statistic files to CSVs
-write.csv(summary_normal, "summary/HAFTRAP/OH/cpc/s_OH_C_quants.csv")
-write.csv(corr_df, "summary/HAFTRAP/OH/cpc/s_OH_C_corr.csv")
 ```
