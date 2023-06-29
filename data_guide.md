@@ -11,27 +11,33 @@ At its very core, the location where data is collected central to categorizing t
 
 The following codes will be used to organize folders, name files, and refer to locations throughout this repository:
 
+| Region      | Location Code |  Description |  Sensors |
+| :-----: | :-----: |:-----: |:-----: |
+| M | M | M <td rowspan=2>  | M |
+| M | M | ||
+
 Roxbury:
 
-1. CM – Cardinal Medeiros, an elderly care [? Check with team] building in Roxbury.
-2. IB – Indigo Block, an affordable housing [? Check with team] building in Roxbury.
+1. CM – Cardinal Medeiros, an elderly care apartment complex in Roxbury.
+2. IB – Indigo Block, an affordable housing building in Roxbury.
 3. RH – Individual homes in Roxbury.
 
 East Boston:
 
-4. DC – Daycares in East Boston [ask Scott]
-5. PS – Pre-schools in East Boston [ask Scott]
+4. MD – Mothers out Front daycares in East Boston
+5. SS – Shining Star Pre-school in East Boston
+6. LF - Little folk pre-school in East Boston
 
 Revere:
 
-6. CH – City Hall of Revere [ask Scott]
-7. HS – High school in Revere [ask Scott]
+7. CH – City Hall of Revere
+8. HS – High school in Revere
 
 HAFTRAP:
 
-8. SC - HAFTRAP data from SCOPE project.
-9. OH - Olin's HAFTRAP data.
-10. TU - Tuft's HAFTRAP data [chaos TBD]
+9. SC - HAFTRAP data from SCOPE project.
+10. OH - Olin's HAFTRAP data.
+11. TU - Tuft's HAFTRAP data
 
 ## Data Pipeline
 The data pipeline for this project can be considered to be made up of four components:

@@ -1,6 +1,7 @@
 # HAFTRAP Data Cleaning and Summaries - multiple (for CPC)
-This script is an initial builder to generate figures for multiple participants in the HAFTRAP study, using deployments by Olin. It is largely a copy of `OH_modpm_all_stats.Rmd`, but modified to deal with CPC data. Ensure that each participant has indoor and outdoor data, all files labelled appropriately.
+This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for CPC deployments by Olin. It is largely a copy of `OH_modpm_all_stats.Rmd`, but with few modifications to deal with CPC data. Ensure that each participant has indoor and outdoor data (NOT distinguished by sham and HEPA) and that all files are labelled appropriately.
 
+Results can be found in the folder`summary/HAFTRAP/OH/cpc/`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
