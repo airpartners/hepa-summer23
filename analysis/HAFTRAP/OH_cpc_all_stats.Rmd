@@ -37,6 +37,8 @@ time_map <- read_excel(
   # Convert to appropriate variable types
   mutate(across(dt_start:dt_end, 
                   ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
+  mutate(across(dt_start:dt_end, 
+                  ~force_tz(.x, tz = "America/New_York"))) %>%
   mutate(across(participant_id:case, as.factor))
 ```
 
@@ -48,31 +50,9 @@ path_to_data <- "data/HAFTRAP/OH/cpc/"
 data_cat <- "OH_C"
 ```
 
-## Helper Functions
-The following functions are not part of the main pipeline to calculate summary statistics, but are used to clean and process the data -
+## Helper Function: calculating correlation coefficients
+The following functions is not part of the main pipeline to calculate summary statistics, but is used to clean and process the data. 
 
-### Filter by relevant times
-Each participant contains data for periods where both the sham and actual purifier was running. This function filters the relevant time periods and adds an added variable to track sham and HEPA (actual) readings.
-```{r}
-include_case <- function(df, person, cd) {
-  df %>%
-    # Select current participant
-    filter(participant_id == person) %>%
-    # Add case column
-    mutate(case = case_when(
-      # For sham periods
-      # Note: 'cd' is the table 'current_dates' in function call
-      between(date, cd$dt_start[cd$case == "sham"], 
-              cd$dt_end[cd$case == "sham"]) ~ 'sham',
-      # For HEPA periods
-      between(date, cd$dt_start[cd$case == "hepa"], 
-              cd$dt_end[cd$case == "hepa"]) ~ 'hepa'))
-}
-```
-
-
-
-### Calculating correlation coefficients
 Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
 ```{r}
 # Function to calculate correlation matrices
@@ -93,108 +73,13 @@ get_corr <- function(df, p, c) {
 ```
 
 ## Main Code Run
-### Load all data. 
-Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
-```{r}
-# Initialize master dataframe for all data
-all_df <- data.frame()
-
-# Loop through each participant
-for (person in participants) {
-  # Loop through each environment
-  for (env in c("indoor", "outdoor")) {
-    # Set file path
-    # Filename = data category + participant ID + environment
-    file_name <- paste(data_cat, person, env, sep = "_")
-    
-    # File path = path to folder, type csv
-    file_path <- paste0(path_to_data, file_name, ".csv")
-    
-    # Read csv
-    df <- read_csv(file_path, show_col_types = FALSE) %>%
-      # Filter to first four columns (for funky data from preprocessing)
-      select(1:4) %>%
-      # Add the environment type (e.g. indoor) and participant ID
-      mutate(environment = env, participant_id = person)
-    
-    # Append to main dataframe
-    all_df <- rbind(all_df, df)
-  }
-}
-
-```
-
-```{r}
-# Warning: this code chunk may seem simple but takes FOREVER.
-# Have patience. It deals with datetimes.
-clean_df <- all_df %>%
-  # Merge the date and time column
-  unite(col = "date", `#YY/MM/DD`, `HR:MN:SC`, sep = " ") %>%
-  # Convert to datetime object
-  mutate(date = as.POSIXct(date, format = "%y/%m/%d %H:%M:%S", 
-                           tz = "America/New_York")) %>%
-  # Remove repeat readings
-  distinct(participant_id, date, environment, .keep_all = TRUE)
-```
-
-
-
-```{r}
-# Filter by time to find whether sham or hepa
-case_df <- data.frame()
-for (person in participants) {
-  # Filter indoor (dates match outdoor) and by current participant
-  current_dates <- time_map %>% 
-    filter(environment == "indoor") %>%
-    filter(participant_id == person)
-  # Filter by date for sham and hepa (see helper function)
-  df <- include_case(clean_df, person, current_dates)
-  # Append to overall dataframe
-  case_df <- rbind(case_df, df)
-}
-```
-
-```{r}
-# Quick cleaning:
-# Remove values that aren't in relevant time range, make factors
-main_df <- case_df %>%
-  drop_na() %>%
-  mutate(across(c(environment, case, participant_id), as.factor)) 
-  
-```
-
-
-### Calculate ratio of indoor and outdoor concentration
-To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that are then divided by each other to calculate the ratio. After calculating the ratio, the dataframe is 'gathered' back up to its original shape.
-```{r}
-# Spread: Create separate indoor and outdoor columns for measurements
-main_df_wide <- pivot_wider(main_df,
-                  names_from = environment,
-                  values_from = c(concent, inlttmp))
-
-# Divide indoor by outdoor to calculate ratios
-df_ratio <- select(main_df_wide, ends_with("indoor"))/
-  select(main_df_wide, ends_with("outdoor"))
-
-# Rename computed columns to ratio
-colnames(df_ratio) <- sub("indoor", "ratio", colnames(df_ratio))
-
-# Merge back with joined data-frame
-main_df_wide <- cbind(main_df_wide, df_ratio)
-
-# Gather: Return to original shape by re-forming the environment variable
-main_df <- pivot_longer(main_df_wide, 
-                               concent_indoor:inlttmp_ratio, 
-                               names_to = c(".value", "environment"), 
-                               names_sep = "_") %>%
-  mutate(environment = as.factor(environment))
-```
-
 
 ### Calculate correlation matrices
 Helps better understand the relationship between different variables in sham and true HEPA conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
 
 ```{r}
+# 
+
 # Create dataframe to hold correlation coefficients
 corr_df <- data.frame()
 # Loop through each participant
