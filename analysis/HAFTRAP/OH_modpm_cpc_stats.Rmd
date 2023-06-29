@@ -1,6 +1,7 @@
 # HAFTRAP Data Cleaning and Summaries - multiple (for CPC)
-This script is a combination of `OH_modpm_all_stats` and `OH_cpc_all_stats` to concurrently process CPC and Mod-PM data and compare variables.
+This script is a combination of `OH_modpm_all_stats` and `OH_cpc_all_stats` to concurrently process CPC and Mod-PM data. It calculates summary statistics for variables from both Mod-PM and CPC readings, and compare variables.
 
+Results can be found in the folder`summary/HAFTRAP/OH/joint/`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -315,7 +316,7 @@ To calculate summary statistics of the data, the different measurements are gath
 ```{r}
 main_df %>%
   # Gather dataframe to create single variable for measurements
-  pivot_longer(concent:inlttmp, 
+  pivot_longer(concent:inlttmp - CHANGE, 
                names_to = "type", values_to = "reading") %>%
   # Drop NaN, inf values for summary calculation
   filter(is.finite(reading)) %>%
@@ -331,4 +332,42 @@ main_df %>%
             q95 = quantile(reading, probs = 0.95),
             sd = sd(reading),
             .groups = 'drop') -> summary
+```
+
+
+### Calculate percentage reduction in concentration from sham to hepa
+Follows the same logic as calculating indoor-outdoor ratios. Spread to form sham/hepa columns that are used to calculate percent reduction in corresponding measurements. Then gather dataframe back to original shape.
+```{r}
+# Spread: Create separate sham, hepa summary statistics columns
+summary_wide <- pivot_wider(summary, 
+                            names_from = case, values_from = mean:sd)
+
+# Calculate percentage reduction in all summary statistics
+summary_redu <- 100*(select(summary_wide, ends_with("sham")) - 
+  select(summary_wide, ends_with("hepa"))) / 
+  select(summary_wide, ends_with("sham"))
+
+# Rename computed columns to 'redu' for percentage reduction
+colnames(summary_redu) <- sub("sham", "redu", colnames(summary_redu))
+
+# Reshape data and pipe into variable 'summary_normal'
+summary_wide %>%
+  # Merge back with joined data-frame
+  cbind(summary_redu) %>%
+  # Gather: Return to original shape by removing the 'sham/hepa/redu'
+  # suffixes by re-forming the case variable
+  pivot_longer(mean_hepa:sd_redu, 
+               names_to = c(".value", "case"), names_sep = "_") %>%
+  # Filter out all NaN and Inf values
+  filter_all(all_vars(!is.infinite(.))) %>%
+  # Change to factors
+  mutate(across(c(type, case), as.factor)) -> summary_normal
+```
+
+## Save to file
+Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
+```{r}
+# Save summary statistic files to CSVs
+write.csv(summary_normal, "summary/HAFTRAP/OH/joint/s_OH_MC_quants.csv")
+write.csv(corr_df, "summary/HAFTRAP/OH/joint/s_OH_MC_corr.csv")
 ```

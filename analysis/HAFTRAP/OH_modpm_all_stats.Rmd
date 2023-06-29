@@ -1,11 +1,7 @@
-Questions:
-1) Is there a way to do the ratio and reduction calculation code more efficiently
-2) Is there a better way to calculate correlation plots
+# HAFTRAP Data Cleaning and Summaries - multiple (for Mod-PM)
+This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for Mod-PM deployments by Olin. It is largely a copy of `OH_modpm_single_stats.Rmd`, but scaled up to deal with multiple participants. Ensure that each participant has indoor and outdoor data for both sham and HEPA stages and that all files are labelled appropriately.
 
-
-
-# HAFTRAP Data Cleaning and Summaries - multiple
-This script is an initial builder to generate figures for multiple participants in the HAFTRAP study, using deployments by Olin. It is largely a copy of `OH_modpm_single_stats.Rmd`, but scaled up to deal with multiple participants. Ensure that each participant has indoor and outdoor data for both sham and HEPA stages, all files labelled appropriately.
+Results can be found in the folder`summary/HAFTRAP/OH/modpm/`.
 
 
 ## Set up
