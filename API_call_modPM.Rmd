@@ -790,16 +790,18 @@ if (!file.exists(data_folder_path)) {
 
 # Function to process a single sensor
 process_sensor <- function(sensor) {
-  time_range <- seq(as.Date(sensor@startDate), as.Date(sensor@endDate), by = "day")
+  merged_data_per_sensor <- data.frame()
+  time_range <-
+    seq(as.Date(sensor@startDate), as.Date(sensor@endDate), by = "day")
   time_range <- format(time_range, "%Y-%m-%d")
 
   for (date in time_range) {
     merged_data_per_day <- data.frame()
     for (state in c("raw/", "")) {
-      sensor_url <- paste0(sensor@sensorNum, "/data-by-date/", state, date, "/")
-      api_data <- GET(
-        url = paste0(base_url, sensor_url),
-        authenticate(api_key, "", type = "basic"),
+      sensor_url <-
+        paste0(sensor@sensorNum, "/data-by-date/", state, date, "/")
+      api_data <- GET(url = paste0(base_url, sensor_url),
+                      authenticate(api_key, "", type = "basic"),
         encoding = "UTF-8"
       )
       
@@ -813,7 +815,9 @@ process_sensor <- function(sensor) {
       parsed_data <- fromJSON(data)
       
       # Check if the data is empty or has zero rows
-      if (is.null(parsed_data) || is.null(parsed_data$data) || length(parsed_data$data) == 0) {
+      if (is.null(parsed_data) ||
+          is.null(parsed_data$data) || length(parsed_data$data) == 0) {
+        
         # Skip processing if the data is empty
         next
       }
@@ -826,10 +830,13 @@ process_sensor <- function(sensor) {
     }
     
     # Skip processing if the merged data is empty or has zero rows
-    if (is.null(raw_df) || is.null(final_df) || nrow(raw_df) == 0 || nrow(final_df) == 0) {
+    if (is.null(raw_df) ||
+        is.null(final_df) || nrow(raw_df) == 0 || nrow(final_df) == 0) {
+      
       next
     }
     
+    # Merge raw and final data
     merged_data_per_day <- merge(raw_df, final_df, by = "timestamp_local")
   }
   
@@ -837,9 +844,12 @@ process_sensor <- function(sensor) {
   if (is.null(merged_data_per_day) || nrow(merged_data_per_day) == 0) {
     return()
   }
-  
-  cols_to_unnest <- names(merged_data_per_day)[sapply(merged_data_per_day, is.data.frame)]
-  flattened_df <- unnest(merged_data_per_day, cols = cols_to_unnest, names_sep = ".")
+  # Flatten any nested dataframes
+  cols_to_unnest <-
+    names(merged_data_per_day)[sapply(merged_data_per_day, is.data.frame)]
+  flattened_df <-
+    unnest(merged_data_per_day, cols = cols_to_unnest, names_sep = ".")
+  merged_data_per_sensor <- rbind(merged_data_per_sensor, flattened_df)
   
   # Save data to CSV file using naming convention from data_guide
   csv_file_path <- file.path(
@@ -859,7 +869,7 @@ process_sensor <- function(sensor) {
   )
   
   tryCatch({
-    write.csv(flattened_df, csv_file_path)
+    write.csv(merged_data_per_sensor, csv_file_path)
   },
   error = function(e) {
     cat(
