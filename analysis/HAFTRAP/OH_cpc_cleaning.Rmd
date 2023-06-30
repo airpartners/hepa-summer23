@@ -1,5 +1,5 @@
 # CPC Data Cleaning
-This file cleans, and calculates the I/O ratio for CPC data. Output is saved in a `temp_data/cpc.RData` file that is *untracked* by Github. All files that depend on using CPC data must be run after running this file.
+This file cleans, and calculates the I/O ratio for CPC data. Output is saved in a `temp_data/cpc.RData` file that is *untracked* by Github. *All files that depend on using CPC data must be run after running this file.*
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed

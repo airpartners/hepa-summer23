@@ -1,20 +1,23 @@
-# HAFTRAP Data Cleaning and Summaries - multiple (for Mod-PM)
-This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for Mod-PM deployments by Olin. It is largely a copy of `OH_modpm_single_stats.Rmd`, but scaled up to deal with multiple participants. Ensure that each participant has indoor and outdoor data for both sham and HEPA stages and that all files are labelled appropriately.
+# HAFTRAP Data Summarization - multiple (for Mod-PM)
 
-Results can be found in the folder`summary/HAFTRAP/OH/modpm/`.
+## STOP
 
+**HAVE YOU RUN `OH_modpm_cleaning`?**
+*This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for CPC deployments by Olin. It is largely a copy of `OH_modpm_single_stats.Rmd` without the data cleaning part found in `OH_modpm_cleaning`.
+
+Results can be found in the folder`summary/HAFTRAP/OH/cpc/`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
-library(openair)
 library(corrplot)
-library(ggplot2)
-library(ggpmisc)
 library(rstatix)
 ```
+
 Set working directory
 ```{r, setup, include=FALSE}
 knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
@@ -35,51 +38,18 @@ participants <- c("44241", "41181")
 ```{r}
 # Set path to data
 path_to_data <- "data/HAFTRAP/OH/modpm/"
-
-# Set data category
-data_cat <- "OH_M"
 ```
 
-## Helper Functions
-The following functions are not part of the main pipeline to calculate summary
-statistics, but are used to clean and process the data
-
-### Reformatting timestamps
-Necessary since the timestamps from QuantAQ are in a weird format and need to be formatted to a format that works with the openair plotting package. An added column rounding the times to the nearest minute is calculated since two data-frames will be merged later in this script on the basis of time.
-
+## Load data
 ```{r}
-# Function to reformat time-stamps to time object and round to nearest minute
-improve_timestamps <- function(df) {
-  df %>%
-    # Reformat timestamps to sensible format
-    # mutate(date = as.POSIXct(strptime(timestamp_local, 
-    #   format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))) %>%
-    mutate(date = as.POSIXct(timestamp, tz = "America/New_York")) %>%
-    # Round times to nearest minute
-    mutate(date = round_date(date, unit = "minute"))
-}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
 ```
 
-### Particle counts and removing unnecessary data
-Alongside particle masses, we are concerned with the counts of particles that fall under certain size bins. To approximate the counts under pm1, sum up bin 0 to 2. Discard all other data columns that are not relevant.
-```{r}
-# Function to calculate sums of particle counts, remove rest
-sum_bins <- function(df) {
-  df %>%
-    # Sum particle counts
-    mutate(pm1num = bin0 + bin1 + bin2) %>%
-    # Delete unnecessary columns
-    select(pm1:pm1num, sample_temp) %>%
-    select(-ends_with("_model_id")) %>%
-    rename("temp" = "sample_temp")
-}
+## Helper Function: calculating correlation coefficients
+The following function is not part of the main pipeline to calculate summary statistics, but is used to clean and process the data. 
 
-```
-
-### Calculating correlation coefficients
-Correlation coefficients tell us a lot about relationships between variables.
-This function calculates the correlation matrix for a particular case for a
-single participant and reshapes it into a paired-list format
+Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
 ```{r}
 # Function to calculate correlation matrices
 get_corr <- function(df, p, c) {
@@ -98,98 +68,16 @@ get_corr <- function(df, p, c) {
 ```
 
 ## Main Code Run
-### Load all data. 
-Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
+
+### Calculate correlation matrices
+Helps better understand the relationship between different variables in sham and true HEPA conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
+
 ```{r}
-# Initialize master dataframe for all data
-all_df <- data.frame()
-
-# Loop through each participant
-for (person in participants) {
-  # Loop through each case
-  for (case in c("sham", "hepa")) {
-    # Loop through each environment
-    for (env in c("indoor", "outdoor")) {
-      
-      # Set file path
-      # Filename = data category + participant ID + case 
-      # + environment
-      file_name <- paste(data_cat, person, case, env, sep = "_")
-      
-      # File path = path to folder, type csv
-      file_path <- paste0(path_to_data, file_name, ".csv")
-      
-      # Read csv
-      df <- read_csv(file_path, show_col_types = FALSE)
-      
-      # Add the case and environment type (e.g. sham, indoor)
-      # And participant ID
-      df <- mutate(df, case = case, environment = env,
-              participant_id = person)
-      
-      # Append to main dataframe
-      all_df <- rbind(all_df, df)
-    }
-  }
-}
-
-```
-
-### Process all data to remove unnecessary columns and round time values 
-This helps in syncing data across different sensors later - functions here can be found in the 'Helper Functions' section.
-```{r}
-# Clean data (look at helper functions)
-main_df <- all_df %>%
-  # Reformat timestamps and round to nearest minute
-  improve_timestamps() %>%
-
-  # Calculate particle counts and remove unnecessary columns
-  sum_bins() %>%
-  
-  # Remove repeat readings
-  distinct(case, participant_id, date, environment, .keep_all = TRUE)
-```
-
-### Calculate ratio of indoor and outdoor concentration
-To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that
-are then divided by each other to calculate the ratio. After calculating the
-ratio, the dataframe is 'gathered' back up to its original shape.
-
-Always run this chunk with the previous chunk.
-```{r}
-# Spread: Create separate indoor and outdoor columns for particle concentration
+# Spread: Create separate indoor, outdoor columns for particle concentration
 main_df_wide <- pivot_wider(main_df,
                   names_from = environment,
                   values_from = c(pm1, pm25, pm10, pm1num, temp))
 
-# Divide indoor by outdoor to calculate ratios
-df_ratio <- select(main_df_wide, ends_with("indoor"))/
-  select(main_df_wide, ends_with("outdoor"))
-
-# Rename computed columns to ratio
-colnames(df_ratio) <- sub("indoor", "ratio", colnames(df_ratio))
-
-# Merge back with joined data-frame
-main_df_wide <- cbind(main_df_wide, df_ratio)
-
-# Drop 
-
-# Gather: Return to original shape by removing the 'indoor'/'outdoor'/'ratio'
-# suffixes by re-forming the environment variable
-main_df <- pivot_longer(main_df_wide, 
-                               pm1_indoor:temp_ratio, 
-                               names_to = c(".value", "environment"), 
-                               names_sep = "_")
-```
-
-
-### Calculate correlation matrices
-Helps better understand the relationship between different variables in sham and
-true HEPA conditions for each participant. Matrices are reshaped into longer pair
-format for stacking all the data into single dataframe. (Warning: this code
-takes a while to run.)
-
-```{r}
 # Create dataframe to hold correlation coefficients
 corr_df <- data.frame()
 # Loop through each participant
@@ -204,17 +92,17 @@ for (person in participants) {
       mutate(case = case, participant_id = person) -> df
     # Append to main dataframe
     corr_df <- rbind(corr_df, df)
+    print(paste("Computed correlation coefficients for", person, case))
   }
 }
 ```
-
 
 ### Gather, group, and summarize
 To calculate summary statistics of the data, the different measurements (PM1,  PM2.5, PM10, PM1_num, and temperature) are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
 
 ```{r}
 main_df %>%
-  # Gather dataframe to create single variable for particle concentrations, temp
+  # Gather dataframe to create single variable for measurements
   pivot_longer(pm1:temp, names_to = "type", values_to = "reading") %>%
   # Drop NaN, inf values for summary calculation
   filter(is.finite(reading)) %>%
@@ -239,11 +127,13 @@ sham/hepa columns that are used to calculate percent reduction in corresponding
 summary pollution concentrations. Then gather dataframe back to original shape.
 ```{r}
 # Spread: Create separate sham, hepa summary statistics columns
-summary_wide <- pivot_wider(summary, names_from = case, values_from = mean:sd)
+summary_wide <- pivot_wider(summary, 
+                            names_from = case, values_from = mean:sd)
 
 # Calculate percentage reduction in all summary statistics
 summary_redu <- 100*(select(summary_wide, ends_with("sham")) - 
-  select(summary_wide, ends_with("hepa"))) / select(summary_wide, ends_with("sham"))
+  select(summary_wide, ends_with("hepa"))) / 
+  select(summary_wide, ends_with("sham"))
 
 # Rename computed columns to 'redu' for percentage reduction
 colnames(summary_redu) <- sub("sham", "redu", colnames(summary_redu))
@@ -254,9 +144,10 @@ summary_wide %>%
   cbind(summary_redu) %>%
   # Gather: Return to original shape by removing the 'sham/hepa/redu'
   # suffixes by re-forming the case variable
-  pivot_longer(mean_hepa:sd_redu, names_to = c(".value", "case"), names_sep = "_") %>%
-  # Drop NaNs
-  drop_na() -> summary_normal
+  pivot_longer(mean_hepa:sd_redu, 
+               names_to = c(".value", "case"), names_sep = "_") %>%
+  # Filter out all NaN and Inf values
+  filter_all(all_vars(!is.infinite(.))) -> summary_normal
 
 ```
 

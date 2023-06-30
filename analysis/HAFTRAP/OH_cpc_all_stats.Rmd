@@ -1,5 +1,11 @@
-# HAFTRAP Data Cleaning and Summaries - multiple (for CPC)
-This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for CPC deployments by Olin. It is largely a copy of `OH_modpm_all_stats.Rmd`, but with few modifications to deal with CPC data. Ensure that each participant has indoor and outdoor data (NOT distinguished by sham and HEPA) and that all files are labelled appropriately.
+# HAFTRAP Data Summarization - multiple (for CPC)
+
+## STOP
+
+**HAVE YOU RUN `OH_cpc_cleaning`?**
+*This file loads a dataframe created from running `OH_cpc_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for CPC deployments by Olin. It is largely a copy of `OH_modpm_all_stats.Rmd`, but with few modifications to deal with CPC data.
 
 Results can be found in the folder`summary/HAFTRAP/OH/cpc/`.
 
@@ -10,7 +16,6 @@ Load libraries, define file paths, include participant IDs to be processed
 library(tidyverse)
 library(corrplot)
 library(rstatix)
-library(readxl)
 ```
 
 Set working directory
@@ -30,28 +35,21 @@ Participant IDs and corresponding time map tables
 ```{r}
 # Vector of participant numbers' data to be processed
 participants <- c("41271", "42281", "45361", "44621", "45451")
-
-# Read summary table of times
-time_map <- read_excel(
-  paste0("data/HAFTRAP/OH/", "OH_N_summarized.xlsx")) %>%
-  # Convert to appropriate variable types
-  mutate(across(dt_start:dt_end, 
-                  ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
-  mutate(across(dt_start:dt_end, 
-                  ~force_tz(.x, tz = "America/New_York"))) %>%
-  mutate(across(participant_id:case, as.factor))
 ```
 
 ```{r}
 # Set path to data
 path_to_data <- "data/HAFTRAP/OH/cpc/"
+```
 
-# Set data category
-data_cat <- "OH_C"
+## Load data
+```{r}
+# Load CPC data from RData file
+load(paste0(path_to_data, "cleaned_cpc.RData"))
 ```
 
 ## Helper Function: calculating correlation coefficients
-The following functions is not part of the main pipeline to calculate summary statistics, but is used to clean and process the data. 
+The following function is not part of the main pipeline to calculate summary statistics, but is used to clean and process the data. 
 
 Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
 ```{r}
@@ -78,7 +76,11 @@ get_corr <- function(df, p, c) {
 Helps better understand the relationship between different variables in sham and true HEPA conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
 
 ```{r}
-# 
+# Pivot wider to distinguish indoor/outdoor/ratio
+# Spread: Create separate indoor and outdoor columns for measurements
+main_df_wide <- pivot_wider(main_df,
+                  names_from = environment,
+                  values_from = c(concent, inlttmp))
 
 # Create dataframe to hold correlation coefficients
 corr_df <- data.frame()
