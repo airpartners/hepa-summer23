@@ -1,0 +1,271 @@
+# HAFTRAP Data Cleaning and Summaries - initial
+This script is an initial builder to generate figures for a single participant (ID: 41181) in the HAFTRAP study, using deployments by Olin. Pieces of this code may be replicated in future iterations to deal with multiple file processing.
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(openair)
+library(corrplot)
+library(ggplot2)
+library(ggpmisc)
+
+```
+
+```{r}
+# Get file path
+getwd()
+
+# # If file path doesn't end with the root folder "hepa-summer23", set to that folder on your PC
+# setwd(dir)
+```
+
+
+```{r}
+# Define files to be imported
+is_file <- 'data/HAFTRAP/OH/modpm/OH_M_41181_sham_indoor.csv'
+os_file <- 'data/HAFTRAP/OH/modpm/OH_M_41181_sham_outdoor.csv'
+ih_file <- 'data/HAFTRAP/OH/modpm/OH_M_41181_hepa_indoor.csv'
+oh_file <- 'data/HAFTRAP/OH/modpm/OH_M_41181_hepa_outdoor.csv'
+```
+
+### Import and prepare data
+```{r}
+# Import indoor sham data
+sham_indoor <- read.csv(is_file)
+
+# Import outdoor sham data
+sham_outdoor <- read.csv(os_file)
+
+# Import indoor hepa data
+hepa_indoor <- read.csv(ih_file)
+
+# Import outdoor hepa data
+hepa_outdoor <- read.csv(oh_file)
+
+```
+
+```{r}
+# Visual check
+head(hepa_indoor, 1)
+```
+
+### Reformatting timestamps
+Necessary since the timestamps from QuantAQ are in a weird format and need to be formatted to a format that works with the openair plotting package. An added column rounding the times to the nearest minute is calculated since two data-frames will be merged later in this script on the basis of time.
+
+```{r}
+# Function to reformat time-stamps to time object and round to nearest minute
+improve_timestamps <- function(df) {
+  df %>%
+    # Reformat timestamps to sensible format
+    mutate(date = as.POSIXct(strptime(timestamp_local, 
+      format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))) %>%
+    # Round times to nearest minute
+    mutate(date_round = round_date(date, unit = "minute"))
+}
+```
+
+```{r}
+# Reformat time-stamps and add rounding for future merges
+sham_indoor <- improve_timestamps(sham_indoor)
+sham_outdoor <- improve_timestamps(sham_outdoor)
+hepa_indoor <- improve_timestamps(hepa_indoor)
+hepa_outdoor <- improve_timestamps(hepa_outdoor)
+```
+
+```{r}
+# Visual check
+head(hepa_indoor, 1)
+```
+
+### Particle counts and removing unnecessary data
+Alongside particle masses, we are concerned with the counts of particles that fall under certain size bins. To approximate the counts under pm1, sum up bin 0 to 2. Discard all other data columns that are not relevant.
+
+```{r}
+# Function to calculate sums of particle counts, remove rest
+sum_bins <- function(df) {
+  df %>%
+    # Sum particle counts
+    mutate(pm1_num = bin0 + bin1 + bin2) %>%
+    # Delete unnecessary columns
+    select(pm1:pm1_num) %>%
+    select(-ends_with("_model_id"))
+}
+
+```
+
+
+```{r}
+# Calculate particle counts and remove unnecessary columns
+sham_indoor <- sum_bins(sham_indoor)
+sham_outdoor <- sum_bins(sham_outdoor)
+hepa_indoor <- sum_bins(hepa_indoor)
+hepa_outdoor <- sum_bins(hepa_outdoor)
+
+```
+
+```{r}
+# Visual check
+head(sham_indoor)
+```
+
+
+### Rename and merge
+Merge indoor and outdoor data into a single dataframe for easier comparison and calculation of various metrics using indoor/outdoor relationships. Note that rows with NaNs aren't being dropped yet to preserve as much data as possible.
+```{r}
+# Append all variables with "outdoor_" or "indoor_" respectively
+colnames(sham_indoor) <- paste0('indoor_', colnames(sham_indoor))
+colnames(sham_outdoor) <- paste0('outdoor_', colnames(sham_outdoor))
+
+colnames(hepa_indoor) <- paste0('indoor_', colnames(hepa_indoor))
+colnames(hepa_outdoor) <- paste0('outdoor_', colnames(hepa_outdoor))
+```
+
+```{r, results = 'hide'}
+# Time-sync indoor, outdoor data
+# Join dataframes by syncing rounded date columns. Run this only ONCE!
+sham_joined_data <- left_join(sham_indoor, sham_outdoor, by = c("indoor_date_round" = "outdoor_date_round"))
+
+hepa_joined_data <- left_join(hepa_indoor, hepa_outdoor, by = c("indoor_date_round" = "outdoor_date_round"))
+
+# Renaming synced date columns back to just 'date'
+sham_joined_data$date <- sham_joined_data$indoor_date
+hepa_joined_data$date <- hepa_joined_data$indoor_date
+
+# Removing extra date columns
+sham_joined_data <- select(sham_joined_data, -contains("_date"))
+hepa_joined_data <- select(hepa_joined_data, -contains("_date"))
+```
+
+```{r}
+# Visual check
+colnames(sham_joined_data)
+```
+
+### Compute indoor/outdoor ratios
+To ascertain whether changes in indoor air pollution are due to changes in indoor conditions, as opposed to changes in outdoor air pollution. 
+
+Note that this dataframe would continue to have lots of NaN values where indoor and outdoor data are not available for a given time stamp. Once again, this is intentional to preserve as much raw data as possible.
+
+```{r}
+# Function to calculate indoor-outdoor ratios
+calc_ratios <- function(joined_data) {
+  # Divide indoor by outdoor to calculate ratios
+  df_ratio <- select(joined_data, starts_with("indoor_"))/
+    select(joined_data, starts_with("outdoor_"))
+  
+  # Rename columns
+  colnames(df_ratio) <- sub("indoor_", "ratio_", colnames(df_ratio))
+  # Merge back with joined data-frame and return
+  cbind(joined_data, df_ratio)
+}
+```
+
+```{r}
+# Calculate ratios for sham and hepa data. 
+sham_joined_data <- calc_ratios(sham_joined_data)
+hepa_joined_data <- calc_ratios(hepa_joined_data)
+```
+
+
+
+```{r}
+# Visual check
+colnames(hepa_joined_data)
+
+```
+
+### Calculate various summary statistics of the data
+Now comes the step where we use all the processed data so far to calculate summary statistics about indoor, outdoor, and ratio data.
+```{r}
+# Function to calculate mean, median, and various quantiles of a given vector
+sum_data <- function(time_series) {
+  # Calculate mean
+  my_mean <- mean(na.omit(time_series))
+  # Calculate median, 5th, 25th, 75th, and 95th percentile
+  quantiles <- quantile(na.omit(time_series), 
+    probs = c(0.05, 0.25, 0.5, 0.75, 0.95))
+  
+  # Reorganizing vector so that mean and median are at beginning
+  median <- quantiles[3]
+  c("mean" = my_mean, median, quantiles[-3])
+}
+```
+
+
+```{r}
+# Compute the summary statistics for all columns except date (obviously)
+summary_sham <- apply(select(sham_joined_data , -date), 2, sum_data)
+summary_hepa <- apply(select(hepa_joined_data , -date), 2, sum_data)
+```
+
+```{r}
+# Visual check
+head(summary_sham, 2)
+```
+
+
+```{r}
+# Compute percentage reduction in all variables between sham and hepa
+perc_redu <- 100*(summary_sham - summary_hepa)/summary_sham
+```
+
+```{r}
+# Visual check
+head(perc_redu, 2)
+```
+
+```{r}
+# Rename columns. Run this block only ONCE!
+
+# Append 'sham_' to all sham summary columns
+colnames(summary_sham) <- paste("sham", colnames(summary_sham), sep = "_")
+# Append 'hepa_' to all hepa summary columns
+colnames(summary_hepa) <- paste("hepa", colnames(summary_hepa), sep = "_")
+# Append 'redu_' to all percentage reduction columns
+colnames(perc_redu) <- paste("redu", colnames(perc_redu), sep = "_")
+```
+
+```{r}
+
+# Merge into single data-frame
+summary_all <- cbind(summary_sham, summary_hepa, perc_redu)
+```
+
+```{r}
+# Visual check
+colnames(summary_all)
+```
+
+### Calculate correlation matrices
+Helps better understand the relationship between different variables in sham and true HEPA conditions.
+```{r}
+# Function to calculate correlation matrices
+get_corr <- function(joined_data) {
+  joined_data %>%
+    # Select all columns except date
+    select(-date) %>%
+    # Remove NaN values
+    na.omit() %>%
+    # Calculate correlations for all complete pairs
+    cor(use = "p")
+}
+```
+
+```{r}
+# Calculate correlation matrices for sham and hepa
+N_sham <- get_corr(sham_joined_data)
+N_hepa <- get_corr(hepa_joined_data)
+```
+
+```{r}
+# Visual check
+head(N_sham, 2)
+```
+
+### Save to file
+Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
+```{r}
+# Save summary statistic files to CSVs
+write.csv(summary_all, "summary/HAFTRAP/OH/modpm/s_OH_M_41181_quants.csv")
+write.csv(N_sham, "summary/HAFTRAP/OH/modpm/s_OH_M_41181_corr_sham.csv")
+write.csv(N_hepa, "summary/HAFTRAP/OH/modpm/s_OH_M_41181_corr_hepa.csv")
+```

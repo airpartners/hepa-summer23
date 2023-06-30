@@ -1,0 +1,96 @@
+# Sanity Check Mod-PM Data
+
+## STOP
+
+**HAVE YOU RUN `OH_modpm_cleaning`?**
+*This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to sanity check data produced from `OH_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `OH_modpm_cleaning`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(ggplot2)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+Participant IDs
+```{r}
+# Vector of participant numbers' data to be processed
+participants <- c("44241", "41181")
+```
+
+Paths
+```{r}
+# Set path to data
+path_to_data <- "data/HAFTRAP/OH/modpm/"
+```
+
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+## Plotting
+```{r}
+# Input participant ID
+person <- readline("Enter participant ID: ")
+while (!(person %in% participants)) {
+  # Input participant ID
+  person <- readline("Error! Invalid ID, Re-enter: ")
+}
+
+# Plot stuff
+for (env in c("indoor", "outdoor", "ratio")) {
+  y_check <- case_match(
+    env,
+    "indoor" ~ 10,
+    "outdoor" ~ 10,
+    "ratio" ~ 10
+  )
+  for (c in c("sham","hepa")) {
+    # Filter data to appropriate subset
+    df <- main_df %>%
+      filter(participant_id == person, case == c, 
+             environment == env)
+    
+      # Plot time-series of subset with an appropriate horizontal line
+      print(ggplot(df) +
+        geom_line(aes(x = date, y = pm1)) +
+        geom_hline(aes(yintercept = y_check)) +
+        ggtitle(paste(person, c, env, "pm1")))
+      
+      print(ggplot(df) +
+        geom_line(aes(x = date, y = pm25)) +
+        geom_hline(aes(yintercept = y_check)) +
+        ggtitle(paste(person, c, env, "pm25")))
+      
+      print(ggplot(df) +
+        geom_line(aes(x = date, y = pm10)) +
+        geom_hline(aes(yintercept = y_check)) +
+        ggtitle(paste(person, c, env, "pm10")))
+      
+      print(ggplot(df) +
+        geom_line(aes(x = date, y = pm1num)) +
+        geom_hline(aes(yintercept = y_check)) +
+        ggtitle(paste(person, c, env, "pm1_num")))
+    
+    # Pause and print
+    Sys.sleep(2)
+    print(paste("Plotted for", person, c, env))
+  }
+}
+```
