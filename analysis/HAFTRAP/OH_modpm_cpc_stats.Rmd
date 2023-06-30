@@ -10,7 +10,6 @@ Load libraries, define file paths, include participant IDs to be processed
 library(tidyverse)
 library(corrplot)
 library(rstatix)
-library(readxl)
 ```
 
 Set working directory
@@ -31,77 +30,46 @@ Participant IDs and corresponding time map tables
 # Vector of participant numbers' data to be processed
 participants <- c("41271", "42281", "45361", "44621", "45451")
 
-# Read summary table of times
-time_map <- read_excel(
-  paste0("data/HAFTRAP/OH/", "OH_N_summarized.xlsx")) %>%
-  # Convert to appropriate variable types
-  mutate(across(dt_start:dt_end, 
-                  ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
-  mutate(across(dt_start:dt_end, 
-                  ~force_tz(.x, tz = "America/New_York"))) %>%
-  mutate(across(participant_id:case, as.factor))
-```
-
 ### Set paths
-```{r}
 # # For CPC
 # Set path to data
 path_to_data_C <- "data/HAFTRAP/OH/cpc/"
 
-# Set data category
-data_cat_C <- "OH_C"
-
 # # For Mod-PM
 # Set path to data
 path_to_data_M <- "data/HAFTRAP/OH/modpm/"
-
-# Set data category
-data_cat_M <- "OH_M"
-
-# Temporary holder for IDs
-participants_M <- c("44241", "41181")
 ```
 
-## Helper Functions
-The following functions are not part of the main pipeline to calculate summary statistics, but are used to clean and process the data -
+## Load data
 
-### Filter by relevant times
-Each participant contains data for periods where both the sham and actual purifier was running. This function filters the relevant time periods and adds an added variable to track sham and HEPA (actual) readings.
+Mod-PM
 ```{r}
-include_case <- function(df, person, cd) {
-  df %>%
-    # Select current participant
-    filter(participant_id == person) %>%
-    # Add case column
-    mutate(case = case_when(
-      # For sham periods
-      # Note: 'cd' is the table 'current_dates' in function call
-      between(date, cd$dt_start[cd$case == "sham"], 
-              cd$dt_end[cd$case == "sham"]) ~ 'sham',
-      # For HEPA periods
-      between(date, cd$dt_start[cd$case == "hepa"], 
-              cd$dt_end[cd$case == "hepa"]) ~ 'hepa'))
-}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data_M, "cleaned_modpm.RData"))
+
+# Create copy of main_df, and delete original
+modpm_df <- main_df
+rm(main_df)
 ```
 
-### Particle counts and removing unnecessary data
-For Mod-PM particle masses, we are concerned with the counts of particles that fall under certain size bins. To approximate the counts under pm1, sum up bin 0 to 2. Discard all other data columns that are not relevant.
+CPC - filter data to whole minutes
 ```{r}
-# Function to calculate sums of particle counts, remove rest
-sum_bins <- function(df) {
-  df %>%
-    # Sum particle counts
-    mutate(pm1num = bin0 + bin1 + bin2) %>%
-    # Delete unnecessary columns
-    select(pm1:pm1num, sample_temp) %>%
-    select(-ends_with("_model_id")) %>%
-    rename("temp" = "sample_temp")
-}
+# Load CPC data from RData file
+load(paste0(path_to_data_C, "cleaned_cpc.RData"))
 
+# Create copy of main_df
+cpc_df <- main_df %>%
+  # Mod-PM data is sampled by whole minute, filter CPC data to match
+  filter(second(main_df$date) == 0)
+
+# Delete original
+rm(main_df)
 ```
 
 
-### Calculating correlation coefficients
+## Helper Function: calculating correlation coefficients
+The following function is not part of the main pipeline to calculate summary statistics, but is used to clean and process the data. 
+
 Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
 ```{r}
 # Function to calculate correlation matrices
@@ -122,137 +90,6 @@ get_corr <- function(df, p, c) {
 ```
 
 ## Main Code Run
-### Load CPC data. 
-Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
-```{r}
-# Initialize master dataframe for all data
-all_df <- data.frame()
-
-# Loop through each participant
-for (person in participants) {
-  # Loop through each environment
-  for (env in c("indoor", "outdoor")) {
-    # Set file path
-    # Filename = data category + participant ID + environment
-    file_name <- paste(data_cat_C, person, env, sep = "_")
-    
-    # File path = path to folder, type csv
-    file_path <- paste0(path_to_data_C, file_name, ".csv")
-    
-    # Read csv
-    df <- read_csv(file_path, show_col_types = FALSE) %>%
-      # Filter to first four columns (for funky data from preprocessing)
-      select(1:4) %>%
-      # Add the environment type (e.g. indoor) and participant ID
-      mutate(environment = env, participant_id = person)
-    
-    # Append to main dataframe
-    all_df <- rbind(all_df, df)
-  }
-  print(paste("Read data for participant", person))
-}
-```
-
-#### Filter data to only whole minutes
-Mod-PM data is sampled every minute, so to match the CPC data with it, we only filter out samples taken at whole minutes.
-```{r}
-# Note this is chunk is different from OH_cpc_all_stats code
-
-# Filter out only whole minutes
-less_df <- filter(all_df, second(all_df$`HR:MN:SC`) == 0)
-```
-
-
-```{r}
-# Deal with datetimes.
-clean_df <- less_df %>%
-  # Merge the date and time column
-  unite(col = "date", `#YY/MM/DD`, `HR:MN:SC`, sep = " ") %>%
-  # Convert to datetime object
-  mutate(date = as.POSIXct(date, format = "%y/%m/%d %H:%M:%S")) %>%
-  # Remove repeat readings
-  distinct(participant_id, date, environment, .keep_all = TRUE)
-```
-
-```{r}
-# Filter by time to find whether sham or hepa
-case_df <- data.frame()
-for (person in participants) {
-  # Filter indoor (dates match outdoor) and by current participant
-  current_dates <- time_map %>% 
-    filter(environment == "indoor") %>%
-    filter(participant_id == person)
-  # Filter by date for sham and hepa (see helper function)
-  df <- include_case(clean_df, person, current_dates)
-  # Append to overall dataframe
-  case_df <- rbind(case_df, df)
-}
-```
-
-```{r}
-# Quick cleaning:
-# Remove values that aren't in relevant time range, make factors
-cpc_df <- case_df %>%
-  drop_na() %>%
-  mutate(across(c(environment, case, participant_id), as.factor)) 
-  
-```
-
-
-## Main Code Run
-### Load Mod-PM data. 
-Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
-```{r}
-# Initialize master dataframe for all data
-all_df <- data.frame()
-
-# Loop through each participant
-for (person in participants_M) {
-  # Loop through each case
-  for (case in c("sham", "hepa")) {
-    # Loop through each environment
-    for (env in c("indoor", "outdoor")) {
-      
-      # Set file path
-      # Filename = data category + participant ID + case 
-      # + environment
-      file_name <- paste(data_cat_M, person, case, env, sep = "_")
-      
-      # File path = path to folder, type csv
-      file_path <- paste0(path_to_data_M, file_name, ".csv")
-      
-      # Read csv
-      df <- read_csv(file_path, show_col_types = FALSE)
-      
-      # Add the case and environment type (e.g. sham, indoor)
-      # And participant ID
-      df <- mutate(df, case = case, environment = env,
-              participant_id = person)
-      
-      # Append to main dataframe
-      all_df <- rbind(all_df, df)
-    }
-  }
-}
-
-```
-
-### Process all data to remove unnecessary columns and round time values 
-This helps in syncing data across different sensors later - functions here can be found in the 'Helper Functions' section.
-```{r}
-# Clean data (look at helper functions)
-modpm_df <- all_df %>%
-  # Reformat timestamps and round to nearest minute
-  mutate(date = as.POSIXct(timestamp, tz = "America/New_York")) %>%
-  # Round times to nearest minute
-  mutate(date = round_date(date, unit = "minute")) %>%
-
-  # Remove unnecessary columns, add sum of bins (see helper function)
-  sum_bins() %>%
-  
-  # Remove repeat readings
-  distinct(case, participant_id, date, environment, .keep_all = TRUE)
-```
 
 ### Merge CPC and Mod-PM Data
 Merge is conducted over matching dates for each participant in a particlular environment and case
@@ -260,32 +97,6 @@ Merge is conducted over matching dates for each participant in a particlular env
 main_df <- merge(cpc_df, modpm_df, 
                    by = c("date", "participant_id", 
                           "environment", "case"))
-```
-
-### Calculate ratio of indoor and outdoor concentration
-To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that are then divided by each other to calculate the ratio. After calculating the ratio, the dataframe is 'gathered' back up to its original shape.
-```{r}
-# Spread: Create separate indoor and outdoor columns for measurements
-main_df_wide <- pivot_wider(main_df,
-                  names_from = environment,
-                  values_from = c(concent, inlttmp - CHANGE))
-
-# Divide indoor by outdoor to calculate ratios
-df_ratio <- select(main_df_wide, ends_with("indoor"))/
-  select(main_df_wide, ends_with("outdoor"))
-
-# Rename computed columns to ratio
-colnames(df_ratio) <- sub("indoor", "ratio", colnames(df_ratio))
-
-# Merge back with joined data-frame
-main_df_wide <- cbind(main_df_wide, df_ratio)
-
-# Gather: Return to original shape by re-forming the environment variable
-main_df <- pivot_longer(main_df_wide, 
-                               concent_indoor:inlttmp_ratio - CHANGE, 
-                               names_to = c(".value", "environment"), 
-                               names_sep = "_") %>%
-  mutate(environment = as.factor(environment))
 ```
 
 ### Calculate correlation matrices
