@@ -27,18 +27,17 @@ after_outdoor_data <- read.csv(after_outdoor_file)
 ```
 
 ```{r}
-# reformat timestamps to time object
 before_indoor_data$date <- as.POSIXct(strptime(before_indoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
-before_indoor_data$date_round <- round_date(before_indoor_data$date, unit = "minute")
+before_indoor_data$date_round <- round_date(before_indoor_data$date, unit = "10 mins")
 
 after_indoor_data$date <- as.POSIXct(strptime(after_indoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
-after_indoor_data$date_round <- round_date(after_indoor_data$date, unit = "minute")
+after_indoor_data$date_round <- round_date(after_indoor_data$date, unit = "10 mins")
 
 before_outdoor_data$date <- as.POSIXct(strptime(before_outdoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
-before_outdoor_data$date_round <- round_date(before_outdoor_data$date, unit = "minute")
+before_outdoor_data$date_round <- round_date(before_outdoor_data$date, unit = "10 mins")
 
 after_outdoor_data$date <- as.POSIXct(strptime(after_outdoor_data$timestamp_local, format = "%Y-%m-%dT%H:%M:%SZ", tz = "America/New_York"))
-after_outdoor_data$date_round <- round_date(after_outdoor_data$date, unit = "minute")
+after_outdoor_data$date_round <- round_date(after_outdoor_data$date, unit = "10 mins")
 ```
 
 ```{r}
@@ -53,6 +52,7 @@ after_outdoor_data$is_wknd <- is.weekend(after_outdoor_data$date)
 ```{r}
 # isolate time
 before_indoor_data$time <- as.ITime(before_indoor_data$date_round)
+after_indoor_data
 after_indoor_data$time <- as.ITime(after_indoor_data$date_round)
 
 before_outdoor_data$time <- as.ITime(before_outdoor_data$date_round)
@@ -131,12 +131,11 @@ diurnal_plot(graph_after_outdoor_data, "After", "Outdoor", "1")
 diurnal_plot(graph_after_outdoor_data, "After", "Outdoor", "2.5")
 diurnal_plot(graph_after_outdoor_data, "After", "Outdoor", "10")
 
-## same scale for before and after, compare outdoor scales/log axis, copy + paste vedaant's data formatting function
+## copy + paste vedaant's data formatting function, data cleaning + formatting function, set standard scaling for each pm, check colors (print out in black and white)
 ```
 
 ```{r}
 # necessary functions
-
 
 # function to create a new dataframe with summary data
 summary_dataframe <- function(data) {
@@ -152,7 +151,7 @@ diurnal_plot <- function(data, time_str, env_str, pm_str) {
   wknd_labels <- as_labeller(c("TRUE" = "Weekend",
                     "FALSE" = "Weekday"))
 
-  graph_labels <- c("Daily", env_str, pm_str, "Trends", time_str, "Purifier Install")
+  graph_labels <- c("Daily", env_str, pm_str, "Trends", time_str, "Purifier Install", "[ug/m^3]")
   
   data <- filter(data, particle == pm_str)
   
@@ -176,10 +175,10 @@ diurnal_plot <- function(data, time_str, env_str, pm_str) {
     scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:00") +
     labs(title = bquote(.(graph_labels[1]) ~ .(graph_labels[2]) ~ PM[.(graph_labels[3])] ~ .(graph_labels[4]) ~ .(graph_labels[5]) ~ .(graph_labels[6])),
          x = "Time of Day (hrs)",
-         y = expression("PM"[1]*" Concentration")) +
-    scale_y_log10() +
+         y = expression(paste("PM"[1]*" Concentration (", mu, "g/m"^3*")"))) +
+    # scale_y_log10() +
     # scale_y_log10(limits = c(1e-1,1e2)) +
-    # ylim(0,80) +
+    # ylim(0,75) +
     theme_bw()
   
   # # close the graphics device
