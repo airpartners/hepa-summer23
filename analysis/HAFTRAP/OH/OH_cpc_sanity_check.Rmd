@@ -50,12 +50,11 @@ load(paste0(path_to_data, "cleaned_cpc.RData"))
 ```{r}
 # Plot stuff
 for (person in participants) {
-  for (env in c("indoor", "outdoor", "ratio")) {
+  for (env in c("indoor", "outdoor")) {
     y_check <- case_match(
       env,
       "indoor" ~ 50000,
       "outdoor" ~ 100000,
-      "ratio" ~ 1
     )
     for (c in c("sham","hepa")) {
       # Filter data to appropriate subset
@@ -76,3 +75,4 @@ for (person in participants) {
   }
 }
 ```
+

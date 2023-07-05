@@ -132,15 +132,21 @@ for (person in participants) {
 ```
 
 ```{r}
-# Quick filtering:
+# Crucial filtering based on sanity checks
+# See 'Data Demons' document in HEPA Google Drive
 
 main_df <- case_df %>%
   # Pump flow needs to be greater than 250 for proper functioning
   filter(smpflow > 250) %>%
   # Drop pump flow variable
   select(-smpflow) %>%
-  # Filter 
-  # Remove values that aren't in relevant time range
+  # Fill count has to be zero for correct data collection
+  filter(fillcnt == 0) %>%
+  # Drop pump flow variable
+  select(-fillcnt) %>%
+  # Filter out concent values that are < 100 (this can never be true IRL)
+  filter(concent > 100) %>%
+  # Remove all filtered-out values
   drop_na() %>%
   # Make factors
   mutate(across(c(environment, case, participant_id), as.factor)) 
