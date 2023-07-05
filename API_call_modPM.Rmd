@@ -796,6 +796,8 @@ process_sensor <- function(sensor) {
   time_range <- format(time_range, "%Y-%m-%d")
 
   for (date in time_range) {
+    raw_df <- data.frame()
+    final_df <- data.frame()
     merged_data_per_day <- data.frame()
     for (state in c("raw/", "")) {
       sensor_url <-
