@@ -7,46 +7,31 @@ This document describes the organization of data, code files, and outputs in the
 
 
 ## Location Coding
-At its very core, the location where data is collected central to categorizing the data, analyzing it, and interpreting insights. For this reason, a standard set of location codes will be used throughout this project. 
+At its very core, the location where data is collected central to categorizing the data, analyzing it, and interpreting insights. For this reason, a standard set of location codes will be used throughout this project. The following codes will be used to organize folders, name files, and refer to locations throughout this repository:
 
-The following codes will be used to organize folders, name files, and refer to locations throughout this repository:
+<img src=".img/.hepa_table.png" width="800" />
 
-| Region      | Location Code |  Description |  Sensors |
-| :-----: | :-----: |:-----: |:-----: |
-| M | M | M <td rowspan=2>  | M |
-| M | M | ||
 
-Roxbury:
-
-1. CM – Cardinal Medeiros, an elderly care apartment complex in Roxbury.
-2. IB – Indigo Block, an affordable housing building in Roxbury.
-3. RH – Individual homes in Roxbury.
-
-East Boston:
-
-4. MD – Mothers out Front daycares in East Boston
-5. SS – Shining Star Pre-school in East Boston
-6. LF - Little folk pre-school in East Boston
-
-Revere:
-
-7. CH – City Hall of Revere
-8. HS – High school in Revere
-
-HAFTRAP:
-
-9. SC - HAFTRAP data from SCOPE project.
-10. OH - Olin's HAFTRAP data.
-11. TU - Tuft's HAFTRAP data
+The complete table this image is from can be found [here](https://docs.google.com/spreadsheets/d/18_yT_Jh7BIjvvfufrR16GAfotsUWucHm40TVTF5LHp8/edit?usp=sharing)
 
 ## Data Pipeline
-The data pipeline for this project can be considered to be made up of four components:
+The data pipeline for this project has four components:
 
-![](.pipeline.png)
+<img src=".img/.pipeline.png" width="400" />
 
 Each component will have its own folder in the root directory, named `data`, `analysis`, `summary`, and `insight` respectively.
 
-Let's walk through each of these components:
+<br>
+
+If you have one takeaway from this data guide, it should be this:  **each folder representing each component of the data pipeline has the same overall structure based on location coding**.
+
+<br>
+
+Now that may not sound like much, but it means three important things:
+
+1. The `data` folder is organized by general region, which is one of `Roxbury`, `EastBoston`, `Revere`, or `HAFTRAP` - the general study sites.
+2. Each general region subfolder is  subdivided into location folders named after the [location coding specified in this data guide](#location-coding). The raw data for Cardinal Medeiros, for example, can be found in `data/Roxbury/CM`
+3. This folder structure is *the same in `summary`, `analysis`, and `insight` as well*. Each data pipeline folder has further details/complications, of course, which I will mention in the description of each component in the pipeline.
 
 ## Raw Data
 Raw data is the original, ‘on the ground’ data collected by multiple kinds of sensors as well as people. 
@@ -55,7 +40,7 @@ All files in this component is stored in the `data` folder. Crucially, *this fol
 
 To get or update to the latest version of the data:
 
-1. Go to the provided [Data for Codebase](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n) Google Drive folder
+1. **Go to the provided [Data for Codebase](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n) Google Drive folder**
 2. Download and extract the `data` folder inside it. 
 3. Move the extracted `data` folder to the root of your `hepa-summer23` respository clone, i.e. the same location as this data guide. 
 4. Confirm that the folder has the expected four subfolders and is named `data`. 
@@ -64,75 +49,35 @@ The folder should be untracked automatically by the `.gitignore` so replacing it
 
 **To add/delete/reorganize files in this folder, always do it in the Google Drive and download to PC. Do *not* modify your local copy of this folder. It will not be reflected anywhere else and result in out-of-sync versions.**
 
-This component of the pipeline contains the most files and therefore requires a clear naming system and file organization structure. As a result, this component is outlined in two parts:
-
-1. File Naming
-2. Folder Structure 
 
 ### File Naming
 Data files are labelled with the following naming convention:
 `LocationCode_SensorCode_ID_suffix`
 
-You should already have looked at the [standard location codes](#location-coding). Now, let's familiarize ourselves with the other parts of the file name.
+You should already have looked at the [standard location codes](#location-coding). Now, let's familiarize ourselves with the sensor codes.
 
 #### Sensor Codes
 The sensors deployed in various phases of this project are each coded by a single uppercase letter:
 
-| Sensor Code      | Description |
-| :-----: | ----------- |
-| M | Modulair-PM (Mod-PM) sensors - low-cost sensors that monitor PM 1 - PM 10. |
-| C | CPC sensors detect counts of ultrafine particles that Mod-PM sensors cannot detect. |
-| H | HOBO sensors are connected to the air purifiers and detect power usage.  |
-| A | Modulair etc. (rest later)|
+<img src=".img/.sensor_codes.png" width="400" />
 
 ##### Field Notes
-N – In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location, coded as `LocationCode_N`.
+In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location, coded as `LocationCode_notes`. Some might have an additional 'reformatted' version that is a distilled, code-parseable format used by analysis code to filter data.
 
-T - The data is complicated, and there are some cases where the readings before and after a HEPA air purifier installation is contained in the same CSV file. The data file needs to be filtered by time to separate either `sham` and `hepa` or `before` and `after` (see [suffixes](#suffix) in case there aren't already separate files. This information is present in field notes, but a distilled, code parse-able format is found in files coded as `LocationCode_T` in the location folder. 
+The following table summarizes all data naming convention:
+<img src=".img/.data_filenaming.png" width="600" />
 
-#### ID 
-Each deployment has an ID number that uniquely identifies it, but (to make this project extra fun for us) different locations have different methods of identifying unique participants. The following table shows the various ID numbers used:
+#### Sample Explanations
 
-| Location Code      | Unique Identifier |
-| ----------- | ----------- |
-| CM | Apartment # |
-| IB | Apartment # |
-| RH | Self-Assigned Serial #    |
-| DC | TBD         |
-| PS | TBD         |
-| CH | TBD         | 
-| HS | TBD         |
-| SC | Study Participant #|
-| OH | Study Participant # |
-| TU | TBD |
+* `OH_M_412711_sham_indoor.csv`: data from the Modulair-PM sensor for participant 412711 from Olin's deployments in the HAFTRAP study. The data is from a sensor installed indoors when the participant had a sham air purifier placed in their room.
 
- The corresponding field notes can help make sense of the ID numbers.
+* `CM_M_104_before_indoor.csv`: data from the Modulair-PM sensor installed indoors in apartment 104 in Cardinal Medeiros. This is before the air purifier was switched on in that home.
 
-#### Suffix
+* `PF_notes`: field notes from the collaboration with Mother's Out Front group in East Boston
 
-In addition to the IDs, the following suffixes may be used:
-
-a. `_indoor`: Indoor sensor
-b. `_outdoor`: Outdoor sensor
-c. `_sham`: Sham HEPA purifier deployment
-d. `_hepa`: True HEPA purifier deployment
-e. `_before`: Before a HEPA purifier is deployed
-f. `_after` After a HEPA purifier is deployed
-
-
-
-#### Examples 
-
-* The csv data file for a Modulair-PM sensor in the HAFTRAP study with participant ID 41181 deployed indoors with a sham air purifier by Olin will have the file name `OH_M_41181_sham_indoor.csv`
-
-
-### Folder Structure
-As a reminder, all raw data files are stored in a folder named `data`. The organization structure of all its subfolders is designed to mirror the file naming convention to make data files easy to find both manually and in code. Here’s a summary of the organization structure:
-
-* Each subfolder is organized by general region, which is one of `Roxbury`, `EastBoston`, `Revere`, or `HAFTRAP` - the general study sites.
-* Each general region subfolder is  subdivided into location folders named after the [location coding specified in this data guide](#location-coding).
+### Exceptions
+TBD
 *	Each location folder is further subdivided into folders by sensor type. The folders are named by a sensible lowercase abbreviation of the sensor type (e.g.- `modpm`, `hobo`, `cpc`). The only exception for this is field notes, where the file is directly placed in relevant the location folder.
-* Therefore, for example, the data for the indoor Mod-PM sensor for the HAFTRAP participant number 41811 whose deployment of a sham purifier was conducted by Olin can be found in `data --> Roxbury --> CM --> modpm --> OH_M_41811_sham_indoor.csv` and its relevant field notes can be found in `data --> Roxbury --> OH --> OH_N.csv`.
 
 #### The CPC Exception
 However, there is one exception to this file naming and folder structure. You may see correctly named, 'raw data' CSV files in the `cpc` folders, but in reality these files have been pre-processed from actual sensor output. 

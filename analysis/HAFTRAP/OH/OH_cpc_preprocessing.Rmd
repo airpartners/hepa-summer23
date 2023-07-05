@@ -1,10 +1,15 @@
+
+# Script for pre-processing CPC data from text files
+CPC data for these deployments came in multiple text files for each participant. This parses them into one indoor and one outdoor csv for each participant with only the relevant variables. 
+
+Note: I manually deleted indoor files 230331A0 and 230221A1 from participant 45451 in the data.
+
+
 ```{r}
 library(data.table)
 library(tidyverse)
 ```
 
-
-## Script for pre-processing CPC data from text files
 Set working directory
 ```{r, setup, include=FALSE}
 knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
@@ -38,7 +43,7 @@ for (subfolder in folders) {
   # Split path into individual parts
   path_parts <- strsplit(subfolder, split = "/")
   
-  # Only evaluate directories that have a depth of 7 from the root (a.k.a with 
+  # Only evaluate directories that have depth of 7 from the root (i.e. with
   # data files)
   if (length(path_parts[[1]]) == 7) {
     
@@ -54,31 +59,15 @@ for (subfolder in folders) {
     
     print(paste("Reading", env, "data for participant", id, "..."))
     
-    # Try catch statement to handle errors 
-    # (Warning: this is a janky fix because I don't really understand why this 
-    # error was happening in the first place)
-    main_df <- tryCatch({
-      # Get list of files in directory
-      list.files(path = subfolder, full.names = TRUE) %>% 
-        # Read into dataframe (datetime variables, concent, inlttmp)
-        map_df(~fread(.x, header = TRUE, skip = 13, select = c(1, 2, 4, 11)) %>%
+    # Get list of files in directory
+    main_df <- list.files(path = subfolder, full.names = TRUE) %>% 
+      # Read into dataframe (datetime variables, concent, inlttmp, smpflow)
+        map_df(~fread(.x, header = TRUE, skip = 13, 
+                      select = c(1, 2, 4, 11, 12)) %>%
         # Convert all concentration values to double
-        # Note: pipe is inside map_df - the conversion happens for every file 
+        # Note: pipe is inside map_df - conversion happens for every file 
         # read into dataframe
-        mutate(concent = as.double(concent)))},
-      
-      # Errors here only happened for participant 45451, where mutate didn't work
-      error = function(cond) {
-        print("Error! Reading file alternatively")
-        # Get list of files and read, except without making concentrations double
-        # Note: data for 45451 is uniform so setting datatype isn't required
-        # Yes this part doesn't make sense, is a patchy coincidental fix for a 
-        # problem I don't really understand
-        temp_df <- list.files(path = subfolder, full.names = TRUE) %>% 
-          map_df(~fread(.x, header = TRUE, skip = 13, select = c(1, 2, 4, 11)))
-        
-        # Return this alternative dataframe instead
-        return(temp_df)})
+        mutate(concent = as.double(concent)))
       
     # Make new file name
     new_file_name <- paste(data_cat, id, env, sep = "_")

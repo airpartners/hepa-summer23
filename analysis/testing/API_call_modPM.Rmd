@@ -802,8 +802,9 @@ process_sensor <- function(sensor) {
     for (state in c("raw/", "")) {
       sensor_url <-
         paste0(sensor@sensorNum, "/data-by-date/", state, date, "/")
-      api_data <- GET(url = paste0(base_url, sensor_url),
-                      authenticate(api_key, "", type = "basic"),
+      api_data <- GET(
+        url = paste0(base_url, sensor_url),
+        authenticate(api_key, "", type = "basic"),
         encoding = "UTF-8"
       )
       
@@ -819,8 +820,6 @@ process_sensor <- function(sensor) {
       # Check if the data is empty or has zero rows
       if (is.null(parsed_data) ||
           is.null(parsed_data$data) || length(parsed_data$data) == 0) {
-        
-        # Skip processing if the data is empty
         next
       }
       
@@ -831,13 +830,6 @@ process_sensor <- function(sensor) {
       }
     }
     
-    # Skip processing if the merged data is empty or has zero rows
-    if (is.null(raw_df) ||
-        is.null(final_df) || nrow(raw_df) == 0 || nrow(final_df) == 0) {
-      
-      next
-    }
-    
     # Merge raw and final data
     merged_data_per_day <- merge(raw_df, final_df, by = "timestamp_local")
   }
@@ -846,11 +838,32 @@ process_sensor <- function(sensor) {
   if (is.null(merged_data_per_day) || nrow(merged_data_per_day) == 0) {
     return()
   }
+  
+
+  # Initialize flag to track nested status
+  is_nested <- TRUE
+  
   # Flatten any nested dataframes
-  cols_to_unnest <-
-    names(merged_data_per_day)[sapply(merged_data_per_day, is.data.frame)]
-  flattened_df <-
-    unnest(merged_data_per_day, cols = cols_to_unnest, names_sep = ".")
+  while (is_nested) {
+    # Check if the data frame is nested
+    is_nested <-
+      any(sapply(merged_data_per_day, function(x)
+        is.list(x) || is.data.frame(x)))
+    
+    if (is_nested) {
+      # Flatten any nested data frames
+      cols_to_unnest <-
+        names(merged_data_per_day)[sapply(merged_data_per_day, is.data.frame)]
+      # Unnest with duplicate handling strategy
+      merged_data_per_day <-
+        unnest_wider(merged_data_per_day, cols_to_unnest, names_repair = "unique")
+    }
+    else {
+      break
+    }
+  }
+  
+  # Merge all data of the same sensor over a date range
   merged_data_per_sensor <- rbind(merged_data_per_sensor, flattened_df)
   
   # Save data to CSV file using naming convention from data_guide
