@@ -1,5 +1,5 @@
 # Modulair-PM Data Cleaning
-This file cleans, and calculates the I/O ratio for Mod-PM data. Output is saved in a `temp_data/modpm.RData` file that is *untracked* by Github. *All files that depend on using Mod-PM data must be run after running this file.*
+This file cleans, and calculates the I/O ratio for Mod-PM data. Output is saved in a `modpm.RData` file that is *untracked* by Github. *All files that depend on using Mod-PM data must be run after running this file.*
 
 
 ## Set up

@@ -1,4 +1,11 @@
 # HAFTRAP Data Cleaning and Summaries - multiple (for CPC)
+
+## STOP
+
+**HAVE YOU RUN `OH_modpm_cleaning` AND `OH_cpc_cleaning`?**
+*This file loads dataframes created from running `OH_modpm_cleaning` AND `OH_cpc_cleaning`. Make sure you run those files first (if you haven't already) before running this file.*
+
+
 This script is a combination of `OH_modpm_all_stats` and `OH_cpc_all_stats` to concurrently process CPC and Mod-PM data. It calculates summary statistics for variables from both Mod-PM and CPC readings, and compare variables.
 
 Results can be found in the folder`summary/HAFTRAP/OH/joint/`.
@@ -74,7 +81,6 @@ Correlation coefficients tell us a lot about relationships between variables. Th
 ```{r}
 # Function to calculate correlation matrices
 get_corr <- function(df, p, c) {
-  print(paste("Correlation processed for", p, c))
   df %>%
     # Filter for case
     filter(participant_id == p, case == c) %>%
@@ -117,6 +123,7 @@ for (person in participants) {
       mutate(case = case, participant_id = person) -> df
     # Append to main dataframe
     corr_df <- rbind(corr_df, df)
+    print(paste("Computed correlation coefficients for", person, case))
   }
 }
 ```
@@ -127,7 +134,7 @@ To calculate summary statistics of the data, the different measurements are gath
 ```{r}
 main_df %>%
   # Gather dataframe to create single variable for measurements
-  pivot_longer(concent:inlttmp - CHANGE, 
+  pivot_longer(concent:temp, 
                names_to = "type", values_to = "reading") %>%
   # Drop NaN, inf values for summary calculation
   filter(is.finite(reading)) %>%

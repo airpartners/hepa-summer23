@@ -1,5 +1,5 @@
 # CPC Data Cleaning
-This file cleans, and calculates the I/O ratio for CPC data. Output is saved in a `temp_data/cpc.RData` file that is *untracked* by Github. *All files that depend on using CPC data must be run after running this file.*
+This file cleans, and calculates the I/O ratio for CPC data. Output is saved in a `cpc.RData` file that is *untracked* by Github. *All files that depend on using CPC data must be run after running this file.*
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -31,7 +31,7 @@ participants <- c("41271", "42281", "45361", "44621", "45451")
 
 # Read summary table of times
 time_map <- read_excel(
-  paste0("data/HAFTRAP/OH/", "OH_N_summarized.xlsx")) %>%
+  paste0("data/HAFTRAP/OH/", "OH_notes_summarized.xlsx")) %>%
   # Convert to appropriate variable types
   mutate(across(dt_start:dt_end, 
                   ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
@@ -96,7 +96,7 @@ for (person in participants) {
     # Append to main dataframe
     all_df <- rbind(all_df, df)
   }
-  print(paste("Read data for participant", person))
+  print(paste("Loaded participant", person))
 }
 
 ```
