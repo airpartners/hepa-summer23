@@ -5,7 +5,7 @@
 **HAVE YOU RUN `OH_modpm_cleaning`?**
 *This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for CPC deployments by Olin. It is largely a copy of `OH_modpm_single_stats.Rmd` without the data cleaning part found in `OH_modpm_cleaning`.
+This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for CPC deployments by Olin. It is largely a copy of `OH_modpm_single_stats.Rmd` (found in the `testing`folder) without the data cleaning part found in `OH_modpm_cleaning`.
 
 Results can be found in the folder`summary/HAFTRAP/OH/`.
 
