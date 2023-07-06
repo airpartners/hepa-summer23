@@ -8,11 +8,11 @@ library(data.table)
 
 ```{r}
 # Define indoor file to be imported, set time of HEPA purifier install
-before_indoor_file <- "data/CM_M_104_before_indoor.csv"
-after_indoor_file <- "data/CM_M_104_after_indoor.csv"
+before_indoor_file <- "/home/sjatti/Desktop/hepa-summer23/data/CM_M_104_before_indoor.csv"
+after_indoor_file <- "/home/sjatti/Desktop/hepa-summer23/data/CM_M_104_after_indoor.csv"
 
-before_outdoor_file <- "data/CM_M_104_before_outdoor.csv"
-after_outdoor_file <- "data/CM_M_104_after_outdoor.csv"
+before_outdoor_file <- "/home/sjatti/Desktop/hepa-summer23/data/CM_M_104_before_outdoor.csv"
+after_outdoor_file <- "/home/sjatti/Desktop/hepa-summer23/data/CM_M_104_after_outdoor.csv"
 ```
 
 ## Import and prepare data
@@ -52,7 +52,6 @@ after_outdoor_data$is_wknd <- is.weekend(after_outdoor_data$date)
 ```{r}
 # isolate time
 before_indoor_data$time <- as.ITime(before_indoor_data$date_round)
-after_indoor_data
 after_indoor_data$time <- as.ITime(after_indoor_data$date_round)
 
 before_outdoor_data$time <- as.ITime(before_outdoor_data$date_round)
@@ -67,20 +66,10 @@ after_outdoor_data$time <- as.POSIXct(after_outdoor_data$time, format="%H:%M:%S"
 ```
 
 ```{r}
-before_indoor_data <- subset(before_indoor_data, pm1 < 200)
-after_indoor_data <- subset(after_indoor_data, pm1 < 200)
-before_outdoor_data <- subset(before_outdoor_data, pm1 < 25)
-after_outdoor_data <- subset(after_outdoor_data, pm1 < 25)
-
-before_indoor_data <- subset(before_indoor_data, pm25 < 250)
-after_indoor_data <- subset(after_indoor_data, pm25 < 250)
-before_outdoor_data <- subset(before_outdoor_data, pm25 < 50)
-after_outdoor_data <- subset(after_outdoor_data, pm25 < 50)
-
-before_indoor_data <- subset(before_indoor_data, pm10 < 1000)
-after_indoor_data <- subset(after_indoor_data, pm10 < 1000)
-before_outdoor_data <- subset(before_outdoor_data, pm10 < 500)
-after_outdoor_data <- subset(after_outdoor_data, pm10 < 500)
+before_indoor_data <- subset(before_indoor_data, pm1 < 200 & pm25 < 250 & pm10 < 1000)
+after_indoor_data <- subset(after_indoor_data, pm1 < 200 & pm25 < 250 & pm10 < 1000)
+before_outdoor_data <- subset(before_outdoor_data, pm1 < 25 & pm25 < 50 & pm10 < 500)
+after_outdoor_data <- subset(after_outdoor_data, pm1 < 25 & pm25 < 50 & pm10 < 500)
 
 # length(which(before_indoor_data$pm1 > 200))
 # length(which(after_indoor_data$pm1 > 200))

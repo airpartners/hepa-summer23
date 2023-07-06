@@ -15,7 +15,7 @@ library(ggplot2)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
 ```
 
 Check for working directory
@@ -28,7 +28,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 Participant IDs
 ```{r}
 # Vector of participant numbers' data to be processed
-participants <- c("44241", "41181")
+participants <- c("44241", "41181", "41211", "41271", "42231", "42281", "42301", "42321", "44621", "45361", "45411", "45451", "46591")
 ```
 
 Paths

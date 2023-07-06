@@ -1,5 +1,5 @@
 # Modulair-PM Data Cleaning
-This file cleans, and calculates the I/O ratio for Mod-PM data. Output is saved in a `temp_data/modpm.RData` file that is *untracked* by Github. *All files that depend on using Mod-PM data must be run after running this file.*
+This file cleans, and calculates the I/O ratio for Mod-PM data. Output is saved in a `modpm.RData` file that is *untracked* by Github. *All files that depend on using Mod-PM data must be run after running this file.*
 
 
 ## Set up
@@ -12,7 +12,7 @@ library(rstatix)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
 ```
 
 ```{r}
@@ -24,7 +24,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Vector of participant numbers' data to be processed
-participants <- c("44241", "41181")
+participants <- c("44241", "41181", "41211", "41271", "42231", "42281", "42301", "42321", "44621", "45361", "45411", "45451", "46591")
 ```
 
 ```{r}
@@ -121,6 +121,14 @@ main_df <- all_df %>%
   distinct(case, participant_id, date, environment, .keep_all = TRUE)
 ```
 
+```{r}
+# Filter out values over a certain threshold
+# main_df_indoor <- subset(main_df, environment == "indoor" & pm1 < 200 & pm25 < 250 & pm10 < 1000)
+# main_df_outdoor <- subset(main_df, environment == "outdoor" & pm1 < 25 & pm25 < 50 & pm10 < 500)
+# 
+# main_df <- rbind(main_df_indoor, main_df_outdoor)
+```
+
 ### Calculate ratio of indoor and outdoor concentration
 To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that are then divided by each other to calculate the ratio. After calculating the ratio, the dataframe is 'gathered' back up to its original shape.
 
@@ -147,6 +155,7 @@ main_df <- pivot_longer(main_df_wide,
                                names_to = c(".value", "environment"), 
                                names_sep = "_")
 ```
+
 
 ### Save Data
 The `main_df` dataframe is saved to `cleaned_modpm.RData`
