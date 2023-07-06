@@ -24,7 +24,13 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Vector of participant numbers' data to be processed
+<<<<<<< HEAD
 participants <- c("44241", "41181", "41211", "41271", "42231", "42281", "42301", "42321", "44621", "45361", "45411", "45451", "46591")
+=======
+# Skipping 41211 for now because of funky data (look at CSVs)
+participants <- c("41181", "41271", "42231", "42281", "42301", "42321",
+                  "44241", "44621", "45361", "45411", "45451", "46591")
+>>>>>>> 547c449620e69b8bb2029fc0f6a5839bd6ab1cf3
 ```
 
 ```{r}
@@ -102,6 +108,7 @@ for (person in participants) {
       all_df <- rbind(all_df, df)
     }
   }
+  print(paste("Loaded participant", person))
 }
 
 ```

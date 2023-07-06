@@ -7,7 +7,7 @@ This document describes the organization of data, code files, and outputs in the
 
 
 ## Location Coding
-At its very core, the location where data is collected central to categorizing the data, analyzing it, and interpreting insights. For this reason, a standard set of location codes will be used throughout this project. The following codes will be used to organize folders, name files, and refer to locations throughout this repository:
+At its core, data is categorized, analyzed, and interpreted based on the location where it is collected. This repository looks at data from five different projects around the Boston area, each with their own set of stakeholders, environmental factors, and distinct pilot locations within them. For this reason, a standard set of location codes will be used throughout this project. The following codes will be used to organize folders, name files, and refer to locations throughout this repository:
 
 <img src=".img/.hepa_table.png" width="800" />
 
@@ -31,10 +31,10 @@ Now that may not sound like much, but it means three important things:
 
 1. The `data` folder is organized by general region, which is one of `Roxbury`, `EastBoston`, `Revere`, or `HAFTRAP` - the general study sites.
 2. Each general region subfolder is  subdivided into location folders named after the [location coding specified in this data guide](#location-coding). The raw data for Cardinal Medeiros, for example, can be found in `data/Roxbury/CM`
-3. This folder structure is *the same in `summary`, `analysis`, and `insight` as well*. Each data pipeline folder has further details/complications, of course, which I will mention in the description of each component in the pipeline.
+3. **This folder structure is replicated in **`summary`, `analysis`, **and ** `insight` **as well**. Each data pipeline folder has further details/complications, of course, which I will mention in the description of each component in the pipeline.
 
 ## Raw Data
-Raw data is the original, ‘on the ground’ data collected by multiple kinds of sensors as well as people. 
+Raw data is the original, ‘on the ground’ data collected by multiple kinds of sensors (or in case of field notes, people!) 
 
 All files in this component is stored in the `data` folder. Crucially, *this folder is not tracked by Git*. Since committing multiple large data files would greatly slow down Git and Github and is generally considered bad practice, this folder is instead hosted on Google Drive for Air Partners 2023. 
 

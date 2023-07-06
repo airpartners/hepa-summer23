@@ -63,7 +63,7 @@ for (subfolder in folders) {
     main_df <- list.files(path = subfolder, full.names = TRUE) %>% 
       # Read into dataframe (datetime variables, concent, inlttmp, smpflow)
         map_df(~fread(.x, header = TRUE, skip = 13, 
-                      select = c(1, 2, 4, 11, 12)) %>%
+                      select = c(1, 2, 4, 11, 12, 21)) %>%
         # Convert all concentration values to double
         # Note: pipe is inside map_df - conversion happens for every file 
         # read into dataframe
