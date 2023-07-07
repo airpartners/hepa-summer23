@@ -24,13 +24,9 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Vector of participant numbers' data to be processed
-<<<<<<< HEAD
-participants <- c("44241", "41181", "41211", "41271", "42231", "42281", "42301", "42321", "44621", "45361", "45411", "45451", "46591")
-=======
 # Skipping 41211 for now because of funky data (look at CSVs)
 participants <- c("41181", "41271", "42231", "42281", "42301", "42321",
                   "44241", "44621", "45361", "45411", "45451", "46591")
->>>>>>> 547c449620e69b8bb2029fc0f6a5839bd6ab1cf3
 ```
 
 ```{r}
@@ -130,10 +126,10 @@ main_df <- all_df %>%
 
 ```{r}
 # Filter out values over a certain threshold
-# main_df_indoor <- subset(main_df, environment == "indoor" & pm1 < 200 & pm25 < 250 & pm10 < 1000)
-# main_df_outdoor <- subset(main_df, environment == "outdoor" & pm1 < 25 & pm25 < 50 & pm10 < 500)
-# 
-# main_df <- rbind(main_df_indoor, main_df_outdoor)
+main_df_indoor <- subset(main_df, environment == "indoor" & pm1 < 200 & pm25 < 250 & pm10 < 1000)
+main_df_outdoor <- subset(main_df, environment == "outdoor" & pm1 < 25 & pm25 < 50 & pm10 < 500)
+
+main_df <- rbind(main_df_indoor, main_df_outdoor)
 ```
 
 ### Calculate ratio of indoor and outdoor concentration
