@@ -33,9 +33,10 @@ load(paste0(path_to_data, "cleaned_cpc.RData"))
 df <- main_df %>%
   filter(participant_id == "45361", case == "sham", 
          environment == "indoor") %>%
-  mutate(t = as.numeric(date) - as.numeric(date)[1])
+  fill_gaps(frequency = "1 sec") %>%
+  mutate(t = as.numeric(date) - as.numeric(date)[1]) %>%
+  fill(concent)
 
-what <- fill_gaps(df, frequency = "1 sec")
 ```
 
 
@@ -45,12 +46,12 @@ get_peaks <- function(data) {
   findpeaks(data,
                    nups = 1,
                    ndowns = 1,
-                   minpeakheight = 10,
-                   minpeakdistance = 200,
+                   minpeakheight = quantile(data, probs = 0.95)[1],
+                   minpeakdistance = 2000,
                    threshold = 0)
 }
 
-vals <- data.frame(get_peaks(what$concent))
+vals <- data.frame(get_peaks(df$concent))
 colnames(vals) <- c("vy", "vx", "start", "end") 
 ```
 
@@ -58,7 +59,7 @@ colnames(vals) <- c("vy", "vx", "start", "end")
 ```{r}
 ggplot(df) +
   geom_line(aes(x = t, y = concent)) +
-  # geom_point(data = vals, mapping = aes(x = vx, y = vy)) +
+  geom_point(data = vals, mapping = aes(x = vx, y = vy)) +
   ggtitle(paste("45361", "sham", "indoor"))
 ```
 
