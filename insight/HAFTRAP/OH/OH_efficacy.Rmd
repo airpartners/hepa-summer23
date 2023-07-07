@@ -1,0 +1,64 @@
+# Sham vs. HEPA - is there a difference?
+This notebook investigates whether the installation of air purifiers had a notable impact on indoor air quality across various summary metrics. It uses summary data found in `summary/HAFTRAP/OH`
+
+```{r}
+library(ggplot2)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+path_to_data <- "summary/HAFTRAP/OH/"
+```
+
+
+## Boxplots galore
+One common way to visualize the reduction in air pollutant concentration is by plotting side-by-side comparison boxplots of distributions of various summary statistics between sham and HEPA. Depending on the summary statistic in question, the plots reveal different insights about the data.
+
+### CPC
+```{r}
+filepath <- paste0(path_to_data, "s_OH_C_quants.csv")
+cpc_stats <- read_csv(filepath, show_col_types = FALSE)
+```
+```{r}
+current_data <- cpc_stats %>% 
+  # Filter only for indoor, concent variables
+  filter(environment == "indoor", type == "concent") %>%
+  
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(mean:sd, names_to = "d_type", values_to = "reading")
+
+current_data %>%
+  filter(case == "redu") %>%
+  group_by(d_type) %>%
+  summarise(averages = mean(reading)) -> vals
+# # Plotting for mean
+
+dat_text <- data.frame(
+  label = paste0("reduction = ", round(vals$averages, 1), "%"),
+  d_type   = vals$d_type
+)
+
+
+ggplot(data = current_data %>% filter(case %in% c("sham", "hepa"))) +
+  geom_boxplot(mapping = aes(x = case, y = reading, fill = case)) +
+  facet_wrap(~d_type, scales = "free") +
+  ggtitle("Reduction in indoor CPC reading") + 
+  geom_text(data = dat_text, 
+            mapping = aes(x = -Inf, y = -Inf, label = label), size = 2,
+            hjust   = -0.6, vjust   = -8.5, fontface="bold")
+
+ggsave("indoor_cpc.pdf")
+```
+
+

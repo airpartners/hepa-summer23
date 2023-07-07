@@ -1,0 +1,101 @@
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r, warning=FALSE}
+# Import relevant libraries
+library(ggplot2)
+library(pracma)
+library(forecastML)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "data/HAFTRAP/OH/cpc/"
+# Load CPC data from RData file
+load(paste0(path_to_data, "cleaned_cpc.RData"))
+```
+
+
+```{r}
+# Filter data to appropriate subset
+df <- main_df %>%
+  filter(participant_id == "45361", case == "sham", 
+         environment == "indoor") %>%
+  mutate(t = as.numeric(date) - as.numeric(date)[1])
+
+what <- fill_gaps(df, frequency = "1 sec")
+```
+
+
+```{r}
+# Function to get the peaks of a dataset
+get_peaks <- function(data) {
+  findpeaks(data,
+                   nups = 1,
+                   ndowns = 1,
+                   minpeakheight = 10,
+                   minpeakdistance = 200,
+                   threshold = 0)
+}
+
+vals <- data.frame(get_peaks(what$concent))
+colnames(vals) <- c("vy", "vx", "start", "end") 
+```
+
+
+```{r}
+ggplot(df) +
+  geom_line(aes(x = t, y = concent)) +
+  # geom_point(data = vals, mapping = aes(x = vx, y = vy)) +
+  ggtitle(paste("45361", "sham", "indoor"))
+```
+
+```{r}
+df %>%
+  filter(day(date) == 9) %>%
+  filter(hour(date) > 16 & minute(date) > 10) -> section
+
+ggplot(section) +
+  geom_line(aes(x = date, y = concent))
+  
+```
+
+```{r}
+time_start <- as.numeric(section$date[1])
+section$t <- as.numeric(section$date) - time_start
+
+ggplot(section) +
+    geom_line(aes(x = t, y = concent))
+```
+
+```{r}
+eDecay <- function(t, offs, ampl, tau) (offs + ampl*exp(-t/tau))
+
+model1 <- nls(concent ~ eDecay(t,offs,myA,myT), 
+              data=section, start=list(offs=1000,myA=10000,myT=1000))
+
+```
+
+```{r}
+section$fit <- predict(model1, newdata = section)
+```
+
+
+```{r}
+ggplot(section) +
+  geom_line(aes(x = t, y = concent)) +
+  geom_line(aes(x = t, y = fit), color = "red")
+```
+
