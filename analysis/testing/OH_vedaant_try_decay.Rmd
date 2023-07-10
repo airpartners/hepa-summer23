@@ -51,15 +51,52 @@ get_peaks <- function(data) {
                    threshold = 0)
 }
 
-vals <- data.frame(get_peaks(df$concent))
-colnames(vals) <- c("vy", "vx", "start", "end") 
+peaks <- data.frame(get_peaks(df$concent))
+colnames(peaks) <- c("vy", "vx", "start", "end") 
 ```
 
+# Necessary functions to perform decay analysis
+```{r}
+# Function to get first valley after peak
+get_first_valleys <- function(data, peaks, min_threshold) {
+  # Iterate through rows of peaks matrix
+  valley_mat <- matrix(nrow = nrow(peaks), ncol = 2)
+  for (row in 1:nrow(peaks)) { #nolint
+    idx <- peaks[row, 2]
+    n <- TRUE
+    # create while loop to check for local minima
+    while (n) {
+      # if we're at the end of y, break out of loop
+      if (idx == length(data)) {
+        n <- FALSE
+      } else {
+        # otherwise, get slope (approximately)
+        # NOTE: difference between idx and (idx+1) is 1
+        slope <- data[idx + 1] - data[idx]
+        if (data[idx] <= min_threshold && slope > 0) {
+          n <- FALSE
+          print("Hey!")
+        } else {
+          idx <- idx + 1
+        }
+      }
+    }
+    # set values of matrix so that column 1 is height of valley and 2 is index
+    valley_mat[row, 1] <- data[idx]
+    valley_mat[row, 2] <- idx
+  }
+  valley_mat
+}
+
+valleys <- data.frame(get_first_valleys(df$concent, peaks, 10000))
+colnames(valleys) <- c("vy", "vx") 
+```
 
 ```{r}
 ggplot(df) +
-  geom_line(aes(x = t, y = concent)) +
-  geom_point(data = vals, mapping = aes(x = vx, y = vy)) +
+  geom_line(aes(x = t, y = smooth(concent, kind = "3"))) +
+  geom_point(data = peaks, mapping = aes(x = vx, y = vy)) +
+  geom_point(data = valleys, mapping = aes(x = vx, y = vy)) +
   ggtitle(paste("45361", "sham", "indoor"))
 ```
 

@@ -30,7 +30,9 @@ One common way to visualize the reduction in air pollutant concentration is by p
 filepath <- paste0(path_to_data, "s_OH_C_quants.csv")
 cpc_stats <- read_csv(filepath, show_col_types = FALSE)
 ```
+#### CPC Indoor
 ```{r}
+# Filter and reshape for indoor
 current_data <- cpc_stats %>% 
   # Filter only for indoor, concent variables
   filter(environment == "indoor", type == "concent") %>%
@@ -38,27 +40,181 @@ current_data <- cpc_stats %>%
   # Gather dataframe to create single variable for measurements
   pivot_longer(mean:sd, names_to = "d_type", values_to = "reading")
 
+# Find average percent reduction for each summary statistic type
 current_data %>%
   filter(case == "redu") %>%
   group_by(d_type) %>%
   summarise(averages = mean(reading)) -> vals
-# # Plotting for mean
 
+# Convert values to string statements, place into dataframe
 dat_text <- data.frame(
-  label = paste0("reduction = ", round(vals$averages, 1), "%"),
+  label = paste0("% reduction = ", round(vals$averages, 1), "%"),
   d_type   = vals$d_type
 )
 
-
-ggplot(data = current_data %>% filter(case %in% c("sham", "hepa"))) +
-  geom_boxplot(mapping = aes(x = case, y = reading, fill = case)) +
-  facet_wrap(~d_type, scales = "free") +
-  ggtitle("Reduction in indoor CPC reading") + 
-  geom_text(data = dat_text, 
-            mapping = aes(x = -Inf, y = -Inf, label = label), size = 2,
-            hjust   = -0.6, vjust   = -8.5, fontface="bold")
-
-ggsave("indoor_cpc.pdf")
+# Loop through and plot for each summary data type
+# (More efficient with group_by, group_split, lapply but clearer code here)
+for (dtype in unique(current_data$d_type)) {
+  # Filter out relevant data for current data type
+  plot_data <- current_data %>% 
+    filter(case %in% c("sham", "hepa")) %>%
+    filter(d_type == dtype)
+    
+  # Plot data
+  print(ggplot(data = plot_data) +
+    # Create boxplot for sham and HEPA
+    geom_boxplot(mapping = aes(x = case, y = reading, fill = case)) +
+    # Add title
+    ggtitle(paste("Reduction in", dtype, "indoor CPC particle count")) +
+    # Add label with percentage reduction
+    geom_text(data = dat_text %>% filter(d_type == dtype), 
+            mapping = aes(x = -Inf, y = -Inf, label = label),
+            hjust   = -2, vjust   = -24, fontface="bold"))
+}
 ```
+
+#### CPC Ratio
+```{r}
+# Filter and reshape for ratio
+current_data <- cpc_stats %>% 
+  # Filter only for ratio, concent variables
+  filter(environment == "ratio", type == "concent") %>%
+  
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(mean:sd, names_to = "d_type", values_to = "reading")
+
+# Find average percent reduction for each summary statistic type
+current_data %>%
+  filter(case == "redu") %>%
+  group_by(d_type) %>%
+  summarise(averages = mean(reading)) -> vals
+
+# Convert values to string statements, place into dataframe
+dat_text <- data.frame(
+  label = paste0("% reduction = ", round(vals$averages, 1), "%"),
+  d_type   = vals$d_type
+)
+
+# Loop through and plot for each summary data type
+# (More efficient with group_by, group_split, lapply but clearer code here)
+for (dtype in unique(current_data$d_type)) {
+  # Filter out relevant data for current data type
+  plot_data <- current_data %>% 
+    filter(case %in% c("sham", "hepa")) %>%
+    filter(d_type == dtype)
+    
+  # Plot data
+  print(ggplot(data = plot_data) +
+    # Create boxplot for sham and HEPA
+    geom_boxplot(mapping = aes(x = case, y = reading, fill = case)) +
+    # Add title
+    ggtitle(paste("Reduction in", dtype, "indoor CPC particle count")) +
+    # Add label with percentage reduction
+    geom_text(data = dat_text %>% filter(d_type == dtype), 
+            mapping = aes(x = -Inf, y = -Inf, label = label),
+            hjust   = -2, vjust   = -24, fontface="bold"))
+}
+```
+
+### Mod-PM
+
+```{r}
+filepath <- paste0(path_to_data, "s_OH_M_quants.csv")
+modpm_stats <- read_csv(filepath, show_col_types = FALSE)
+```
+#### Mod-PM Indoor
+```{r}
+for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  # Filter and reshape for indoor
+  current_data <- modpm_stats %>% 
+    # Filter only for indoor, concent variables
+    filter(environment == "indoor", type == p_type) %>%
+    
+    # Gather dataframe to create single variable for measurements
+    pivot_longer(mean:sd, names_to = "d_type", values_to = "reading")
+  
+  # Find average percent reduction for each summary statistic type
+  current_data %>%
+    filter(case == "redu") %>%
+    group_by(d_type) %>%
+    summarise(averages = mean(reading)) -> vals
+  
+  # Convert values to string statements, place into dataframe
+  dat_text <- data.frame(
+    label = paste0("% reduction = ", round(vals$averages, 1), "%"),
+    d_type   = vals$d_type
+  )
+  
+  # Loop through and plot for each summary data type
+  for (dtype in unique(current_data$d_type)) {
+    # Filter out relevant data for current data type
+    plot_data <- current_data %>% 
+      filter(case %in% c("sham", "hepa")) %>%
+      filter(d_type == dtype)
+      
+    # Plot data
+    print(ggplot(data = plot_data) +
+      # Create boxplot for sham and HEPA
+      geom_boxplot(mapping = aes(x = case, y = reading, fill = case)) +
+      # Add title
+      ggtitle(paste("Reduction in", dtype, "indoor", p_type,
+                    "concentration")) +
+      # Add label with percentage reduction
+      geom_text(data = dat_text %>% filter(d_type == dtype), 
+              mapping = aes(x = -Inf, y = -Inf, label = label),
+              hjust   = -2, vjust   = -24, fontface="bold"))
+  }
+  print(paste("Plotted for", p_type))
+}
+
+```
+
+#### Mod-PM Ratio
+```{r}
+for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  # Filter and reshape for ratio
+  current_data <- modpm_stats %>% 
+    # Filter only for ratio, concent variables
+    filter(environment == "ratio", type == p_type) %>%
+    
+    # Gather dataframe to create single variable for measurements
+    pivot_longer(mean:sd, names_to = "d_type", values_to = "reading")
+  
+  # Find average percent reduction for each summary statistic type
+  current_data %>%
+    filter(case == "redu") %>%
+    group_by(d_type) %>%
+    summarise(averages = mean(reading)) -> vals
+  
+  # Convert values to string statements, place into dataframe
+  dat_text <- data.frame(
+    label = paste0("% reduction = ", round(vals$averages, 1), "%"),
+    d_type   = vals$d_type
+  )
+  
+  # Loop through and plot for each summary data type
+  for (dtype in unique(current_data$d_type)) {
+    # Filter out relevant data for current data type
+    plot_data <- current_data %>% 
+      filter(case %in% c("sham", "hepa")) %>%
+      filter(d_type == dtype)
+      
+    # Plot data
+    print(ggplot(data = plot_data) +
+      # Create boxplot for sham and HEPA
+      geom_boxplot(mapping = aes(x = case, y = reading, fill = case)) +
+      # Add title
+      ggtitle(paste("Reduction in", dtype, "indoor", p_type,
+                    "concentration")) +
+      # Add label with percentage reduction
+      geom_text(data = dat_text %>% filter(d_type == dtype), 
+              mapping = aes(x = -Inf, y = -Inf, label = label),
+              hjust   = -2, vjust   = -24, fontface="bold"))
+  }
+  print(paste("Plotted for", p_type))
+}
+
+```
+
 
 
