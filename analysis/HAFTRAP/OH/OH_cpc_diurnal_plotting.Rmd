@@ -1,4 +1,4 @@
-# HAFTRAP Diurnal Plotting (for Mod-PM)
+# HAFTRAP Diurnal Plotting (for CPC)
 
 ## STOP
 
@@ -45,7 +45,6 @@ participants <- c("41181", "41211", "41271", "42231", "42281", "42301", "42321",
 # filter dataframe based on participants
 df <- filter(df, participant_id == participants)
 ```
-
 ```{r}
 # function to create a new dataframe with summary data
 summary_dataframe <- function(data) {
@@ -87,7 +86,6 @@ sum_df <- summary_dataframe(df)
 # restructure df to make it easier to graph
 graph_df <- pivot_longer(sum_df, mean_1:percent95_10, names_to = c(".value", "particle"), names_sep = "_")
 ```
-
 ```{r}
 # function to create diurnal plots + save as an svg
 diurnal_plot <- function(data, case_str, env_str, pm_str) {
@@ -100,7 +98,7 @@ diurnal_plot <- function(data, case_str, env_str, pm_str) {
   data <- filter(data, particle == pm_str & case == case_str & environment == env_str)
   
   # vector for all graph labels (only way to do f-string + subscript at the same time)
-  graph_labels <- c("Daily", str_to_title(env_str), pm_str, "Trends", "During", str_to_title(case_str), "Period", "[ug/m^3]", "Concentration", "MOD-PM")
+  graph_labels <- c("Daily", str_to_title(env_str), pm_str, "Trends", "During", str_to_title(case_str), "Period", "[ug/m^3]", "Concentration", "CPC")
   
   # # svg file to save graph
   # svg(paste(case_str, env_str, pm_str, sep = "_"))
