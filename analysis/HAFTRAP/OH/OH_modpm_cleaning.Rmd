@@ -157,6 +157,10 @@ main_df <- pivot_longer(main_df_wide,
                                pm1_indoor:temp_ratio, 
                                names_to = c(".value", "environment"), 
                                names_sep = "_")
+
+# filter out NA and infinite values in data
+main_df[sapply(main_df, is.infinite)] <- NA
+main_df <- drop_na(main_df)
 ```
 
 
