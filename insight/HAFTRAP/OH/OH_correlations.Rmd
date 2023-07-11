@@ -1,0 +1,47 @@
+# What are the relationships?
+In the `analysis` stage, correlation coefficients were computed for every variable for each case for every participant. This notebook explores what we can learn about the relationship (and lack thereof) between different key variables
+
+```{r}
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+path_to_data <- "summary/HAFTRAP/OH/"
+```
+
+## Summarizing participants
+Currently, we have individual correlation coefficients for each participant. Averaging over participants reveals overall coefficients.
+
+### CPC
+```{r}
+# Read correlation data
+filepath <- paste0(path_to_data, "s_OH_C_corr.csv")
+cpc_corrs <- read_csv(filepath, show_col_types = FALSE)
+```
+```{r}
+# Group by everything except participant ID
+cpc_sum <- cpc_corrs %>%
+  group_by(var1, var2, case) %>%
+  summarise(mean_cor = mean(cor))
+```
+
+
+```{r}
+cpc_relevant <- cpc_sum %>%
+  filter(!(var1 == var2)) %>%
+  separate_wider_delim(var1, delim = "_", names = c("var1_p", "var1_e")) %>%
+  separate_wider_delim(var2, delim = "_", names = c("var2_p", "var2_e"))
+```
+

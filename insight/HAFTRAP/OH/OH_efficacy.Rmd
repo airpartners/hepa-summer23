@@ -3,6 +3,7 @@ This notebook investigates whether the installation of air purifiers had a notab
 
 ```{r}
 library(ggplot2)
+library(tidyverse)
 ```
 
 Set working directory
