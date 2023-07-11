@@ -1,0 +1,179 @@
+# HAFTRAP Diurnal Plotting (for Mod-PM)
+
+## STOP
+
+**HAVE YOU RUN `OH_modpm_cleaning`?**
+*This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to create diurnal plots for the HAFTRAP Mod-PM data. It can be modified to create diurnal plots for a single participant vs. multiple/all participants. 
+
+```{r}
+# import necessary libraries
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+library(lubridate)
+```
+
+```{r, setup, include=FALSE}
+# set working directory
+knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
+```
+
+```{r}
+# check file path for working directory
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# set path to data
+path_to_data <- "data/HAFTRAP/OH/modpm/"
+```
+
+```{r}
+# filter out NA and infinite values in data
+df <- main_df
+```
+
+```{r}
+# vector of participant numbers' data to be processed (modify to analyze specific participants)
+participants <- c("41181", "41211", "41271", "42231", "42281", "42301", "42321",
+                  "44241", "44621", "45361", "45411", "45451", "46591")
+
+# filter dataframe based on participants
+df <- filter(df, participant_id == participants)
+```
+
+```{r}
+# function to create a new dataframe with summary data
+summary_dataframe <- function(data) {
+  data %>%
+  group_by(is_wknd, time, case, environment) %>%
+  # calculate mean, median, and quartiles for all groups
+  summarise(mean_1 = mean(pm1, na.rm = TRUE), mean_2.5 = mean(pm25), mean_10 = mean(pm10), median_1 = median(pm1), median_2.5 = median(pm25), median_10 = median(pm10), percent5_1 = quantile(pm1, 0.05), percent25_1 = quantile(pm1, 0.25), percent75_1 = quantile(pm1, 0.75), percent95_1 = quantile(pm1, 0.95), percent5_2.5 = quantile(pm25, 0.05), percent25_2.5 = quantile(pm25, 0.25), percent75_2.5 = quantile(pm25, 0.75), percent95_2.5 = quantile(pm25, 0.95), percent5_10 = quantile(pm10, 0.05), percent25_10 = quantile(pm10, 0.25), percent75_10 = quantile(pm10, 0.75), percent95_10 = quantile(pm10, 0.95))
+}
+```
+
+```{r}
+# round all times to 10 mins
+df$date_round <- round_date(df$date, unit = "10 mins")
+      # filter(participant_id == person, case == c, 
+      #        environment == env)
+```
+
+```{r}
+# add column based on day of the week
+df$wkdy <- wday(df$date)
+
+# add boolean column based on whether or not it is a wknd
+df$is_wknd <- replace(df$wkdy, df$wkdy > 1 & df$wkdy < 7, "FALSE")
+df$is_wknd <- replace(df$is_wknd, df$is_wknd == 1 | df$is_wknd == 7, "TRUE")
+```
+
+```{r}
+# isolate time
+df$time <- as.ITime(df$date_round)
+
+# convert back into datetime object (assigns today's date to all)
+df$time <- as.POSIXct(df$time, format="%H:%M:%S")
+```
+
+```{r}
+# create a new df with summary stats
+sum_df <- summary_dataframe(df)
+
+# restructure df to make it easier to graph
+graph_df <- pivot_longer(sum_df, mean_1:percent95_10, names_to = c(".value", "particle"), names_sep = "_")
+```
+
+```{r}
+# function to create diurnal plots + save as an svg
+diurnal_plot <- function(data, case_str, env_str, pm_str) {
+  
+  # create labeller for faceted graphs
+  wknd_labels <- as_labeller(c("TRUE" = "Weekend",
+                    "FALSE" = "Weekday"))
+  
+  # filter data for pm, case, and env
+  data <- filter(data, particle == pm_str & case == case_str & environment == env_str)
+  
+  # vector for all graph labels (only way to do f-string + subscript at the same time)
+  graph_labels <- c("Daily", str_to_title(env_str), pm_str, "Trends", "During", str_to_title(case_str), "Period", "[ug/m^3]", "Concentration", "MOD-PM")
+  
+  # # svg file to save graph
+  # svg(paste(case_str, env_str, pm_str, sep = "_"))
+  
+  ggplot(data) +
+    
+    # plot the 5th-95th and 25th-75th percentiles
+    geom_ribbon(aes(x = time, ymin = percent5, ymax = percent95, fill = "#cfcfcf")) +
+    geom_ribbon(aes(x = time, ymin = percent25, ymax = percent75, fill = "#7a7a7a")) +
+    
+    # plot the mean and median
+    geom_line(aes(x = time, y = mean, color = "red")) +
+    geom_line(aes(x = time, y = median, color = "blue")) +
+    
+    # facet based on wkdy vs. wknd
+    facet_grid(is_wknd ~ ., labeller = wknd_labels) +
+    
+    # label legend for mean and median
+    scale_color_identity(name = "Averages",
+                            breaks = c("red", "blue"),
+                            labels = c("Mean", "Median"),
+                            guide = "legend") +
+    
+    # label legend for percentiles
+    scale_fill_identity(name = "Percentiles",
+                            breaks = c("#cfcfcf", "#7a7a7a"),
+                            labels = c("5th - 95th", "25th - 75th"),
+                            guide = "legend") +
+    
+    # modifiy y-axis scaling
+    scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:00") +
+    
+    # label title and axes using vector above
+    labs(title = bquote(.(graph_labels[10]) ~ .(graph_labels[1]) ~ .(graph_labels[2]) ~ PM[.(graph_labels[3])] ~ .(graph_labels[4]) ~ .(graph_labels[5]) ~ .(graph_labels[6]) ~ .(graph_labels[7])),
+         x = "Time of Day (hrs)",
+         y = bquote(PM[.(graph_labels[3])] ~ .(graph_labels[9]) ~ .(graph_labels[8]))) +
+    
+    # # scale y-axis (log vs. linear)
+    # scale_y_log10() +
+    # scale_y_log10(limits = c(1e-1,1e2)) +
+    # ylim(0,75) +
+    
+    # add fun theme
+    theme_bw()
+  
+  # # close the graphics device
+  # dev.off()
+}
+```
+
+```{r}
+# plot all combos for diurnals
+diurnal_plot(graph_df, "hepa", "indoor", "1")
+diurnal_plot(graph_df, "hepa", "indoor", "2.5")
+diurnal_plot(graph_df, "hepa", "indoor", "10")
+
+diurnal_plot(graph_df, "hepa", "outdoor", "1")
+diurnal_plot(graph_df, "hepa", "outdoor", "2.5")
+diurnal_plot(graph_df, "hepa", "outdoor", "10")
+
+diurnal_plot(graph_df, "hepa", "ratio", "1")
+diurnal_plot(graph_df, "hepa", "ratio", "2.5")
+diurnal_plot(graph_df, "hepa", "ratio", "10")
+
+diurnal_plot(graph_df, "sham", "indoor", "1")
+diurnal_plot(graph_df, "sham", "indoor", "2.5")
+diurnal_plot(graph_df, "sham", "indoor", "10")
+
+diurnal_plot(graph_df, "sham", "outdoor", "1")
+diurnal_plot(graph_df, "sham", "outdoor", "2.5")
+diurnal_plot(graph_df, "sham", "outdoor", "10")
+
+diurnal_plot(graph_df, "sham", "ratio", "1")
+diurnal_plot(graph_df, "sham", "ratio", "2.5")
+diurnal_plot(graph_df, "sham", "ratio", "10")
+```
