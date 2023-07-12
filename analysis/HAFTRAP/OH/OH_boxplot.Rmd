@@ -1,0 +1,127 @@
+# HAFTRAP Plotting Boxplots
+
+## STOP
+
+**HAVE YOU RUN `OH_modpm_cleaning`?**
+*This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to plot boxplots using all the data from the Olin HAFTRAP study.
+
+Plots can be found here and saved in the folder`summary/HAFTRAP/OH/`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(ggplot2)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Participant IDs and corresponding time map tables
+```{r}
+# Vector of participant numbers' data to be processed
+participants <- c("41271", "42281", "45361", "44621", "45451")
+
+### Set paths
+# # For CPC
+# Set path to data
+path_to_data_C <- "data/HAFTRAP/OH/cpc/"
+
+# # For Mod-PM
+# Set path to data
+path_to_data_M <- "data/HAFTRAP/OH/modpm/"
+```
+
+## Load data
+
+Mod-PM
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data_M, "cleaned_modpm.RData"))
+
+# Create copy of main_df, and delete original
+modpm_df <- main_df %>%
+  # Filtering out 41211 for now in Mod-PM because of funky data (look at CSVs)
+  filter(participant_id != "41211")
+rm(main_df)
+```
+
+CPC - filter data to whole minutes
+```{r}
+# Load CPC data from RData file
+load(paste0(path_to_data_C, "cleaned_cpc.RData"))
+
+# Create copy of main_df
+cpc_df <- main_df
+
+# Delete original
+rm(main_df)
+```
+
+## Plotting for Indoor and Outdoor raw concentrations
+### CPC
+```{r}
+# Filter, order data appropriately
+cpc_united <- cpc_df %>%
+  filter(environment != "ratio") %>%
+  unite("situation",environment, case, sep = ", ")
+```
+
+Plotting for concent
+```{r}
+cpc_united <- cpc_united %>% filter(is.finite(concent))
+ggplot(cpc_united) +
+    geom_boxplot(aes(x = situation, y = concent), outlier.shape = NA) +
+    scale_y_continuous(limits = quantile(cpc_united$concent, c(0.05, 0.95)))
+```
+### Mod-PM
+```{r}
+# Filter, order data appropriately
+modpm_united <- modpm_df %>%
+  filter(environment != "ratio") %>%
+  unite("situation",environment, case, sep = ", ")
+```
+
+Plotting for PM 1
+```{r}
+modpm_united <- modpm_united %>% filter(is.finite(pm1))
+ggplot(modpm_united) +
+    geom_boxplot(aes(x = situation, y = pm1), outlier.shape = NA) +
+    scale_y_continuous(limits = quantile(modpm_united$pm1, c(0.05, 0.95)))
+```
+
+Plotting for PM 2.5
+```{r}
+modpm_united <- modpm_united %>% filter(is.finite(pm25))
+ggplot(modpm_united) +
+    geom_boxplot(aes(x = situation, y = pm25), outlier.shape = NA) +
+    scale_y_continuous(limits = quantile(modpm_united$pm25, c(0.05, 0.95)))
+```
+
+Plotting for PM 10
+```{r}
+modpm_united <- modpm_united %>% filter(is.finite(pm10))
+ggplot(modpm_united) +
+    geom_boxplot(aes(x = situation, y = pm10), outlier.shape = NA) +
+    scale_y_continuous(limits = quantile(modpm_united$pm10, c(0.05, 0.95)))
+```
+
+Plotting for PM 1 Numbers
+```{r}
+modpm_united <- modpm_united %>% filter(is.finite(pm1num))
+ggplot(modpm_united) +
+    geom_boxplot(aes(x = situation, y = pm1num), outlier.shape = NA) +
+    scale_y_continuous(limits = quantile(modpm_united$pm1num, c(0.05, 0.95)))
+```
