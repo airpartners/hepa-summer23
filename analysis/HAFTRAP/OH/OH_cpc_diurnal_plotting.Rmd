@@ -97,7 +97,7 @@ diurnal_plot <- function(data, case_str, env_str) {
   data <- filter(data, case == case_str & environment == env_str)
   
   # vector for all graph labels (only way to do f-string + subscript at the same time)
-  graph_labels <- c("Daily", str_to_title(env_str), "PM", "Trends", "During", str_to_title(case_str), "Period", "[ug/m^3]", "Concentration", "CPC")
+  graph_labels <- c("Daily", str_to_title(env_str), "PM", "Trends", "During", str_to_title(case_str), "Period", "[ ug/m", "]", "Concentration", "CPC")
   
   # # svg file to save graph
   # svg(paste(case_str, env_str, sep = "_"))
@@ -131,9 +131,9 @@ diurnal_plot <- function(data, case_str, env_str) {
     scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:00") +
     
     # label title and axes using vector above
-    labs(title = bquote(.(graph_labels[10]) ~ .(graph_labels[1]) ~ .(graph_labels[2]) ~ .(graph_labels[3]) ~ .(graph_labels[4]) ~ .(graph_labels[5]) ~ .(graph_labels[6]) ~ .(graph_labels[7])),
+    labs(title = bquote(.(graph_labels[11]) ~ .(graph_labels[1]) ~ .(graph_labels[2]) ~ .(graph_labels[3]) ~ .(graph_labels[4]) ~ .(graph_labels[5]) ~ .(graph_labels[6]) ~ .(graph_labels[7])),
          x = "Time of Day (hrs)",
-         y = bquote(.(graph_labels[3]) ~ .(graph_labels[9]) ~ .(graph_labels[8]))) +
+         y = bquote(.(graph_labels[3]) ~ .(graph_labels[10]) ~ .(graph_labels[8])^3 ~ .(graph_labels[9]))) + 
     
     # # scale y-axis (log vs. linear)
     scale_y_log10() +
