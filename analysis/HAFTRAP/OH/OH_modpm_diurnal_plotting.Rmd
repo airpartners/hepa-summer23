@@ -33,7 +33,7 @@ path_to_data <- "data/HAFTRAP/OH/modpm/"
 ```
 
 ```{r}
-# filter out NA and infinite values in data
+# load in main df
 df <- main_df
 ```
 
@@ -52,7 +52,7 @@ summary_dataframe <- function(data) {
   data %>%
   group_by(is_wknd, time, case, environment) %>%
   # calculate mean, median, and quartiles for all groups
-  summarise(mean_1 = mean(pm1, na.rm = TRUE), mean_2.5 = mean(pm25), mean_10 = mean(pm10), median_1 = median(pm1), median_2.5 = median(pm25), median_10 = median(pm10), percent5_1 = quantile(pm1, 0.05), percent25_1 = quantile(pm1, 0.25), percent75_1 = quantile(pm1, 0.75), percent95_1 = quantile(pm1, 0.95), percent5_2.5 = quantile(pm25, 0.05), percent25_2.5 = quantile(pm25, 0.25), percent75_2.5 = quantile(pm25, 0.75), percent95_2.5 = quantile(pm25, 0.95), percent5_10 = quantile(pm10, 0.05), percent25_10 = quantile(pm10, 0.25), percent75_10 = quantile(pm10, 0.75), percent95_10 = quantile(pm10, 0.95))
+  summarise(mean_1 = mean(pm1), mean_2.5 = mean(pm25), mean_10 = mean(pm10), median_1 = median(pm1), median_2.5 = median(pm25), median_10 = median(pm10), percent5_1 = quantile(pm1, 0.05), percent25_1 = quantile(pm1, 0.25), percent75_1 = quantile(pm1, 0.75), percent95_1 = quantile(pm1, 0.95), percent5_2.5 = quantile(pm25, 0.05), percent25_2.5 = quantile(pm25, 0.25), percent75_2.5 = quantile(pm25, 0.75), percent95_2.5 = quantile(pm25, 0.95), percent5_10 = quantile(pm10, 0.05), percent25_10 = quantile(pm10, 0.25), percent75_10 = quantile(pm10, 0.75), percent95_10 = quantile(pm10, 0.95))
 }
 ```
 

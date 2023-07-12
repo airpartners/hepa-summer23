@@ -126,8 +126,8 @@ main_df <- all_df %>%
 
 ```{r}
 # Filter out values over a certain threshold
-main_df_indoor <- subset(main_df, environment == "indoor" & pm1 < 200 & pm25 < 250 & pm10 < 1000)
-main_df_outdoor <- subset(main_df, environment == "outdoor" & pm1 < 25 & pm25 < 50 & pm10 < 500)
+main_df_indoor <- subset(main_df, environment == "indoor" & pm1 < 400 & pm25 < 500 & pm10 < 2000)
+main_df_outdoor <- subset(main_df, environment == "outdoor" & pm1 < 50 & pm25 < 100 & pm10 < 1000)
 
 main_df <- rbind(main_df_indoor, main_df_outdoor)
 ```
