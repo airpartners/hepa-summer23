@@ -178,6 +178,10 @@ main_df <- pivot_longer(main_df_wide,
                                names_to = c(".value", "environment"), 
                                names_sep = "_") %>%
   mutate(environment = as.factor(environment))
+
+# filter out NA and infinite values in data
+main_df[sapply(main_df, is.infinite)] <- NA
+main_df <- drop_na(main_df)
 ```
 
 ### Save Data
