@@ -71,57 +71,111 @@ rm(main_df)
 ```
 
 ## Plotting for Indoor and Outdoor raw concentrations
+### Titles and axis labels
+Define lists to use in labelling axes and plot titles
+```{r}
+titles_raw <- list(pm1 = "PM 1 Concentration", pm25 = "PM 2.5 Concentration",
+               pm10 = "PM 10 Concentration", pm1num = "PM 1 Particle Count",
+               concent = "CPC Particle Count")
+
+titles_ratio <- list(pm1 = "PM 1 I/O Ratio", pm25 = "PM 2.5 I/O Ratio",
+               pm10 = "PM 10 I/O Ratio", pm1num = "PM 1 Count I/O Ratio",
+               concent = "CPC Count I/O Ratio")
+```
+
+### Plotting function
+The following function plots the raw data for a given dataset
+```{r}
+plot_raw <- function(df_select, p_type) {
+  my_plot <- ggplot(df_select) +
+    geom_boxplot(aes(x = situation, y = reading), outlier.shape = NA) +
+    scale_y_continuous(limits = quantile(df_select$reading, c(0.05, 0.95))) +
+    labs(title = paste("Overall", titles_raw[[p_type]]))
+  
+  ggsave(filename = paste0("artifacts/", p_type, "_raw.pdf"), plot = my_plot)
+  my_plot
+}
+```
+
+
 ### CPC
 ```{r}
 # Filter, order data appropriately
 cpc_united <- cpc_df %>%
   filter(environment != "ratio") %>%
-  unite("situation",environment, case, sep = ", ")
+  unite("situation", environment, case, sep = ", ") %>%
+
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(concent:inlttmp, names_to = "type", values_to = "reading")
 ```
 
 Plotting for concent
 ```{r}
-cpc_united <- cpc_united %>% filter(is.finite(concent))
-ggplot(cpc_united) +
-    geom_boxplot(aes(x = situation, y = concent), outlier.shape = NA) +
-    scale_y_continuous(limits = quantile(cpc_united$concent, c(0.05, 0.95)))
+cpc_select <- cpc_united %>% filter(type == "concent", is.finite(reading))
+plot_raw(cpc_select, "concent")
 ```
 ### Mod-PM
 ```{r}
 # Filter, order data appropriately
 modpm_united <- modpm_df %>%
   filter(environment != "ratio") %>%
-  unite("situation",environment, case, sep = ", ")
+  unite("situation",environment, case, sep = ", ") %>%
+
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(pm1:temp, names_to = "type", values_to = "reading")
 ```
 
-Plotting for PM 1
+Plotting for Mod-PM
 ```{r}
-modpm_united <- modpm_united %>% filter(is.finite(pm1))
-ggplot(modpm_united) +
-    geom_boxplot(aes(x = situation, y = pm1), outlier.shape = NA) +
-    scale_y_continuous(limits = quantile(modpm_united$pm1, c(0.05, 0.95)))
+for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  modpm_select <- modpm_united %>% filter(type == p_type, is.finite(reading))
+  print(plot_raw(modpm_select, p_type))
+}
+```
+## Plotting for Indoor/Outdoor Ratio
+### Plotting function
+The following function plots the indoor/outdoor ratio for a given dataset
+```{r}
+plot_ratio <- function(df_select, p_type) {
+  my_plot <- ggplot(df_select) +
+    geom_boxplot(aes(x = case, y = reading), outlier.shape = NA) +
+    scale_y_continuous(limits = quantile(df_select$reading, c(0.1, 0.9))) +
+    labs(title = paste("Overall", titles_ratio[[p_type]]))
+  
+  ggsave(filename = paste0("artifacts/", p_type, "_ratio.pdf"), 
+         plot = my_plot)
+  my_plot
+}
 ```
 
-Plotting for PM 2.5
+### CPC
 ```{r}
-modpm_united <- modpm_united %>% filter(is.finite(pm25))
-ggplot(modpm_united) +
-    geom_boxplot(aes(x = situation, y = pm25), outlier.shape = NA) +
-    scale_y_continuous(limits = quantile(modpm_united$pm25, c(0.05, 0.95)))
+# Filter, order data appropriately
+cpc_ratio <- cpc_df %>%
+  filter(environment == "ratio") %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(concent:inlttmp, names_to = "type", values_to = "reading")
 ```
 
-Plotting for PM 10
+Plotting for concent
 ```{r}
-modpm_united <- modpm_united %>% filter(is.finite(pm10))
-ggplot(modpm_united) +
-    geom_boxplot(aes(x = situation, y = pm10), outlier.shape = NA) +
-    scale_y_continuous(limits = quantile(modpm_united$pm10, c(0.05, 0.95)))
+cpc_select <- cpc_ratio %>% filter(type == "concent", is.finite(reading))
+plot_ratio(cpc_select, "concent")
 ```
 
-Plotting for PM 1 Numbers
+### Mod-PM
 ```{r}
-modpm_united <- modpm_united %>% filter(is.finite(pm1num))
-ggplot(modpm_united) +
-    geom_boxplot(aes(x = situation, y = pm1num), outlier.shape = NA) +
-    scale_y_continuous(limits = quantile(modpm_united$pm1num, c(0.05, 0.95)))
+# Filter, order data appropriately
+modpm_ratio <- modpm_df %>%
+  filter(environment == "ratio") %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(pm1:temp, names_to = "type", values_to = "reading")
+```
+
+Plotting for Mod-PM
+```{r}
+for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  modpm_select <- modpm_ratio %>% filter(type == p_type, is.finite(reading))
+  print(plot_ratio(modpm_select, p_type))
+}
 ```
