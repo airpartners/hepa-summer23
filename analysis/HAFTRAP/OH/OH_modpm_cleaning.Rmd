@@ -12,7 +12,7 @@ library(rstatix)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
 ```
 
 ```{r}
@@ -69,6 +69,23 @@ sum_bins <- function(df) {
 }
 
 ```
+
+### Calculating 10 minute averages
+When calculating the indoor/outdoor ratio, we want to calculate them over 10 minutes as oppposed to every data point to account for the time it takes for the air to mix between indoor and outdoor. This function calculates that ten minute average.
+```{r}
+# Round over 10 minute averages
+round_10min <- function(df) {
+  df %>%
+  # Create new column with rounded dates
+  mutate(date_round = round_date(date, "10 minutes")) %>%
+  # Group by the rounded datetime
+  group_by(case, environment, participant_id, date_round) %>%
+  # Calculate mean over ten minutes
+  summarize(across(c(pm1, pm25, pm10, pm1num, temp), mean), .groups = "drop")
+}
+
+```
+
 
 ## Main Code Run
 ### Load all data. 
@@ -137,26 +154,33 @@ To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that
 
 Note: Always run this chunk with the previous chunk.
 ```{r}
-# Spread: Create separate indoor, outdoor columns for particle concentration
-main_df_wide <- pivot_wider(main_df,
-                  names_from = environment,
-                  values_from = c(pm1, pm25, pm10, pm1num, temp))
+# Round over 10 minute averages
+df_indoor_round <- round_10min(main_df_indoor)
+df_outdoor_round <- round_10min(main_df_outdoor)
 
-# Divide indoor by outdoor to calculate ratios
-df_ratio <- select(main_df_wide, ends_with("indoor"))/
-  select(main_df_wide, ends_with("outdoor"))
+# Merge
+df_round <- merge(df_indoor_round, df_outdoor_round, 
+                  by = c("date_round", "participant_id", "case"), 
+                  suffixes = c("_indoor", "_outdoor")) %>%
+            # Remove redundant environment columns
+            select(!starts_with("environment"))
+          
 
-# Rename computed columns to ratio
-colnames(df_ratio) <- sub("indoor", "ratio", colnames(df_ratio))
+df_ratio <- df_round %>% 
+  mutate(date = date_round,
+         environment = "ratio",
+         pm1 = pm1_indoor/pm1_outdoor, 
+         pm25 = pm25_indoor/pm25_outdoor, 
+         pm10 = pm10_indoor/pm10_outdoor, 
+         pm1num = pm1num_indoor/pm1num_outdoor, 
+         temp = temp_indoor/temp_outdoor,
+         .keep = "unused")
+```
 
-# Merge back with joined data-frame
-main_df_wide <- cbind(main_df_wide, df_ratio)
-
-# Gather: Return to original shape by re-forming the environment variable
-main_df <- pivot_longer(main_df_wide, 
-                               pm1_indoor:temp_ratio, 
-                               names_to = c(".value", "environment"), 
-                               names_sep = "_")
+Run this code chunk only ONCE
+```{r}
+# Bind back into main dataframe
+main_df <- rbind(main_df, df_ratio)
 
 # filter out NA and infinite values in data
 main_df[sapply(main_df, is.infinite)] <- NA

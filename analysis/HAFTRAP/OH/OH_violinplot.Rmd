@@ -1,0 +1,181 @@
+# HAFTRAP Plotting Boxplots
+
+## STOP
+
+**HAVE YOU RUN `OH_modpm_cleaning`?**
+*This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to plot boxplots using all the data from the Olin HAFTRAP study.
+
+Plots can be found here and saved in the folder`summary/HAFTRAP/OH/`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(ggplot2)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Participant IDs and corresponding time map tables
+```{r}
+# Vector of participant numbers' data to be processed
+participants <- c("41271", "42281", "45361", "44621", "45451")
+
+### Set paths
+# # For CPC
+# Set path to data
+path_to_data_C <- "data/HAFTRAP/OH/cpc/"
+
+# # For Mod-PM
+# Set path to data
+path_to_data_M <- "data/HAFTRAP/OH/modpm/"
+```
+
+## Load data
+
+Mod-PM
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data_M, "cleaned_modpm.RData"))
+
+# Create copy of main_df, and delete original
+modpm_df <- main_df %>%
+  # Filtering out 41211 for now in Mod-PM because of funky data (look at CSVs)
+  filter(participant_id != "41211")
+rm(main_df)
+```
+
+CPC - filter data to whole minutes
+```{r}
+# Load CPC data from RData file
+load(paste0(path_to_data_C, "cleaned_cpc.RData"))
+
+# Create copy of main_df
+cpc_df <- main_df
+
+# Delete original
+rm(main_df)
+```
+
+## Plotting for Indoor and Outdoor raw concentrations
+### Titles and axis labels
+Define lists to use in labelling axes and plot titles
+```{r}
+titles_raw <- list(pm1 = "PM 1 Concentration", pm25 = "PM 2.5 Concentration",
+               pm10 = "PM 10 Concentration", pm1num = "PM 1 Particle Count",
+               concent = "CPC Particle Count")
+
+titles_ratio <- list(pm1 = "PM 1 I/O Ratio", pm25 = "PM 2.5 I/O Ratio",
+               pm10 = "PM 10 I/O Ratio", pm1num = "PM 1 Count I/O Ratio",
+               concent = "CPC Count I/O Ratio")
+```
+
+### Plotting function
+The following function plots the raw data for a given dataset
+```{r}
+plot_raw <- function(df_select, p_type) {
+  my_plot <- ggplot(df_select) +
+    geom_violin(aes(x = situation, y = reading, fill = case)) +
+    scale_y_continuous(trans = "log10") +
+    labs(title = paste("Overall", titles_raw[[p_type]]))
+  
+  # ggsave(filename = paste0("artifacts/", p_type, "_raw.pdf"), plot = my_plot)
+  my_plot
+}
+```
+
+
+### CPC
+```{r}
+# Filter, order data appropriately
+cpc_united <- cpc_df %>%
+  filter(environment != "ratio") %>%
+  unite("situation", environment, case, sep = ", ", remove = FALSE) %>%
+
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(concent:inlttmp, names_to = "type", values_to = "reading")
+```
+
+Plotting for concent
+```{r}
+cpc_select <- cpc_united %>% filter(type == "concent", is.finite(reading))
+plot_raw(cpc_select, "concent")
+```
+### Mod-PM
+```{r}
+# Filter, order data appropriately
+modpm_united <- modpm_df %>%
+  filter(environment != "ratio") %>%
+  unite("situation",environment, case, sep = ", ", remove = FALSE) %>%
+
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(pm1:temp, names_to = "type", values_to = "reading")
+```
+
+Plotting for Mod-PM
+```{r}
+for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  modpm_select <- modpm_united %>% filter(type == p_type, is.finite(reading))
+  print(plot_raw(modpm_select, p_type))
+}
+```
+## Plotting for Indoor/Outdoor Ratio
+### Plotting function
+The following function plots the indoor/outdoor ratio for a given dataset
+```{r}
+plot_ratio <- function(df_select, p_type) {
+  my_plot <- ggplot(df_select) +
+    geom_violin(aes(x = case, y = reading, fill = case)) +
+    scale_y_continuous(trans = "log10") +
+    labs(title = paste("Overall", titles_ratio[[p_type]]))
+  
+  # ggsave(filename = paste0("artifacts/", p_type, "_ratio.pdf"), 
+  #        plot = my_plot)
+  my_plot
+}
+```
+
+### CPC
+```{r}
+# Filter, order data appropriately
+cpc_ratio <- cpc_df %>%
+  filter(environment == "ratio") %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(concent:inlttmp, names_to = "type", values_to = "reading")
+```
+
+Plotting for concent
+```{r}
+cpc_select <- cpc_ratio %>% filter(type == "concent", is.finite(reading))
+plot_ratio(cpc_select, "concent")
+```
+
+### Mod-PM
+```{r}
+# Filter, order data appropriately
+modpm_ratio <- modpm_df %>%
+  filter(environment == "ratio") %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(pm1:temp, names_to = "type", values_to = "reading")
+```
+
+Plotting for Mod-PM
+```{r}
+for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  modpm_select <- modpm_ratio %>% filter(type == p_type, is.finite(reading))
+  print(plot_ratio(modpm_select, p_type))
+}
+```

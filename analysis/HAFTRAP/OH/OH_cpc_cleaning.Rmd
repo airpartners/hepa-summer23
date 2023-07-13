@@ -13,7 +13,7 @@ library(readxl)
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
 ```
 
 Check for working directory

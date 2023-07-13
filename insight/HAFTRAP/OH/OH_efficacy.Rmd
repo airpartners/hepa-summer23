@@ -44,9 +44,9 @@ get_sums <- function(df_stats, env, p_types) {
   # Filter the % reduction values for specified environment, particle types
   filter(case == "redu", environment == env, type %in% p_types) %>%
   
-  # Find median of summary statistics
+  # Find mean of summary statistics
   group_by(type) %>%
-  summarise(across(mean:sd, median))
+  summarise(across(mean:q95, mean))
 }
 
 ```
