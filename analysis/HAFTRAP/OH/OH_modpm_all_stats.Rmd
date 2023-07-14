@@ -55,6 +55,7 @@ Correlation coefficients tell us a lot about relationships between variables. Th
 ```{r}
 # Function to calculate correlation matrices
 get_corr <- function(df, p, c) {
+  print(paste("Correlation processed for", p, c))
   df %>%
     # Filter for case
     filter(participant_id == p, case == c) %>%
@@ -94,7 +95,6 @@ for (person in participants) {
       mutate(case = case, participant_id = person) -> df
     # Append to main dataframe
     corr_df <- rbind(corr_df, df)
-    print(paste("Computed correlation coefficients for", person, case))
   }
 }
 ```
@@ -105,7 +105,8 @@ To calculate summary statistics of the data, the different measurements (PM1,  P
 ```{r}
 main_df %>%
   # Gather dataframe to create single variable for measurements
-  pivot_longer(pm1:temp, names_to = "type", values_to = "reading") %>%
+  pivot_longer(c(pm1, pm25, pm10, pm1num, temp), 
+               names_to = "type", values_to = "reading") %>%
   # Drop NaN, inf values for summary calculation
   filter(is.finite(reading)) %>%
   # Group by participant ID, case, environment, and type

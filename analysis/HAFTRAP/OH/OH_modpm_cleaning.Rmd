@@ -184,7 +184,9 @@ main_df <- rbind(main_df, df_ratio)
 
 # filter out NA and infinite values in data
 main_df[sapply(main_df, is.infinite)] <- NA
-main_df <- drop_na(main_df)
+main_df <- drop_na(main_df) %>%
+  # Remove repeat readings
+  distinct(case, participant_id, date, environment, .keep_all = TRUE)
 ```
 
 

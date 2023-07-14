@@ -47,34 +47,28 @@ path_to_data_C <- "data/HAFTRAP/OH/cpc/"
 path_to_data_M <- "data/HAFTRAP/OH/modpm/"
 ```
 
-## Load data
 
-Mod-PM
+## Helper Functions:
+
+### Calculating 1 minute averages
+When correlating Mod-PM and CPC data, we want to make sure that the CPC data - sampled ever second, is at the same sampling rate as Mod-PM data - sampled every minute. This function calculates the one minute average for CPC data.
 ```{r}
-# Load Mod-PM data from RData file
-load(paste0(path_to_data_M, "cleaned_modpm.RData"))
+# Round over 10 minute averages
+round_1min <- function(df) {
+  df %>%
+  # Create new column with rounded dates
+  mutate(date_round = round_date(date, "1 minute")) %>%
+  # Group by the rounded datetime
+  group_by(case, environment, participant_id, date_round) %>%
+  # Calculate mean over ten minutes
+  summarize(across(c(concent, inlttmp), mean), .groups = "drop") %>%
+  # Rename data column
+  rename(date = date_round)
+}
 
-# Create copy of main_df, and delete original
-modpm_df <- main_df
-rm(main_df)
 ```
 
-CPC - filter data to whole minutes
-```{r}
-# Load CPC data from RData file
-load(paste0(path_to_data_C, "cleaned_cpc.RData"))
-
-# Create copy of main_df
-cpc_df <- main_df %>%
-  # Mod-PM data is sampled by whole minute, filter CPC data to match
-  filter(second(main_df$date) == 0)
-
-# Delete original
-rm(main_df)
-```
-
-
-## Helper Function: calculating correlation coefficients
+### Calculating correlation coefficients
 The following function is not part of the main pipeline to calculate summary statistics, but is used to clean and process the data. 
 
 Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
@@ -94,6 +88,34 @@ get_corr <- function(df, p, c) {
     cor_gather()
 }
 ```
+
+## Load data
+
+Mod-PM
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data_M, "cleaned_modpm.RData"))
+
+# Create copy of main_df, and delete original
+modpm_df <- main_df
+rm(main_df)
+```
+
+CPC - filter data to whole minutes
+```{r}
+# Load CPC data from RData file
+load(paste0(path_to_data_C, "cleaned_cpc.RData"))
+
+# Create copy of main_df
+cpc_df <- main_df %>%
+  # Mod-PM data is sampled by whole minute, average CPC data to match
+  round_1min()
+
+# Delete original
+rm(main_df)
+```
+
+
 
 ## Main Code Run
 
