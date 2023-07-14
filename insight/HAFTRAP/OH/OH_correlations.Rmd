@@ -41,7 +41,34 @@ cpc_sum <- cpc_corrs %>%
 ```{r}
 cpc_relevant <- cpc_sum %>%
   filter(!(var1 == var2)) %>%
+  filter(!(var1 == "inlttmp_ratio" | var2 == "inlttmp_ratio")) %>%
   separate_wider_delim(var1, delim = "_", names = c("var1_p", "var1_e")) %>%
-  separate_wider_delim(var2, delim = "_", names = c("var2_p", "var2_e"))
+  separate_wider_delim(var2, delim = "_", names = c("var2_p", "var2_e")) %>%
+  filter(!(var1_p == var2_p & (var1_e == "ratio" | var2_e == "ratio"))) %>%
+  filter(!(var1_p == "inlttmp" & var1_e == "ratio"))
+```
+### Mod-PM
+```{r}
+# Read correlation data
+filepath <- paste0(path_to_data, "s_OH_M_corr.csv")
+modpm_corrs <- read_csv(filepath, show_col_types = FALSE)
+```
+```{r}
+# Group by everything except participant ID
+modpm_sum <- modpm_corrs %>%
+  group_by(var1, var2, case) %>%
+  summarise(mean_cor = mean(cor))
 ```
 
+### Joint
+```{r}
+# Read correlation data
+filepath <- paste0(path_to_data, "s_OH_MC_corr.csv")
+joint_corrs <- read_csv(filepath, show_col_types = FALSE)
+```
+```{r}
+# Group by everything except participant ID
+joint_sum <- joint_corrs %>%
+  group_by(var1, var2, case) %>%
+  summarise(mean_cor = mean(cor))
+```

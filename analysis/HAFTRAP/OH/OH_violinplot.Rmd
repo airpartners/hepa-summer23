@@ -88,11 +88,11 @@ The following function plots the raw data for a given dataset
 ```{r}
 plot_raw <- function(df_select, p_type) {
   my_plot <- ggplot(df_select) +
-    geom_boxplot(aes(x = situation, y = reading), outlier.shape = NA) +
-    scale_y_continuous(limits = quantile(df_select$reading, c(0.05, 0.95))) +
+    geom_violin(aes(x = situation, y = reading, fill = case)) +
+    scale_y_continuous(trans = "log10") +
     labs(title = paste("Overall", titles_raw[[p_type]]))
   
-  ggsave(filename = paste0("artifacts/", p_type, "_raw.pdf"), plot = my_plot)
+  # ggsave(filename = paste0("artifacts/", p_type, "_raw.pdf"), plot = my_plot)
   my_plot
 }
 ```
@@ -103,7 +103,7 @@ plot_raw <- function(df_select, p_type) {
 # Filter, order data appropriately
 cpc_united <- cpc_df %>%
   filter(environment != "ratio") %>%
-  unite("situation", environment, case, sep = ", ") %>%
+  unite("situation", environment, case, sep = ", ", remove = FALSE) %>%
 
   # Gather dataframe to create single variable for measurements
   pivot_longer(concent:inlttmp, names_to = "type", values_to = "reading")
@@ -119,7 +119,7 @@ plot_raw(cpc_select, "concent")
 # Filter, order data appropriately
 modpm_united <- modpm_df %>%
   filter(environment != "ratio") %>%
-  unite("situation",environment, case, sep = ", ") %>%
+  unite("situation",environment, case, sep = ", ", remove = FALSE) %>%
 
   # Gather dataframe to create single variable for measurements
   pivot_longer(pm1:temp, names_to = "type", values_to = "reading")
@@ -138,12 +138,12 @@ The following function plots the indoor/outdoor ratio for a given dataset
 ```{r}
 plot_ratio <- function(df_select, p_type) {
   my_plot <- ggplot(df_select) +
-    geom_boxplot(aes(x = case, y = reading), outlier.shape = NA) +
-    scale_y_continuous(limits = quantile(df_select$reading, c(0.1, 0.9))) +
+    geom_violin(aes(x = case, y = reading, fill = case)) +
+    scale_y_continuous(trans = "log10") +
     labs(title = paste("Overall", titles_ratio[[p_type]]))
   
-  ggsave(filename = paste0("artifacts/", p_type, "_ratio.pdf"), 
-         plot = my_plot)
+  # ggsave(filename = paste0("artifacts/", p_type, "_ratio.pdf"), 
+  #        plot = my_plot)
   my_plot
 }
 ```
