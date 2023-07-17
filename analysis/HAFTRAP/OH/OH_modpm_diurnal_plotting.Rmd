@@ -43,7 +43,7 @@ participants <- c("41181", "41211", "41271", "42231", "42281", "42301", "42321",
                   "44241", "44621", "45361", "45411", "45451", "46591")
 
 # filter dataframe based on participants
-df <- filter(df, participant_id == participants)
+df <- filter(df, participant_id %in% participants)
 ```
 
 ```{r}
