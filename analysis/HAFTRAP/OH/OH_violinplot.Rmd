@@ -83,17 +83,35 @@ titles_ratio <- list(pm1 = "PM 1 I/O Ratio", pm25 = "PM 2.5 I/O Ratio",
                concent = "CPC Count I/O Ratio")
 ```
 
+## Helper functions:
 ### Plotting function
 The following function plots the raw data for a given dataset
 ```{r}
-plot_raw <- function(df_select, p_type) {
+plot_raw <- function(df_select, p_type, val) {
   my_plot <- ggplot(df_select) +
     geom_violin(aes(x = situation, y = reading, fill = case)) +
     scale_y_continuous(trans = "log10") +
-    labs(title = paste("Overall", titles_raw[[p_type]]))
+    labs(title = paste("Overall", titles_raw[[p_type]]),
+         caption = paste0("Mean indoor reduction = ", round(val, 1), "%"))
   
-  # ggsave(filename = paste0("artifacts/", p_type, "_raw.pdf"), plot = my_plot)
+  # ggsave(filename = paste0("artifacts/", p_type, "_raw.png"), plot = my_plot)
   my_plot
+}
+```
+
+### Percentage reduction calculating
+The following function calculates mean percentage reduction for a specified particle type
+```{r}
+get_redu <- function(df, env, p_type) {
+  vals <- df %>% 
+    filter(environment == env) %>% 
+    group_by(case, participant_id) %>% 
+    summarize(across(all_of(p_type), mean))
+  
+  vec <- 100 * (vals[vals$case == "sham", 3] - vals[vals$case == "hepa", 3])/
+    vals[vals$case == "sham", 3]
+  
+  mean(vec[[1]])
 }
 ```
 
@@ -107,12 +125,17 @@ cpc_united <- cpc_df %>%
 
   # Gather dataframe to create single variable for measurements
   pivot_longer(concent:inlttmp, names_to = "type", values_to = "reading")
+
+
 ```
 
 Plotting for concent
 ```{r}
+# Calculate percentage reduction
+val <- get_redu(cpc_df, "indoor", "concent")
+
 cpc_select <- cpc_united %>% filter(type == "concent", is.finite(reading))
-plot_raw(cpc_select, "concent")
+plot_raw(cpc_select, "concent", val)
 ```
 ### Mod-PM
 ```{r}
@@ -122,27 +145,32 @@ modpm_united <- modpm_df %>%
   unite("situation",environment, case, sep = ", ", remove = FALSE) %>%
 
   # Gather dataframe to create single variable for measurements
-  pivot_longer(pm1:temp, names_to = "type", values_to = "reading")
+  pivot_longer(c(pm1, pm25, pm10, pm1num, temp), 
+               names_to = "type", values_to = "reading")
 ```
 
 Plotting for Mod-PM
 ```{r}
 for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  # Calculate percentage reduction
+  val <- get_redu(modpm_df, "indoor", p_type)
+
   modpm_select <- modpm_united %>% filter(type == p_type, is.finite(reading))
-  print(plot_raw(modpm_select, p_type))
+  print(plot_raw(modpm_select, p_type, val))
 }
 ```
 ## Plotting for Indoor/Outdoor Ratio
 ### Plotting function
 The following function plots the indoor/outdoor ratio for a given dataset
 ```{r}
-plot_ratio <- function(df_select, p_type) {
+plot_ratio <- function(df_select, p_type, val) {
   my_plot <- ggplot(df_select) +
     geom_violin(aes(x = case, y = reading, fill = case)) +
     scale_y_continuous(trans = "log10") +
-    labs(title = paste("Overall", titles_ratio[[p_type]]))
+    labs(title = paste("Overall", titles_ratio[[p_type]]),
+         caption = paste0("Mean reduction = ", round(val, 1), "%"))
   
-  # ggsave(filename = paste0("artifacts/", p_type, "_ratio.pdf"), 
+  # ggsave(filename = paste0("artifacts/", p_type, "_ratio.png"), 
   #        plot = my_plot)
   my_plot
 }
@@ -159,8 +187,10 @@ cpc_ratio <- cpc_df %>%
 
 Plotting for concent
 ```{r}
+val <- get_redu(cpc_df, "ratio", "concent")
+
 cpc_select <- cpc_ratio %>% filter(type == "concent", is.finite(reading))
-plot_ratio(cpc_select, "concent")
+plot_ratio(cpc_select, "concent", val)
 ```
 
 ### Mod-PM
@@ -169,13 +199,16 @@ plot_ratio(cpc_select, "concent")
 modpm_ratio <- modpm_df %>%
   filter(environment == "ratio") %>%
   # Gather dataframe to create single variable for measurements
-  pivot_longer(pm1:temp, names_to = "type", values_to = "reading")
+  pivot_longer(c(pm1, pm25, pm10, pm1num, temp), 
+               names_to = "type", values_to = "reading")
 ```
 
 Plotting for Mod-PM
 ```{r}
 for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  val <- get_redu(modpm_df, "ratio", p_type)
+  
   modpm_select <- modpm_ratio %>% filter(type == p_type, is.finite(reading))
-  print(plot_ratio(modpm_select, p_type))
+  print(plot_ratio(modpm_select, p_type, val))
 }
 ```

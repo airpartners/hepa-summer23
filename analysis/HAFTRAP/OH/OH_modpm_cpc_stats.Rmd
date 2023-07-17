@@ -16,6 +16,7 @@ Load libraries, define file paths, include participant IDs to be processed
 # Import relevant libraries
 library(tidyverse)
 library(corrplot)
+library(corrr)
 library(rstatix)
 ```
 
@@ -54,14 +55,14 @@ path_to_data_M <- "data/HAFTRAP/OH/modpm/"
 When correlating Mod-PM and CPC data, we want to make sure that the CPC data - sampled ever second, is at the same sampling rate as Mod-PM data - sampled every minute. This function calculates the one minute average for CPC data.
 ```{r}
 # Round over 10 minute averages
-round_1min <- function(df) {
+round_10min <- function(df, vec) {
   df %>%
   # Create new column with rounded dates
-  mutate(date_round = round_date(date, "1 minute")) %>%
+  mutate(date_round = round_date(date, "10 minutes")) %>%
   # Group by the rounded datetime
   group_by(case, environment, participant_id, date_round) %>%
   # Calculate mean over ten minutes
-  summarize(across(c(concent, inlttmp), mean), .groups = "drop") %>%
+  summarize(across(all_of(vec), mean), .groups = "drop") %>%
   # Rename data column
   rename(date = date_round)
 }
@@ -83,9 +84,9 @@ get_corr <- function(df, p, c) {
     # Remove NaN values
     drop_na() %>%
     # Calculate correlations
-    cor_mat() %>%
+    correlate() %>%
     # Reshape into paired-list format
-    cor_gather()
+    stretch(remove.dups = TRUE)
 }
 ```
 
@@ -97,7 +98,10 @@ Mod-PM
 load(paste0(path_to_data_M, "cleaned_modpm.RData"))
 
 # Create copy of main_df, and delete original
-modpm_df <- main_df
+modpm_df <- main_df %>%
+  # # Average Mod-PM data over 10 minutes
+  round_10min(c("pm1", "pm25", "pm10", "pm1num", "temp"))
+
 rm(main_df)
 ```
 
@@ -108,8 +112,8 @@ load(paste0(path_to_data_C, "cleaned_cpc.RData"))
 
 # Create copy of main_df
 cpc_df <- main_df %>%
-  # Mod-PM data is sampled by whole minute, average CPC data to match
-  round_1min()
+  # Average CPC data over 10 minutes
+  round_10min(c("concent", "inlttmp"))
 
 # Delete original
 rm(main_df)
@@ -147,7 +151,9 @@ for (person in participants) {
       # Get correlation coefficients (look at helper function)
       get_corr(person, case) %>%
       # Add the case and participant ID
-      mutate(case = case, participant_id = person) -> df
+      mutate(case = case, participant_id = person) %>%
+      # Drop NaNs
+      drop_na() -> df
     # Append to main dataframe
     corr_df <- rbind(corr_df, df)
     print(paste("Computed correlation coefficients for", person, case))
@@ -215,4 +221,10 @@ Summary statistics are saved in a series of csv files. The naming convention of 
 # Save summary statistic files to CSVs
 write.csv(summary_normal, "summary/HAFTRAP/OH/s_OH_MC_quants.csv")
 write.csv(corr_df, "summary/HAFTRAP/OH/s_OH_MC_corr.csv")
+```
+
+### Save Data
+The `main_df` dataframe with merged CPC and Mod-PM data is saved to `merged.RData`
+```{r}
+save(main_df, file = paste0("summary/HAFTRAP/OH/merged.RData"))
 ```

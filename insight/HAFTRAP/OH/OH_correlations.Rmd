@@ -24,51 +24,119 @@ path_to_data <- "summary/HAFTRAP/OH/"
 ## Summarizing participants
 Currently, we have individual correlation coefficients for each participant. Averaging over participants reveals overall coefficients.
 
-### CPC
-```{r}
-# Read correlation data
-filepath <- paste0(path_to_data, "s_OH_C_corr.csv")
-cpc_corrs <- read_csv(filepath, show_col_types = FALSE)
-```
-```{r}
-# Group by everything except participant ID
-cpc_sum <- cpc_corrs %>%
-  group_by(var1, var2, case) %>%
-  summarise(mean_cor = mean(cor))
-```
-
-
-```{r}
-cpc_relevant <- cpc_sum %>%
-  filter(!(var1 == var2)) %>%
-  filter(!(var1 == "inlttmp_ratio" | var2 == "inlttmp_ratio")) %>%
-  separate_wider_delim(var1, delim = "_", names = c("var1_p", "var1_e")) %>%
-  separate_wider_delim(var2, delim = "_", names = c("var2_p", "var2_e")) %>%
-  filter(!(var1_p == var2_p & (var1_e == "ratio" | var2_e == "ratio"))) %>%
-  filter(!(var1_p == "inlttmp" & var1_e == "ratio"))
-```
-### Mod-PM
-```{r}
-# Read correlation data
-filepath <- paste0(path_to_data, "s_OH_M_corr.csv")
-modpm_corrs <- read_csv(filepath, show_col_types = FALSE)
-```
-```{r}
-# Group by everything except participant ID
-modpm_sum <- modpm_corrs %>%
-  group_by(var1, var2, case) %>%
-  summarise(mean_cor = mean(cor))
-```
-
-### Joint
 ```{r}
 # Read correlation data
 filepath <- paste0(path_to_data, "s_OH_MC_corr.csv")
-joint_corrs <- read_csv(filepath, show_col_types = FALSE)
+all_corrs <- read_csv(filepath, show_col_types = FALSE)
+```
+
+```{r}
+# Read overall merged CPC + Mod-PM data
+load(paste0(path_to_data, "merged.RData"))
+```
+
+
+```{r}
+# Get means over groups
+corrs_sum <- all_corrs %>%
+  group_by(x, y, case) %>%
+  summarise(mean_cor = mean(r), .groups = "drop")
+```
+
+## Indoor CPC vs. Mod-PM
+```{r}
+# Compare concent indoor to Mod-PM indoor readings
+corrs_sum %>%
+  filter(x == "concent_indoor", str_detect(y, "^pm"), 
+         str_detect(y, "indoor$")) %>%
+  arrange(case)
+```
+CPC Particle Count Indoor vs. PM 2.5 Concentration Indoor (sham)
+```{r}
+r_val <- corrs_sum %>%
+  filter(x == "concent_indoor", y == "pm25_indoor", case == "sham") %>%
+  select(mean_cor)
+
+main_df %>%
+  filter(case == "sham", environment == "indoor") %>%
+  ggplot(aes(x = concent, y = pm25)) +
+    geom_point(alpha = 0.1) +
+    geom_smooth(method=lm, se=FALSE) +
+    labs(caption = paste("R-value = ", round(r_val, 3)))
 ```
 ```{r}
-# Group by everything except participant ID
-joint_sum <- joint_corrs %>%
-  group_by(var1, var2, case) %>%
-  summarise(mean_cor = mean(cor))
+main_df %>%
+  filter(case == "sham", environment == "indoor") %>%
+  ggplot(aes(x = date)) +
+    geom_line(aes(y = pm25), color = "blue") +
+    scale_y_continuous(sec.axis = sec_axis(~.*100)) +
+    geom_line(aes(y = concent/1000), color = "red")
+```
+
+
+## Outdoor CPC vs. Mod-PM
+```{r}
+# Compare concent outdoor to Mod-PM outdoor readings
+corrs_sum %>%
+  filter(x == "concent_outdoor", str_detect(y, "^pm"), 
+         str_detect(y, "outdoor$")) %>%
+  arrange(case)
+```
+CPC Particle Count Outdoor vs. PM 2.5 Concentration Outdoor (sham)
+```{r}
+r_val <- corrs_sum %>%
+  filter(x == "concent_outdoor", y == "pm25_outdoor", case == "sham") %>%
+  select(mean_cor)
+
+main_df %>%
+  filter(case == "sham", environment == "outdoor") %>%
+  ggplot(aes(x = concent, y = pm25)) +
+    geom_point(alpha = 0.1) +
+    geom_smooth(method=lm, se=FALSE) +
+    labs(caption = paste("R-value = ", round(r_val, 3)))
+```
+
+## Ratio CPC vs. Mod-PM
+```{r}
+# Compare concent ratio to Mod-PM ratio readings
+corrs_sum %>%
+  filter(x == "concent_ratio", str_detect(y, "^pm"), 
+         str_detect(y, "ratio$")) %>%
+  arrange(case)
+```
+CPC Particle Count Ratio vs. PM 1 Concentration Ratio (sham)
+```{r}
+r_val <- corrs_sum %>%
+  filter(x == "concent_ratio", y == "pm1_ratio", case == "sham") %>%
+  select(mean_cor)
+
+main_df %>%
+  filter(case == "sham", environment == "ratio") %>%
+  ggplot(aes(x = concent, y = pm1)) +
+    geom_point(alpha = 0.1) +
+    geom_smooth(method=lm, se=FALSE) +
+    labs(caption = paste("R-value = ", round(r_val, 3)))
+```
+
+## Others
+```{r}
+# Look at all variables with a mean r-value > 0.6
+corrs_sum %>% 
+  arrange(desc(mean_cor)) %>% 
+  filter(mean_cor > 0.6)
+```
+None of the variables with high R-values give us significant special insight between variables, apart from PM 1 and PM 2.5 appearing to be closely related with a correlation coefficient of 0.972 for indoor sham and 0.967 for indoor hepa.
+
+PM 1 Concentration Indoor vs. PM 2.5 Concentration Indoor (sham)
+```{r}
+r_val <- corrs_sum %>%
+  filter(x == "pm1_indoor", y == "pm25_indoor", case == "sham") %>%
+  select(mean_cor)
+
+main_df %>%
+  filter(case == "sham", environment == "indoor") %>%
+  ggplot(aes(x = pm1, y = pm25)) +
+    geom_point(alpha = 0.1) +
+    geom_smooth(method=lm, se=FALSE) +
+    labs(caption = paste("R-value = ", round(r_val, 3)))
 ```
