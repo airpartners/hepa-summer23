@@ -2,12 +2,12 @@
 
 ## STOP
 
-**HAVE YOU RUN `OH_modpm_cleaning`?**
-*This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+**HAVE YOU RUN `OH_modpm_cleaning` AND `OH_cpc_cleaning`?**
+*This file loads dataframes created from running `OH_modpm_cleaning` AND `OH_cpc_cleaning`. Make sure you run those files first (if you haven't already) before running this file.*
 
 This script is used to plot boxplots using all the data from the Olin HAFTRAP study.
 
-Plots can be found here and saved in the folder`summary/HAFTRAP/OH/`.
+Plots can be found here and saved in the folder`artifacts/HAFTRAP/OH/`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -92,7 +92,7 @@ plot_raw <- function(df_select, p_type) {
     scale_y_continuous(limits = quantile(df_select$reading, c(0.05, 0.95))) +
     labs(title = paste("Overall", titles_raw[[p_type]]))
   
-  # ggsave(filename = paste0("artifacts/", p_type, "_raw.png"), plot = my_plot)
+  ggsave(filename = paste0("artifacts/boxplot/", p_type, "_raw.png"), plot = my_plot)
   my_plot
 }
 ```
@@ -143,8 +143,8 @@ plot_ratio <- function(df_select, p_type) {
     scale_y_continuous(limits = quantile(df_select$reading, c(0.1, 0.9))) +
     labs(title = paste("Overall", titles_ratio[[p_type]]))
   
-  # ggsave(filename = paste0("artifacts/", p_type, "_ratio.png"), 
-         # plot = my_plot)
+  ggsave(filename = paste0("artifacts/boxplot/", p_type, "_ratio.png"),
+         plot = my_plot)
   my_plot
 }
 ```

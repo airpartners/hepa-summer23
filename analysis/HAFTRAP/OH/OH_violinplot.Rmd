@@ -94,7 +94,8 @@ plot_raw <- function(df_select, p_type, val) {
     labs(title = paste("Overall", titles_raw[[p_type]]),
          caption = paste0("Mean indoor reduction = ", round(val, 1), "%"))
   
-  # ggsave(filename = paste0("artifacts/", p_type, "_raw.png"), plot = my_plot)
+  ggsave(filename = paste0("artifacts/violinplot/", p_type, "_raw.png"), 
+         plot = my_plot)
   my_plot
 }
 ```
@@ -170,8 +171,8 @@ plot_ratio <- function(df_select, p_type, val) {
     labs(title = paste("Overall", titles_ratio[[p_type]]),
          caption = paste0("Mean reduction = ", round(val, 1), "%"))
   
-  # ggsave(filename = paste0("artifacts/", p_type, "_ratio.png"), 
-  #        plot = my_plot)
+  ggsave(filename = paste0("artifacts/violinplot/", p_type, "_ratio.png"),
+         plot = my_plot)
   my_plot
 }
 ```
