@@ -88,11 +88,13 @@ titles_ratio <- list(pm1 = "PM 1 I/O Ratio", pm25 = "PM 2.5 I/O Ratio",
 The following function plots the raw data for a given dataset
 ```{r}
 plot_raw <- function(df_select, p_type, val) {
-  my_plot <- ggplot(df_select) +
+  df_select %>%
+    mutate(across(case, \(x) factor(x, levels=c("sham", "hepa")))) %>%
+  ggplot() +
     geom_violin(aes(x = situation, y = reading, fill = case)) +
     scale_y_continuous(trans = "log10") +
     labs(title = paste("Overall", titles_raw[[p_type]]),
-         caption = paste0("Mean indoor reduction = ", round(val, 1), "%"))
+         caption = paste0("Mean indoor reduction = ", round(val, 1), "%")) -> my_plot
   
   ggsave(filename = paste0("artifacts/violinplot/", p_type, "_raw.png"), 
          plot = my_plot)
@@ -165,11 +167,13 @@ for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
 The following function plots the indoor/outdoor ratio for a given dataset
 ```{r}
 plot_ratio <- function(df_select, p_type, val) {
-  my_plot <- ggplot(df_select) +
+  df_select %>%
+    mutate(across(case, \(x) factor(x, levels=c("sham", "hepa")))) %>%
+  ggplot() +
     geom_violin(aes(x = case, y = reading, fill = case)) +
     scale_y_continuous(trans = "log10") +
     labs(title = paste("Overall", titles_ratio[[p_type]]),
-         caption = paste0("Mean reduction = ", round(val, 1), "%"))
+         caption = paste0("Mean reduction = ", round(val, 1), "%")) -> my_plot
   
   ggsave(filename = paste0("artifacts/violinplot/", p_type, "_ratio.png"),
          plot = my_plot)
