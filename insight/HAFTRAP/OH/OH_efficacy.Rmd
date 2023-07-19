@@ -4,6 +4,7 @@ This notebook investigates whether the installation of air purifiers had a notab
 ```{r}
 library(ggplot2)
 library(tidyverse)
+library(formattable)
 ```
 
 Set working directory
@@ -20,6 +21,37 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 path_to_data <- "summary/HAFTRAP/OH/"
+```
+
+## Plotting Function
+```{r}
+plot_heatmap <- function(joined_data, title) {
+  particle_order <- c("PM 1 Conc.", "PM 2.5 Conc.", "PM 10 Conc.", 
+                     "PM 1 Count", "UFP Count")
+  summary_order <- c("Mean", "95th Percentile", "75th Percentile", "Median",
+                     "25th Percentile", "5th Percentile")
+    
+  joined_data %>%
+  pivot_longer(mean:q95, names_to = "sum_type", values_to = "stat") %>%
+  
+  mutate(type = recode(type, "pm1" = "PM 1 Conc.", "pm25" = "PM 2.5 Conc.", 
+                     "pm10" = "PM 10 Conc.", "pm1num" = "PM 1 Count",
+                     "concent" = "UFP Count"),
+         sum_type = recode(sum_type, "mean" = "Mean", "median" = "Median",
+                           "q5" = "5th Percentile", "q25" = "25th Percentile",
+                           "q75" = "75th Percentile", 
+                           "q95" = "95th Percentile")) %>%
+  mutate(type = factor(type, levels = particle_order)) %>%
+  mutate(sum_type = factor(sum_type, levels = summary_order)) %>%
+
+  ggplot(aes(x = type, y = sum_type)) +
+    geom_tile(aes(fill = stat)) +
+    geom_text(aes(label = paste0(round(stat, 1), "%"))) +
+    scale_fill_gradient2(low = "#ff7f7f", high = "#DeF7E9", mid = "white") +
+    labs(title = title, x = "Particle Type", y = "Summary Statistic", 
+         fill = "Reduction (%)") +
+    theme_minimal()
+}
 ```
 
 ## Load Data
@@ -71,6 +103,14 @@ modpm_sum <- get_sums(modpm_stats, "ratio",
 joined_ratio <- rbind(modpm_sum, cpc_sum)
 ```
 
+## Making pretty tables
+```{r}
+plot_heatmap(joined_indoor, "Reduction in Raw Indoor Readings")
+plot_heatmap(joined_ratio, "Reduction in Indoor/Outdoor Ratio")
+```
+
+
+
 ## Save to file
 Save the two tables with efficacy in CSV files
 ```{r}
@@ -78,3 +118,4 @@ Save the two tables with efficacy in CSV files
 write.csv(joined_indoor, "artifacts/indoor_reduction.csv")
 write.csv(joined_ratio, "artifacts/ratio_reduction.csv")
 ```
+
