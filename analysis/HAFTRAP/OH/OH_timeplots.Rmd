@@ -1,0 +1,112 @@
+# HAFTRAP Plotting Boxplots
+
+## STOP
+
+**HAVE YOU RUN `OH_cpc_cleaning`?**
+*This file loads dataframes created from running `OH_cpc_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to plot timeseries of CPC data for a particular participant to look at relationship between mean, median, and 95th percentile.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(ggplot2)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Participant IDs and corresponding time map tables
+```{r}
+# Set path to data
+path_to_data <- "data/HAFTRAP/OH/cpc/"
+```
+
+## Load data
+CPC - filter data to whole minutes
+```{r}
+# Load CPC data from RData file
+load(paste0(path_to_data, "cleaned_cpc.RData"))
+```
+```{r}
+plot_df <- main_df %>%
+  # Choose participant ID from most CPC Q95 increase in s_OH_c_quants.csv
+  filter(participant_id == "44621", environment == "indoor") %>%
+  select(date, concent, case)
+```
+
+```{r}
+plot_df %>%
+  # Drop NaN, inf values for summary calculation
+  filter(is.finite(concent)) %>%
+  # Group by participant ID, case, environment, and type
+  group_by(case) %>%
+  
+  # Calculate summary statistics and pipe to variable 'summary'
+  summarise(mean = mean(concent),
+            median = median(concent), 
+            q5 = quantile(concent, probs = 0.05), 
+            q25 = quantile(concent, probs = 0.25),
+            q75 = quantile(concent, probs = 0.75),
+            q95 = quantile(concent, probs = 0.95),
+            .groups = 'drop') -> summary
+
+# This is very bad janky code to calculate % reduction, sorry
+summary <- rbind(summary, apply(select_if(summary, is.numeric), 2, 
+                                function(x) 100 * (x[2] - x[1]) / x[2]))
+
+summary$case <- factor(c("hepa", "sham", "redu"))
+
+summary_plot <- filter(summary, case %in% c("hepa", "sham"))
+```
+
+
+```{r}
+# Store plot in object
+my_plot <- plot_df %>%
+  # Re-order the case in levels of "sham", then "hepa"
+  mutate(across(case, \(x) factor(x, levels=c("sham", "hepa")))) %>%
+  
+  # Plot time-series with 95th percentile, mean, median
+  ggplot() +
+    # Plot a line graph of CPC reading vs. date, one line for each case
+    geom_line(aes(x = date, y = concent, color = case)) +
+    # Split into two separate graphs in single row (same y axis) by case
+    facet_wrap(~case, nrow = 1, scales = "free_x") +
+    # Plot the horizontal line for median
+    geom_hline(data = summary_plot, 
+               aes(yintercept = median, linetype = 'Median'), alpha = 0.5) +
+    # Plot the horizontal line for mean
+    geom_hline(data = summary_plot, 
+               aes(yintercept = mean, linetype = 'Mean'), alpha = 0.5) +
+    # Plot the horizontal line for 95th percentile
+    geom_hline(data = summary_plot, 
+               aes(yintercept = q95, linetype = '95th'), alpha = 0.5) +
+    # Set the line type for each horizontal line
+    scale_linetype_manual(name='Summaries',
+                       breaks=c('95th', 'Mean', 'Median'),
+                       values=c('Median'='solid', 
+                                'Mean'='dashed', '95th'='dotted')) +
+    # Set axes labels, title
+    labs(title = "CPC Particle Count for Participant 44621",
+         x = "Date (2023)", y = "Particle Count")
+
+# Show plot
+my_plot
+```
+
+```{r}
+# Show plot zoomed in on smaller y-range
+my_plot + ylim(0, 10000)
+```
