@@ -1,0 +1,272 @@
+```{r}
+# Imports
+library(pracma)
+library(dplyr)
+library(openair)
+library(forecastML)
+library(zoom)
+```
+
+```{r, setup, include=FALSE}
+# set working directory
+knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
+```
+
+```{r}
+# check file path for working directory
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "data/HAFTRAP/OH/modpm/"
+
+# Load modpm data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+```{r}
+# vector of participant numbers' data to be processed (modify to analyze specific participants)
+participants <- "41181"
+
+# participants <- c("41181", "41211", "41271", "42231", "42281", "42301", "42321",
+#                   "44241", "44621", "45361", "45411", "45451", "46591")
+```
+
+```{r}
+# Filter data to appropriate subset
+main_df <- filter(main_df, participant_id %in% participants)
+main_df <- filter(main_df, case == "hepa" & environment == "indoor")
+  
+main_df$date <- round_date(main_df$date, unit = "10 mins")
+
+main_df %>%
+  fill_gaps(7, frequency = "10 mins") %>%
+  mutate(t = as.numeric(date) - as.numeric(date)[1]) %>%
+  fill(pm1, pm25, pm10)
+```
+
+```{r}
+# function to create a new dataframe with summary data
+summary_dataframe <- function(data) {
+  data %>%
+  group_by(date) %>%
+  # calculate mean for all groups
+  summarise(mean_1 = mean(pm1), mean_2.5 = mean(pm25), mean_10 = mean(pm10))
+}
+```
+
+```{r}
+sum_main_df <- summary_dataframe(main_df)
+```
+
+```{r}
+# Find peaks and store in new dataframes
+peaks_pm1 <- findpeaks(sum_main_df$mean_1,
+                   nups = 1,
+                   ndowns = 1,
+                   minpeakheight = 8,
+                   minpeakdistance = 20,
+                   threshold = 0)
+
+peaks_pm25 <- findpeaks(sum_main_df$mean_2.5,
+                   nups = 1,
+                   ndowns = 1,
+                   minpeakheight = 8,
+                   minpeakdistance = 20,
+                   threshold = 0)
+
+peaks_pm10 <- findpeaks(sum_main_df$mean_10,
+                   nups = 1,
+                   ndowns = 1,
+                   minpeakheight = 20,
+                   minpeakdistance = 20,
+                   threshold = 0)
+```
+
+```{r}
+# Function to get first valley after peak
+get_first_valleys <- function(data, peaks, min_threshold) {
+  if (is.null(peaks)) {
+    return(print("There are no peaks/valleys"))
+  }
+  # Iterate through rows of peaks matrix
+  valley_mat <- matrix(nrow = nrow(peaks), ncol = 2)
+  for (row in 1:nrow(peaks)) { #nolint
+    idx <- peaks[row, 2]
+    n <- TRUE
+    # create while loop to check for local minima
+    while (n) {
+      # if we're at the end of y, break out of loop
+      if (idx == length(data)) {
+        n <- FALSE
+      } else {
+        # otherwise, get slope (approximately)
+        # checks that next three points are going up to consider it a valley
+        slope <- data[idx + 1] - data[idx]
+        slope2 <- data[idx + 2] - data[idx + 1]
+        slope3 <- data[idx + 3] - data[idx + 2]
+        if (data[idx] <= min_threshold && slope > 0 && slope2 > 0) {
+          n <- FALSE
+        } else {
+          idx <- idx + 1
+        }
+      }
+    }
+    # set values of matrix so that column 1 is height of valley and 2 is index
+    valley_mat[row, 1] <- data[idx]
+    valley_mat[row, 2] <- idx
+  }
+  valley_mat
+}
+```
+
+```{r}
+# Find the first valley after each peak
+valleys_pm1 <- get_first_valleys(sum_main_df$mean_1, peaks_pm1, 8)
+
+valleys_pm25 <- get_first_valleys(sum_main_df$mean_2.5, peaks_pm25, 8)
+
+valleys_pm10 <- get_first_valleys(sum_main_df$mean_10, peaks_pm10, 10)
+```
+
+```{r}
+# function for peak/valley filtering - if multiple peaks detect the same valley, remove everything but the last one
+filter_peaks <- function(peaks, valleys) {
+  peaks_valleys <- matrix(nrow = nrow(peaks), ncol = 4)
+
+  valleys <- valleys[order(valleys[,2],decreasing=FALSE),]
+  peaks <- peaks[order(peaks[,2],decreasing=FALSE),]
+  
+  for (row in 1:nrow(peaks)) {
+    if (valleys[row] != valleys[row + 1]) {
+      
+      peaks_valleys[row, 1] <- peaks[row, 1]
+      peaks_valleys[row, 2] <- peaks[row, 2]
+      
+      peaks_valleys[row, 3] <- valleys[row, 1]
+      peaks_valleys[row, 4] <- valleys[row, 2]
+    }
+  }
+  peaks_valleys <- na.omit(peaks_valleys)
+  colnames(peaks_valleys) <- c("peaks_y", "peaks_x", "valleys_y", "valleys_x")
+  return(peaks_valleys)
+}
+```
+
+```{r}
+peaks_valleys_pm1 <- filter_peaks(peaks_pm1, valleys_pm1)
+
+peaks_valleys_pm25 <- filter_peaks(peaks_pm25, valleys_pm25)
+
+peaks_valleys_pm10 <- filter_peaks(peaks_pm10, valleys_pm10)
+```
+
+```{r}
+# Function for exponential curve fitting for air quality data; returns 
+# dataframe containing k-values of curves
+curve_fitting <- function(data, peaks_valleys) {
+    # Create empty dataframe for storing k values
+  alphas.data <- data.frame(
+    "peak_idx" = numeric(0),
+    "valley_idx" = numeric(0),
+    "peak_hgt" = numeric(0),
+    "k_val" = numeric(0),
+    "conv_tol" = numeric(0)
+  )
+  # Define parameters for curve fitting function for each row
+ for (row in 1:nrow(peaks_valleys)) 
+  {
+    i_range <- peaks_valleys[row, 2]:peaks_valleys[row, 4]
+    sect <- data[i_range]
+    t <- i_range - peaks_valleys[row, 2] + 1
+    main_df <- data.frame(t = t, y = sect)
+    
+    alphas.newdata <- tryCatch({
+      
+      # get exponential fit
+      fit <- nls(y ~ SSasymp(t, yf, y0, log_alpha), data = main_df)
+      
+      # Get parameters of the fit
+      params <- coef(fit)
+      
+      # Extract the log_alpha value and put it in form e^(log(a)) to get a
+      log_alpha <- as.double(params["log_alpha"])
+      alpha <- exp(log_alpha)
+      
+      # Get achieved convergence tolerance as metric for accuracy of fit
+      # NOTE: R^2 value can be calculated but is not a useful metric
+      # for nonlinear models
+      conv <- fit$convInfo$finTol
+      # Add alpha to dataframe
+      alphas.newdata <- data.frame(
+        "peak_idx" = c(peaks_valleys[row, 2]),
+        "valley_idx" = c(peaks_valleys[row, 4]),
+        "peak_hgt" = c(peaks_valleys[row, 1]),
+        "k_val" = c(alpha),
+        "conv_tol" = c(conv)
+      )
+      }, error = function(e) { # print(e)
+      }, warning = function(w) {
+      }, finally = {
+      })
+      print(class(alphas.newdata))
+      alphas.data <- rbind(alphas.data, alphas.newdata)
+  }
+  alphas.data <- arrange_all(alphas.data)
+  return(alphas.data)
+}
+```
+
+```{r}
+# Find the decay value (k constant) for each peak
+decays_pm1 <- curve_fitting(sum_main_df$mean_1, peaks_valleys_pm1)
+```
+
+
+```{r}
+decays_pm25 <- curve_fitting(sum_main_df$mean_2.5, peaks_valleys_pm25)
+```
+
+
+```{r}
+decays_pm10 <- curve_fitting(sum_main_df$mean_10, peaks_valleys_pm10)
+```
+
+```{r}
+# Function to plot the peaks and valleys on top of current time series
+plot_peaks_valleys <- function(data, peaks_valleys) {
+  plot(data,
+  type = "l",
+  main = "PM Concentration Over Time",
+  xlab = "Time (min)",
+  ylab = "Concentration",
+  col = "navy")
+  grid()
+points(peaks_valleys[, 2], peaks_valleys[, 1], pch = 20, col = "maroon")
+points(peaks_valleys[, 4], peaks_valleys[, 3], pch = 20, col = "green")
+}
+```
+
+```{r}
+# Plot the time series with the peaks and first valleys plotted on top
+plot_peaks_valleys(sum_main_df$mean_1, peaks_valleys_pm1)
+
+plot_peaks_valleys(sum_main_df$mean_2.5, peaks_valleys_pm25)
+
+plot_peaks_valleys(sum_main_df$mean_10, peaks_valleys_pm10)
+```
+
+```{r}
+# Take the mean/median of the decay constants
+mean_pm1 <- mean(decays_pm1$k_val)
+median_pm1 <- median(decays_pm1$k_val)
+
+mean_pm25 <- mean(decays_pm25$k_val)
+median_pm25 <- median(decays_pm25$k_val)
+
+mean_pm10 <- mean(decays_pm10$k_val)
+median_pm10 <- median(decays_pm10$k_val)
+```
