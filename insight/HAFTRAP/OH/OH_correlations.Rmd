@@ -18,6 +18,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 ```
 
 ```{r}
+# Set path to data
 path_to_data <- "summary/HAFTRAP/OH/"
 ```
 
@@ -51,92 +52,137 @@ corrs_sum %>%
          str_detect(y, "indoor$")) %>%
   arrange(case)
 ```
+
+## Plot CPC vs. Mod-PM for Indoor
+### Plotting functions:
+Scatterplot UFP vs. PM 2.5 with single line of best fit
+```{r}
+plot_single <- function(plot_df, add_title) {
+  # Get r-squared value
+r_val <- summary(lm(plot_df$pm25 ~ plot_df$concent))$r.squared
+
+# Scatterplot UFP vs. PM 2.5, line of best fit
+ggplot(plot_df, aes(x = concent, y = pm25)) +
+  # Scatterplot
+  geom_point(alpha = 0.1) +
+  # Line of best fit
+  geom_smooth(method=lm, se=FALSE) +
+  # Paste in R-square value
+  annotate("text", x = 1e5, y = 200, 
+           label = bquote(R^2 == .(round(r_val[[1]], 3)))) +
+  # Add axes names, title
+  labs(title = paste("PM 2.5 vs. UFP", add_title), 
+       x = "CPC Particle Count", y = "PM 2.5 Concentration")
+}
+```
+
+Scatterplot UFP vs. PM 2.5 with two lines of best fit
+```{r}
+plot_double <- function(plot_df, add_title) {
+  # Calculate r-squared, proportion of points
+  props <- plot_df %>% 
+    # For each group
+    group_by(pm25_group) %>% 
+    # Calculate proportion of points, r-squared
+    summarize(proportion = 100 * n() / nrow(plot_df),
+              rsq = summary(lm(pm25~concent))$r.squared) %>%
+    # Format appropriately for annotation
+    mutate(proportion = paste0("(", round(proportion, 1), "%)"), 
+           rsq = round(rsq, 3))
+  
+  # Recode values to include proportion in factor, pipe into plotting
+  plot_df %>%
+    mutate(pm25_group = 
+             recode(pm25_group, 
+                    "Mod-PM Missed" = 
+                      paste("Mod-PM Missed", props$proportion[2]),
+                    "Mod-PM + CPC Detected" = 
+                      paste("Mod-PM + CPC Detected", props$proportion[1]))) %>%
+  
+  # Scatterplot with two lines of best fit for separate clusters
+  ggplot(aes(x = concent, y = pm25, color = pm25_group)) +
+    # Scatter-plot
+    geom_point(alpha = 0.1) +
+    # Lines of best fit
+    geom_smooth(method=lm, se=FALSE) +
+    # Paste in R-square value for Mod-PM + CPC Detected
+    annotate("text", x = 6e4, y = 200, 
+               label = bquote(R^2 == .(props$rsq[1]))) +
+    # Paste in R-square value for Mod-PM Missed
+    annotate("text", x = 1e5, y = 50, 
+               label = bquote(R^2 == .(props$rsq[2]))) +
+    # Add axes labels, title
+    labs(title = paste("Split PM 2.5 vs. UFP", add_title), 
+         x = "CPC Particle Count", y = "PM 2.5 Concentration", color = "Group")
+}
+```
+
+
+
+
 CPC Particle Count Indoor vs. PM 2.5 Concentration Indoor (sham)
 ```{r}
-r_val <- corrs_sum %>%
-  filter(x == "concent_indoor", y == "pm25_indoor", case == "sham") %>%
-  select(mean_cor)
-
-main_df %>%
-  filter(case == "sham", environment == "indoor") %>%
-  ggplot(aes(x = concent, y = pm25)) +
-    geom_point(alpha = 0.1) +
-    geom_smooth(method=lm, se=FALSE) +
-    labs(caption = paste("R-value = ", round(r_val, 3)))
+# Create dataframe of data to be plotted
+filtered_overall <- main_df %>%
+  # Filter for sham and indoor data
+  filter(case == "sham", environment == "indoor")
+  
+# Plot scatterplot with line of best fit
+plot_single(filtered_overall, "Overall")
 ```
 ```{r}
 # Split PM 2.5 data into two groups for separate plotting
-plot_df <- main_df %>%
+filtered_overall %>%
+  # Split data based on y = x line
   mutate(pm25_group = as.factor(ifelse(
-    pm25 < quantile(main_df$pm25, probs = 0.95), "Below 95th", "Above 95th")))
+    pm25 < 0.002*concent, "Mod-PM Missed", "Mod-PM + CPC Detected"))) %>%
+  
+  # Plot scatterplot with two lines of best fit
+  plot_double("Overall")
 
-r_val <- corrs_sum %>%
-  filter(x == "concent_indoor", y == "pm25_indoor", case == "sham") %>%
-  select(mean_cor)
+```
 
-plot_df %>%
-  filter(case == "sham", environment == "indoor") %>%
-  ggplot(aes(x = concent, y = pm25, color = pm25_group)) +
-    geom_point(alpha = 0.1) +
-    geom_smooth(method=lm, se=FALSE) +
-    labs(caption = paste("R-value = ", round(r_val, 3)))
+### Zoom into single participant
+Looking at the same data but for a single participant so that a time-series comparison can also be plotted
+```{r}
+# Create dataframe of data to be plotted
+filtered_participant <- main_df %>%
+  # Filter for sham, indoor, and participant
+  filter(case == "sham", environment == "indoor", 
+         participant_id == "42281")
+  
+# Plot scatterplot with line of best fit
+plot_single(filtered_participant, "for Participant 42281")
+```
+
+```{r}
+# Split PM 2.5 data into two groups for separate plotting
+filtered_participant %>%
+  # Split data on y = x line
+  mutate(pm25_group = as.factor(ifelse(
+    pm25 < 0.002*concent, "Mod-PM Missed", "Mod-PM + CPC Detected"))) %>%
+  
+  # Plot scatterplot with two lines of best fit
+  plot_double("for Participant 42281")
 ```
 
 
 ```{r}
-main_df %>%
-  filter(case == "sham", environment == "indoor") %>%
-  ggplot(aes(x = date)) +
-    geom_line(aes(y = pm25), color = "blue") +
-    scale_y_continuous(sec.axis = sec_axis(~.*100)) +
-    geom_line(aes(y = concent/1000), color = "red")
+# Plot time-series of UFP with PM 2.5
+ggplot(filtered_participant, aes(x = date)) + 
+  # Create second (right) y-axis with 200 times the scale of first
+  scale_y_continuous(sec.axis = sec_axis(~.*200, name = "UFP Count")) +
+  # Plot CPC reading against right axis
+  geom_line(aes(y = concent/200, color = "UFP")) +
+  # Plot PM 2.5 reading against left axis
+  geom_line(aes(y = pm25, color = "PM 2.5")) +
+  # Set colors
+  scale_color_manual(name='Particles', breaks=c('PM 2.5', 'UFP'), 
+                     values=c('PM 2.5'='#56B4E9', 'UFP'='#E69F00')) +
+  # Set axes labels, title
+  labs(title = "CPC vs. Mod-PM Readings (Participant 42281)", 
+       x = "Date", y = "PM 2.5 Concentration")
 ```
-
-
-## Outdoor CPC vs. Mod-PM
-```{r}
-# Compare concent outdoor to Mod-PM outdoor readings
-corrs_sum %>%
-  filter(x == "concent_outdoor", str_detect(y, "^pm"), 
-         str_detect(y, "outdoor$")) %>%
-  arrange(case)
-```
-CPC Particle Count Outdoor vs. PM 2.5 Concentration Outdoor (sham)
-```{r}
-r_val <- corrs_sum %>%
-  filter(x == "concent_outdoor", y == "pm25_outdoor", case == "sham") %>%
-  select(mean_cor)
-
-main_df %>%
-  filter(case == "sham", environment == "outdoor") %>%
-  ggplot(aes(x = concent, y = pm25)) +
-    geom_point(alpha = 0.1) +
-    geom_smooth(method=lm, se=FALSE) +
-    labs(caption = paste("R-value = ", round(r_val, 3)))
-```
-
-## Ratio CPC vs. Mod-PM
-```{r}
-# Compare concent ratio to Mod-PM ratio readings
-corrs_sum %>%
-  filter(x == "concent_ratio", str_detect(y, "^pm"), 
-         str_detect(y, "ratio$")) %>%
-  arrange(case)
-```
-CPC Particle Count Ratio vs. PM 1 Concentration Ratio (sham)
-```{r}
-r_val <- corrs_sum %>%
-  filter(x == "concent_ratio", y == "pm1_ratio", case == "sham") %>%
-  select(mean_cor)
-
-main_df %>%
-  filter(case == "sham", environment == "ratio") %>%
-  ggplot(aes(x = concent, y = pm1)) +
-    geom_point(alpha = 0.1) +
-    geom_smooth(method=lm, se=FALSE) +
-    labs(caption = paste("R-value = ", round(r_val, 3)))
-```
-
 ## Others
 ```{r}
 # Look at all variables with a mean r-value > 0.6
@@ -148,14 +194,21 @@ None of the variables with high R-values give us significant special insight bet
 
 PM 1 Concentration Indoor vs. PM 2.5 Concentration Indoor (sham)
 ```{r}
-r_val <- corrs_sum %>%
-  filter(x == "pm1_indoor", y == "pm25_indoor", case == "sham") %>%
-  select(mean_cor)
+# Get r-squared value
+r_val <- summary(lm(filtered_overall$pm25 ~ filtered_overall$pm1))$r.squared
 
-main_df %>%
-  filter(case == "sham", environment == "indoor") %>%
-  ggplot(aes(x = pm1, y = pm25)) +
-    geom_point(alpha = 0.1) +
-    geom_smooth(method=lm, se=FALSE) +
-    labs(caption = paste("R-value = ", round(r_val, 3)))
+# Scatterplot UFP vs. PM 2.5, line of best fit
+ggplot(filtered_overall, aes(x = pm1, y = pm25)) +
+  # Scatterplot
+  geom_point(alpha = 0.1) +
+  # Line of best fit
+  geom_smooth(method=lm, se=FALSE) +
+  # Paste in R-square value
+  annotate("text", x = 100, y = 200, 
+           label = bquote(R^2 == .(round(r_val[[1]], 3)))) +
+  # Add axes names, title
+  labs(title = "PM 2.5 vs. PM 1 Overall", 
+       x = "PM 1 Concentration", y = "PM 2.5 Concentration")
+
+```
 ```
