@@ -2,7 +2,7 @@
 # Script for pre-processing CPC data from text files
 CPC data for these deployments came in multiple text files for each participant. This parses them into one indoor and one outdoor csv for each participant with only the relevant variables. 
 
-Note: I manually deleted indoor files 230331A0 and 230221A1 from participant 45451 in the data.
+Note: I manually deleted indoor files 230331A0 and 230221A1 from participant 45451 in the data to remove redundancy errors.
 
 
 ```{r}
@@ -12,7 +12,7 @@ library(tidyverse)
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = readLines("~/hepa-summer23/root_dir.txt"))
 ```
 
 Check for working directory
