@@ -32,9 +32,10 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 path_to_data <- "data/HAFTRAP/OH/modpm/"
 ```
 
+## Load data
 ```{r}
-# load in main df
-df <- main_df
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
 ```
 
 ```{r}
@@ -43,7 +44,7 @@ participants <- c("41181", "41211", "41271", "42231", "42281", "42301", "42321",
                   "44241", "44621", "45361", "45411", "45451", "46591")
 
 # filter dataframe based on participants
-df <- filter(df, participant_id %in% participants)
+main_df <- filter(main_df, participant_id %in% participants)
 ```
 
 ```{r}
@@ -58,34 +59,34 @@ summary_dataframe <- function(data) {
 
 ```{r}
 # round all times to 10 mins
-df$date_round <- round_date(df$date, unit = "10 mins")
+main_df$date_round <- round_date(main_df$date, unit = "10 mins")
       # filter(participant_id == person, case == c, 
       #        environment == env)
 ```
 
 ```{r}
 # add column based on day of the week
-df$wkdy <- wday(df$date)
+main_df$wkdy <- wday(main_df$date)
 
 # add boolean column based on whether or not it is a wknd
-df$is_wknd <- replace(df$wkdy, df$wkdy > 1 & df$wkdy < 7, "FALSE")
-df$is_wknd <- replace(df$is_wknd, df$is_wknd == 1 | df$is_wknd == 7, "TRUE")
+main_df$is_wknd <- replace(main_df$wkdy, main_df$wkdy > 1 & main_df$wkdy < 7, "FALSE")
+main_df$is_wknd <- replace(main_df$is_wknd, main_df$is_wknd == 1 | main_df$is_wknd == 7, "TRUE")
 ```
 
 ```{r}
 # isolate time
-df$time <- as.ITime(df$date_round)
+main_df$time <- as.ITime(main_df$date_round)
 
 # convert back into datetime object (assigns today's date to all)
-df$time <- as.POSIXct(df$time, format="%H:%M:%S")
+main_df$time <- as.POSIXct(main_df$time, format="%H:%M:%S")
 ```
 
 ```{r}
-# create a new df with summary stats
-sum_df <- summary_dataframe(df)
+# create a new main_df with summary stats
+sum_main_df <- summary_dataframe(main_df)
 
-# restructure df to make it easier to graph
-graph_df <- pivot_longer(sum_df, mean_1:percent95_10, names_to = c(".value", "particle"), names_sep = "_")
+# restructure main_df to make it easier to graph
+graph_main_df <- pivot_longer(sum_main_df, mean_1:percent95_10, names_to = c(".value", "particle"), names_sep = "_")
 ```
 
 ```{r}
@@ -109,7 +110,7 @@ diurnal_plot <- function(data, case_str, env_str, pm_str) {
     
     # plot the 5th-95th and 25th-75th percentiles
     geom_ribbon(aes(x = time, ymin = percent5, ymax = percent95, fill = "#cfcfcf")) +
-    geom_ribbon(aes(x = time, ymin = percent25, ymax = percent75, fill = "#7a7a7a")) +
+    geom_ribbon(aes(x = time, ymin = percent25, ymax = percent75, fill = "#9a9a9a")) +
     
     # plot the mean and median
     geom_line(aes(x = time, y = mean, color = "red")) +
@@ -126,7 +127,7 @@ diurnal_plot <- function(data, case_str, env_str, pm_str) {
     
     # label legend for percentiles
     scale_fill_identity(name = "Percentiles",
-                            breaks = c("#cfcfcf", "#7a7a7a"),
+                            breaks = c("#cfcfcf", "#9a9a9a"),
                             labels = c("5th - 95th", "25th - 75th"),
                             guide = "legend") +
     
@@ -139,8 +140,8 @@ diurnal_plot <- function(data, case_str, env_str, pm_str) {
          y = bquote(PM[.(graph_labels[3])] ~ .(graph_labels[9]) ~ .(graph_labels[8]))) +
     
     # # scale y-axis (log vs. linear)
-    # scale_y_log10() +
-    # scale_y_log10(limits = c(1e-1,1e2)) +
+    scale_y_log10() +
+    scale_y_log10(limits = c(1e-2,1e2)) +
     # ylim(0,75) +
     
     # add fun theme
@@ -153,27 +154,27 @@ diurnal_plot <- function(data, case_str, env_str, pm_str) {
 
 ```{r}
 # plot all combos for diurnals
-diurnal_plot(graph_df, "hepa", "indoor", "1")
-diurnal_plot(graph_df, "hepa", "indoor", "2.5")
-diurnal_plot(graph_df, "hepa", "indoor", "10")
+diurnal_plot(graph_main_df, "hepa", "indoor", "1")
+diurnal_plot(graph_main_df, "hepa", "indoor", "2.5")
+diurnal_plot(graph_main_df, "hepa", "indoor", "10")
 
-diurnal_plot(graph_df, "hepa", "outdoor", "1")
-diurnal_plot(graph_df, "hepa", "outdoor", "2.5")
-diurnal_plot(graph_df, "hepa", "outdoor", "10")
+diurnal_plot(graph_main_df, "hepa", "outdoor", "1")
+diurnal_plot(graph_main_df, "hepa", "outdoor", "2.5")
+diurnal_plot(graph_main_df, "hepa", "outdoor", "10")
 
-diurnal_plot(graph_df, "hepa", "ratio", "1")
-diurnal_plot(graph_df, "hepa", "ratio", "2.5")
-diurnal_plot(graph_df, "hepa", "ratio", "10")
+diurnal_plot(graph_main_df, "hepa", "ratio", "1")
+diurnal_plot(graph_main_df, "hepa", "ratio", "2.5")
+diurnal_plot(graph_main_df, "hepa", "ratio", "10")
 
-diurnal_plot(graph_df, "sham", "indoor", "1")
-diurnal_plot(graph_df, "sham", "indoor", "2.5")
-diurnal_plot(graph_df, "sham", "indoor", "10")
+diurnal_plot(graph_main_df, "sham", "indoor", "1")
+diurnal_plot(graph_main_df, "sham", "indoor", "2.5")
+diurnal_plot(graph_main_df, "sham", "indoor", "10")
 
-diurnal_plot(graph_df, "sham", "outdoor", "1")
-diurnal_plot(graph_df, "sham", "outdoor", "2.5")
-diurnal_plot(graph_df, "sham", "outdoor", "10")
+diurnal_plot(graph_main_df, "sham", "outdoor", "1")
+diurnal_plot(graph_main_df, "sham", "outdoor", "2.5")
+diurnal_plot(graph_main_df, "sham", "outdoor", "10")
 
-diurnal_plot(graph_df, "sham", "ratio", "1")
-diurnal_plot(graph_df, "sham", "ratio", "2.5")
-diurnal_plot(graph_df, "sham", "ratio", "10")
+diurnal_plot(graph_main_df, "sham", "ratio", "1")
+diurnal_plot(graph_main_df, "sham", "ratio", "2.5")
+diurnal_plot(graph_main_df, "sham", "ratio", "10")
 ```
