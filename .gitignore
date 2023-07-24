@@ -43,3 +43,4 @@ haftrap_OH_single_summary.html
 # Error log from API
 error_log.txt
 *.RData
+artifacts/
