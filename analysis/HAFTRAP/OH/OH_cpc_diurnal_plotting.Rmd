@@ -32,9 +32,10 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 path_to_data <- "data/HAFTRAP/OH/modpm/"
 ```
 
+## Load data
 ```{r}
-# load in main df
-df <- main_df
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_cpc.RData"))
 ```
 
 ```{r}
@@ -42,7 +43,7 @@ df <- main_df
 participants <- c("41271", "42281", "45361", "44621", "45451")
 
 # filter dataframe based on participants
-df <- filter(df, participant_id %in% participants)
+main_main_df <- filter(main_main_main_df, participant_id %in% participants)
 ```
 
 ```{r}
@@ -58,31 +59,31 @@ summary_dataframe <- function(data) {
 
 ```{r}
 # round all times to 10 mins
-df$date_round <- round_date(df$date, unit = "10 mins")
+main_df$date_round <- round_date(main_df$date, unit = "10 mins")
       # filter(participant_id == person, case == c, 
       #        environment == env)
 ```
 
 ```{r}
 # add column based on day of the week
-df$wkdy <- wday(df$date)
+main_df$wkdy <- wday(main_df$date)
 
 # add boolean column based on whether or not it is a wknd
-df$is_wknd <- replace(df$wkdy, df$wkdy > 1 & df$wkdy < 7, "FALSE")
-df$is_wknd <- replace(df$is_wknd, df$is_wknd == 1 | df$is_wknd == 7, "TRUE")
+main_df$is_wknd <- replace(main_df$wkdy, main_df$wkdy > 1 & main_df$wkdy < 7, "FALSE")
+main_df$is_wknd <- replace(main_df$is_wknd, main_df$is_wknd == 1 | main_df$is_wknd == 7, "TRUE")
 ```
 
 ```{r}
 # isolate time
-df$time <- as.ITime(df$date_round)
+main_df$time <- as.ITime(main_df$date_round)
 
 # convert back into datetime object (assigns today's date to all)
-df$time <- as.POSIXct(df$time, format="%H:%M:%S")
+main_df$time <- as.POSIXct(main_df$time, format="%H:%M:%S")
 ```
 
 ```{r}
-# create a new df with summary stats
-graph_df <- summary_dataframe(df)
+# create a new main_df with summary stats
+graph_main_df <- summary_dataframe(main_df)
 ```
 
 ```{r}
@@ -150,11 +151,11 @@ diurnal_plot <- function(data, case_str, env_str) {
 
 ```{r}
 # plot all combos for diurnals
-diurnal_plot(graph_df, "hepa", "indoor")
-diurnal_plot(graph_df, "hepa", "outdoor")
-diurnal_plot(graph_df, "hepa", "ratio")
+diurnal_plot(graph_main_df, "hepa", "indoor")
+diurnal_plot(graph_main_df, "hepa", "outdoor")
+diurnal_plot(graph_main_df, "hepa", "ratio")
 
-diurnal_plot(graph_df, "sham", "indoor")
-diurnal_plot(graph_df, "sham", "outdoor")
-diurnal_plot(graph_df, "sham", "ratio")
+diurnal_plot(graph_main_df, "sham", "indoor")
+diurnal_plot(graph_main_df, "sham", "outdoor")
+diurnal_plot(graph_main_df, "sham", "ratio")
 ```
