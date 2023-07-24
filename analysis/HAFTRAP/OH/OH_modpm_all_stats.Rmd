@@ -29,13 +29,6 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 ```
 
 ```{r}
-# Get relevant participant IDs from OH_participants
-# Skipping 41211 for now because of funky data (look at CSVs)
-participants <- as.character(
-  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$modpm))
-```
-
-```{r}
 # Set path to data
 path_to_data <- "cleaning/HAFTRAP/OH/"
 ```
