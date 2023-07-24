@@ -120,11 +120,10 @@ rm(main_df)
 ## Main Code Run
 
 ### Merge CPC and Mod-PM Data
-Merge is conducted over matching dates for each participant in a particlular environment and case
+Merge is conducted over matching dates for each participant in a particular environment and case
 ```{r}
 main_df <- merge(cpc_df, modpm_df, 
-                   by = c("date", "participant_id", 
-                          "environment", "case"))
+                   by = c("date", "participant_id", "environment", "case"))
 ```
 
 ### Calculate correlation matrices
