@@ -137,30 +137,30 @@ corr_df <- data.frame()
 
 
 # Loop through each case
-for (case in c("sham", "hepa")) {
+for (c in c("sham", "hepa")) {
   # Loop through each participant
   for (person in participants) {
     # Use wide dataframe where indoor/outdoor are separate columns
     main_df_wide %>%
       # Filter for case
-      filter(participant_id == person, case == case) %>%
+      filter(participant_id == person, case == c) %>%
       # Get correlation coefficients (look at helper function)
-      get_corr(case = case, person = person) -> df
+      get_corr(case = c, person = person) -> df
     # Append to main dataframe
     corr_df <- rbind(corr_df, df)
-    print(paste("Computed correlation coefficients for", person, case))
+    print(paste("Computed correlation coefficients for", person, c))
   }
   
   # Repeat for overall correlation coefficient
   main_df_wide %>%
     # Filter for case
-    filter(case == case) %>%
+    filter(case == c) %>%
     # Get correlation coefficients (look at helper function)
-    get_corr(case = case, person = "all") -> df
+    get_corr(case = c, person = "all") -> df
   
   # Append to main dataframe
   corr_df <- rbind(corr_df, df)
-  print(paste("Computed correlation coefficients for all", case))
+  print(paste("Computed correlation coefficients for all", c))
 }
 
 ```
