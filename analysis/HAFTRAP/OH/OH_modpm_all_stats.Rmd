@@ -5,22 +5,20 @@
 **HAVE YOU RUN `OH_modpm_cleaning`?**
 *This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for CPC deployments by Olin. It is largely a copy of `OH_modpm_single_stats.Rmd` (found in the `testing`folder) without the data cleaning part found in `OH_modpm_cleaning`.
+This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for Mod-PM deployments by Olin.
 
-Results can be found in the folder`summary/HAFTRAP/OH/`.
+Results can be found in `summary/HAFTRAP/OH/s_OH_M_quants.csv`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
-library(corrplot)
-library(rstatix)
 ```
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
@@ -31,15 +29,15 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 ```
 
 ```{r}
-# Vector of participant numbers' data to be processed
+# Get relevant participant IDs from OH_participants
 # Skipping 41211 for now because of funky data (look at CSVs)
-participants <- c("41181", "41271", "42231", "42281", "42301", "42321",
-                  "44241", "44621", "45361", "45411", "45451", "46591")
+participants <- as.character(
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$modpm))
 ```
 
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/modpm/"
+path_to_data <- "cleaning/HAFTRAP/OH/"
 ```
 
 ## Load data
@@ -48,57 +46,7 @@ path_to_data <- "data/HAFTRAP/OH/modpm/"
 load(paste0(path_to_data, "cleaned_modpm.RData"))
 ```
 
-## Helper Function: calculating correlation coefficients
-The following function is not part of the main pipeline to calculate summary statistics, but is used to clean and process the data. 
-
-Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
-```{r}
-# Function to calculate correlation matrices
-get_corr <- function(df, p, c) {
-  print(paste("Correlation processed for", p, c))
-  df %>%
-    # Filter for case
-    filter(participant_id == p, case == c) %>%
-    # Select all columns except date
-    select_if(is.numeric) %>%
-    # Remove NaN values
-    drop_na() %>%
-    # Calculate correlations
-    cor_mat() %>%
-    # Reshape into paired-list format
-    cor_gather()
-}
-```
-
 ## Main Code Run
-
-### Calculate correlation matrices
-Helps better understand the relationship between different variables in sham and true HEPA conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
-
-```{r}
-# Spread: Create separate indoor, outdoor columns for particle concentration
-main_df_wide <- pivot_wider(main_df,
-                  names_from = environment,
-                  values_from = c(pm1, pm25, pm10, pm1num, temp))
-
-# Create dataframe to hold correlation coefficients
-corr_df <- data.frame()
-# Loop through each participant
-for (person in participants) {
-  # Loop through each case
-  for (case in c("sham", "hepa")) {
-    # Use wide dataframe where indoor/outdoor are separate columns
-    main_df_wide %>%
-      # Get correlation coefficients (look at helper function)
-      get_corr(person, case) %>%
-      # Add the case and participant ID
-      mutate(case = case, participant_id = person) -> df
-    # Append to main dataframe
-    corr_df <- rbind(corr_df, df)
-  }
-}
-```
-
 ### Gather, group, and summarize
 To calculate summary statistics of the data, the different measurements (PM1,  PM2.5, PM10, PM1_num, and temperature) are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
 
@@ -155,9 +103,8 @@ summary_wide %>%
 ```
 
 ## Save to file
-Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
+Summary statistics are saved in a CSV file.
 ```{r}
 # Save summary statistic files to CSVs
 write.csv(summary_normal, "summary/HAFTRAP/OH/s_OH_M_quants.csv")
-write.csv(corr_df, "summary/HAFTRAP/OH/s_OH_M_corr.csv")
 ```
