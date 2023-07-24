@@ -46,29 +46,56 @@ path_to_data <- "cleaning/HAFTRAP/OH/"
 # Load CPC data from RData file
 load(paste0(path_to_data, "cleaned_cpc.RData"))
 ```
-## Main Code Run
-### Gather, group, and summarize
-To calculate summary statistics of the data, the different measurements are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
 
+## Helper Function: Calculate summary statistics
+Provided a given grouped dataframe, calculate all relevant summary statistics
 ```{r}
-main_df %>%
-  # Gather dataframe to create single variable for measurements
-  pivot_longer(concent:inlttmp, 
-               names_to = "type", values_to = "reading") %>%
-  # Drop NaN, inf values for summary calculation
-  filter(is.finite(reading)) %>%
-  # Group by participant ID, case, environment, and type
-  group_by(participant_id, case, environment, type) %>%
-  
-  # Calculate summary statistics and pipe to variable 'summary'
-  summarise(mean = mean(reading),
+my_summarise <- function(grouped_df) {
+  grouped_df %>%
+    summarise(mean = mean(reading),
             median = median(reading), 
             q5 = quantile(reading, probs = 0.05), 
             q25 = quantile(reading, probs = 0.25),
             q75 = quantile(reading, probs = 0.75),
             q95 = quantile(reading, probs = 0.95),
             sd = sd(reading),
-            .groups = 'drop') -> summary
+            .groups = 'drop')
+}
+```
+
+
+## Main Code Run
+### Gather, group, and summarize
+To calculate summary statistics of the data, the different measurements (PM1,  PM2.5, PM10, PM1_num, and temperature) are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
+
+```{r}
+main_df_long <- main_df %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(c(concent, inlttmp), 
+               names_to = "type", values_to = "reading") %>%
+  # Drop NaN, inf values for summary calculation
+  filter(is.finite(reading))
+
+# Calculate summary statistics for each participant
+participant_summary <- main_df_long %>%
+  # Group by participant ID, case, environment, and type
+  group_by(participant_id, case, environment, type) %>%
+  # Calculate summary statistics
+  my_summarise()
+  
+# Calculate summary statistics over all the data
+overall_summary <- main_df_long %>%
+  # Group by case, environment, and type
+  group_by(case, environment, type) %>%
+  # Calculate summary statistics
+  my_summarise() %>%
+  # Add participant ID column as 'all'
+  mutate(participant_id = "all")
+```
+
+```{r}
+# Bind together participant and overall summary statistics
+summary <- rbind(participant_summary, overall_summary)
 ```
 
 ### Calculate percentage reduction in concentration from sham to hepa
