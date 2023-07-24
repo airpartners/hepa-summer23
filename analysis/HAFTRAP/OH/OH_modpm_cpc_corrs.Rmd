@@ -175,5 +175,5 @@ write.csv(corr_df, "summary/HAFTRAP/OH/s_OH_MC_corr.csv")
 ### Save Data
 The `main_df` dataframe with merged CPC and Mod-PM data is saved to `merged.RData`
 ```{r}
-save(main_df, file = paste0("summary/HAFTRAP/OH/merged.RData"))
+save(main_df, file = "summary/HAFTRAP/OH/merged.RData")
 ```
