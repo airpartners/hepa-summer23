@@ -5,24 +5,24 @@
 **HAVE YOU RUN `OH_modpm_cleaning` AND `OH_cpc_cleaning`?**
 *This file loads dataframes created from running `OH_modpm_cleaning` AND `OH_cpc_cleaning`. Make sure you run those files first (if you haven't already) before running this file.*
 
+This script calculates correlation coefficients for data collected from CPC and Mod-PM sensors. 
 
-This script is a combination of `OH_modpm_all_stats` and `OH_cpc_all_stats` to concurrently process CPC and Mod-PM data. It calculates summary statistics for variables from both Mod-PM and CPC readings, and compare variables.
+Results can be found in `summary/HAFTRAP/OH/s_OH_MC_corr.csv` and are further analyzed in `insight/HAFTRAP/OH/OH_correlations`.
 
-Results can be found in the folder`summary/HAFTRAP/OH/joint/`.
+As a by-product to calculating correlation coefficients, this script also generates a data-frame stored in `merged.RData` for use in `OH_correlations`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
-library(corrplot)
 library(corrr)
-library(rstatix)
+library(readxl)
 ```
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 Check for working directory
@@ -35,24 +35,20 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 Participant IDs and corresponding time map tables
 ```{r}
-# Vector of participant numbers' data to be processed
-participants <- c("41271", "42281", "45361", "44621", "45451")
+# Get relevant participant IDs from OH_participants
+participants <- as.character(
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$modpm_cpc))
 
-### Set paths
-# # For CPC
-# Set path to data
-path_to_data_C <- "data/HAFTRAP/OH/cpc/"
 
-# # For Mod-PM
 # Set path to data
-path_to_data_M <- "data/HAFTRAP/OH/modpm/"
+path_to_data <- "cleaning/HAFTRAP/OH/"
 ```
 
 
 ## Helper Functions:
 
-### Calculating 1 minute averages
-When correlating Mod-PM and CPC data, we want to make sure that the CPC data - sampled ever second, is at the same sampling rate as Mod-PM data - sampled every minute. This function calculates the one minute average for CPC data.
+### Calculating 10 minute averages
+When correlating Mod-PM and CPC data, we want to make sure that there has been enough time for air to mix, therefore we calculate 10-minute averages of the data.
 ```{r}
 # Round over 10 minute averages
 round_10min <- function(df, vec) {
@@ -83,8 +79,8 @@ get_corr <- function(df, p, c) {
     select_if(is.numeric) %>%
     # Remove NaN values
     drop_na() %>%
-    # Calculate correlations
-    correlate() %>%
+    # Calculate correlations (suppress output message)
+    correlate(quiet = TRUE) %>%
     # Reshape into paired-list format
     stretch(remove.dups = TRUE)
 }
@@ -95,7 +91,7 @@ get_corr <- function(df, p, c) {
 Mod-PM
 ```{r}
 # Load Mod-PM data from RData file
-load(paste0(path_to_data_M, "cleaned_modpm.RData"))
+load(paste0(path_to_data, "cleaned_modpm.RData"))
 
 # Create copy of main_df, and delete original
 modpm_df <- main_df %>%
@@ -108,7 +104,7 @@ rm(main_df)
 CPC - filter data to whole minutes
 ```{r}
 # Load CPC data from RData file
-load(paste0(path_to_data_C, "cleaned_cpc.RData"))
+load(paste0(path_to_data, "cleaned_cpc.RData"))
 
 # Create copy of main_df
 cpc_df <- main_df %>%
@@ -161,65 +157,10 @@ for (person in participants) {
 }
 ```
 
-### Gather, group, and summarize
-To calculate summary statistics of the data, the different measurements are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
-
-```{r}
-main_df %>%
-  # Gather dataframe to create single variable for measurements
-  pivot_longer(concent:temp, 
-               names_to = "type", values_to = "reading") %>%
-  # Drop NaN, inf values for summary calculation
-  filter(is.finite(reading)) %>%
-  # Group by participant ID, case, environment, and type
-  group_by(participant_id, case, environment, type) %>%
-  
-  # Calculate summary statistics and pipe to variable 'summary'
-  summarise(mean = mean(reading),
-            median = median(reading), 
-            q5 = quantile(reading, probs = 0.05), 
-            q25 = quantile(reading, probs = 0.25),
-            q75 = quantile(reading, probs = 0.75),
-            q95 = quantile(reading, probs = 0.95),
-            sd = sd(reading),
-            .groups = 'drop') -> summary
-```
-
-
-### Calculate percentage reduction in concentration from sham to hepa
-Follows the same logic as calculating indoor-outdoor ratios. Spread to form sham/hepa columns that are used to calculate percent reduction in corresponding measurements. Then gather dataframe back to original shape.
-```{r}
-# Spread: Create separate sham, hepa summary statistics columns
-summary_wide <- pivot_wider(summary, 
-                            names_from = case, values_from = mean:sd)
-
-# Calculate percentage reduction in all summary statistics
-summary_redu <- 100*(select(summary_wide, ends_with("sham")) - 
-  select(summary_wide, ends_with("hepa"))) / 
-  select(summary_wide, ends_with("sham"))
-
-# Rename computed columns to 'redu' for percentage reduction
-colnames(summary_redu) <- sub("sham", "redu", colnames(summary_redu))
-
-# Reshape data and pipe into variable 'summary_normal'
-summary_wide %>%
-  # Merge back with joined data-frame
-  cbind(summary_redu) %>%
-  # Gather: Return to original shape by removing the 'sham/hepa/redu'
-  # suffixes by re-forming the case variable
-  pivot_longer(mean_hepa:sd_redu, 
-               names_to = c(".value", "case"), names_sep = "_") %>%
-  # Filter out all NaN and Inf values
-  filter_all(all_vars(!is.infinite(.))) %>%
-  # Change to factors
-  mutate(across(c(type, case), as.factor)) -> summary_normal
-```
-
 ## Save to file
 Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
 ```{r}
 # Save summary statistic files to CSVs
-write.csv(summary_normal, "summary/HAFTRAP/OH/s_OH_MC_quants.csv")
 write.csv(corr_df, "summary/HAFTRAP/OH/s_OH_MC_corr.csv")
 ```
 
