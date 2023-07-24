@@ -7,6 +7,8 @@
 
 This file is used to sanity check data produced from `OH_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `OH_modpm_cleaning`.
 
+Note: you will be asked to input a participant ID, and this script will generate all the plots for that participant. This is different from `OH_cpc_sanity_check` where plots are generated for all participants (since there are fewer participants and only one variable to plot).
+
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
 ```{r}
@@ -49,8 +51,8 @@ load(paste0(path_to_data, "cleaned_modpm.RData"))
 ```{r}
 # Input participant ID
 person <- readline("Enter participant ID: ")
+# Re-try if incorrecto
 while (!(person %in% participants)) {
-  # Input participant ID
   person <- readline("Error! Invalid ID, Re-enter: ")
 }
 

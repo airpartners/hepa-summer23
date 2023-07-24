@@ -16,7 +16,7 @@ library(ggplot2)
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 Check for working directory
@@ -29,14 +29,15 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 Participant IDs
 ```{r}
-# Vector of participant numbers' data to be processed
-participants <- c("41271", "42281", "45361", "44621", "45451")
+# Get relevant participant IDs from OH_participants
+participants <- as.character(
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$cpc))
 ```
 
 Paths
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/cpc/"
+path_to_data <- "cleaning/HAFTRAP/OH/"
 ```
 
 
@@ -69,7 +70,6 @@ for (person in participants) {
           ggtitle(paste(person, c, env)))
       
       # Pause and print
-      Sys.sleep(2)
       print(paste("Plotted for", person, c, env))
     }
   }

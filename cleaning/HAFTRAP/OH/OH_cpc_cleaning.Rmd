@@ -1,19 +1,19 @@
 # CPC Data Cleaning
-This file cleans, and calculates the I/O ratio for CPC data. Output is saved in a `cpc.RData` file that is *untracked* by Github. *All files that depend on using CPC data must be run after running this file.*
+This file cleans, and calculates the I/O ratio for CPC data. Data is from the output of `cpc_preprocessing`, but that script doesn't need to be run since the data should already be present in CSV files in the data folder. To update CPC data, run `cpc_preprocessing` *then* run this script.
+
+Output is saved in a `cleaned_cpc.RData` file that is *untracked* by Github. *All files that depend on using CPC data must be run after running this file.*
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
-library(corrplot)
-library(rstatix)
 library(readxl)
 ```
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 Check for working directory
@@ -26,18 +26,17 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 Participant IDs and corresponding time map tables
 ```{r}
-# Vector of participant numbers' data to be processed
-participants <- c("41271", "42281", "45361", "44621", "45451")
+# Get relevant participant IDs from OH_participants
+participants <- as.character(
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$cpc))
 
 # Read summary table of times
-time_map <- read_excel(
-  paste0("data/HAFTRAP/OH/", "OH_notes_summarized.xlsx")) %>%
+time_map <- read_excel("data/HAFTRAP/OH/OH_notes_summarized.xlsx") %>%
   # Convert to appropriate variable types
   mutate(across(dt_start:dt_end, 
                   ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
   mutate(across(dt_start:dt_end, 
-                  ~force_tz(.x, tz = "America/New_York"))) %>%
-  mutate(across(participant_id:case, as.factor))
+                  ~force_tz(.x, tz = "America/New_York")))
 ```
 
 ```{r}
@@ -64,7 +63,6 @@ round_10min <- function(df) {
   # Calculate mean over ten minutes
   summarize(across(c(concent, inlttmp), mean), .groups = "drop")
 }
-
 ```
 
 ### Filter by relevant times
@@ -115,7 +113,6 @@ for (person in participants) {
   }
   print(paste("Loaded participant", person))
 }
-
 ```
 
 ```{r}
@@ -151,7 +148,6 @@ for (person in participants) {
 ```{r}
 # Crucial filtering based on sanity checks
 # See 'Data Demons' document in HEPA Google Drive
-
 main_df <- case_df %>%
   # Pump flow needs to be greater than 250 for proper functioning
   filter(smpflow > 250) %>%
@@ -164,10 +160,7 @@ main_df <- case_df %>%
   # Filter out concent values that are < 100 (this can never be true IRL)
   filter(concent > 100) %>%
   # Remove all filtered-out values
-  drop_na() %>%
-  # Make factors
-  mutate(across(c(environment, case, participant_id), as.factor)) 
-  
+  drop_na()
 ```
 
 
@@ -210,5 +203,5 @@ main_df <- drop_na(main_df)
 ### Save Data
 The `main_df` dataframe is saved to `cleaned_cpc.RData`
 ```{r}
-save(main_df, file = paste0(path_to_data, "cleaned_cpc.RData"))
+save(main_df, file = paste0("cleaning/HAFTRAP/OH/", "cleaned_cpc.RData"))
 ```
