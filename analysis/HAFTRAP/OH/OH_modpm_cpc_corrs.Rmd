@@ -39,14 +39,12 @@ Participant IDs and corresponding time map tables
 participants <- as.character(
   na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$modpm_cpc))
 
-
 # Set path to data
 path_to_data <- "cleaning/HAFTRAP/OH/"
 ```
 
 
 ## Helper Functions:
-
 ### Calculating 10 minute averages
 When correlating Mod-PM and CPC data, we want to make sure that there has been enough time for air to mix, therefore we calculate 10-minute averages of the data.
 ```{r}
@@ -62,7 +60,6 @@ round_10min <- function(df, vec) {
   # Rename data column
   rename(date = date_round)
 }
-
 ```
 
 ### Calculating correlation coefficients

@@ -5,19 +5,18 @@
 **HAVE YOU RUN `OH_cpc_cleaning`?**
 *This file loads dataframes created from running `OH_cpc_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This script is used to plot timeseries of CPC data for a particular participant to look at relationship between mean, median, and 95th percentile.
+This script is used in generating a specific kind of plot that isn't saved in `artifacts`. The original written version uses CPC data for participant 44621  to plot timeseries to look at relationship between mean, median, and 95th percentile.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
-library(ggplot2)
 ```
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
@@ -30,7 +29,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 Participant IDs and corresponding time map tables
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/cpc/"
+path_to_data <- "cleaning/HAFTRAP/OH/"
 ```
 
 ## Load data
@@ -39,7 +38,9 @@ CPC - filter data to whole minutes
 # Load CPC data from RData file
 load(paste0(path_to_data, "cleaned_cpc.RData"))
 ```
+
 ```{r}
+# Filter desired participant and environment
 plot_df <- main_df %>%
   # Choose participant ID from most CPC Q95 increase in s_OH_c_quants.csv
   filter(participant_id == "44621", environment == "indoor") %>%
@@ -47,6 +48,7 @@ plot_df <- main_df %>%
 ```
 
 ```{r}
+# Summary statistics (copied over from OH_cpc_all_stats)
 plot_df %>%
   # Drop NaN, inf values for summary calculation
   filter(is.finite(concent)) %>%
@@ -62,12 +64,14 @@ plot_df %>%
             q95 = quantile(concent, probs = 0.95),
             .groups = 'drop') -> summary
 
-# This is very bad janky code to calculate % reduction, sorry
+# This is very bad janky code to calculate % reduction, sorry. Prints warning
 summary <- rbind(summary, apply(select_if(summary, is.numeric), 2, 
                                 function(x) 100 * (x[2] - x[1]) / x[2]))
 
+# Specify order
 summary$case <- factor(c("hepa", "sham", "redu"))
 
+# Plot for only sham, hepa
 summary_plot <- filter(summary, case %in% c("hepa", "sham"))
 ```
 
