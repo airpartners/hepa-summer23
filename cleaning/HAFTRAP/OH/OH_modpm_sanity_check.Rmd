@@ -15,7 +15,7 @@ library(ggplot2)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 Check for working directory
@@ -27,14 +27,15 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 ```
 Participant IDs
 ```{r}
-# Vector of participant numbers' data to be processed
-participants <- c("44241", "41181", "41211", "41271", "42231", "42281", "42301", "42321", "44621", "45361", "45411", "45451", "46591")
+# Get relevant participant IDs from OH_participants
+participants <- as.character(
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$modpm))
 ```
 
 Paths
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/modpm/"
+path_to_data <- "cleaning/HAFTRAP/OH/"
 ```
 
 
@@ -55,6 +56,7 @@ while (!(person %in% participants)) {
 
 # Plot stuff
 for (env in c("indoor", "outdoor", "ratio")) {
+  # Set horizontal lines for visual reference
   y_check <- case_match(
     env,
     "indoor" ~ 10,
@@ -68,28 +70,31 @@ for (env in c("indoor", "outdoor", "ratio")) {
              environment == env)
     
       # Plot time-series of subset with an appropriate horizontal line
+      # PM 1
       print(ggplot(df) +
         geom_line(aes(x = date, y = pm1)) +
         geom_hline(aes(yintercept = y_check)) +
         ggtitle(paste(person, c, env, "pm1")))
       
+      # PM 2.5
       print(ggplot(df) +
         geom_line(aes(x = date, y = pm25)) +
         geom_hline(aes(yintercept = y_check)) +
         ggtitle(paste(person, c, env, "pm25")))
       
+      # PM 10
       print(ggplot(df) +
         geom_line(aes(x = date, y = pm10)) +
         geom_hline(aes(yintercept = y_check)) +
         ggtitle(paste(person, c, env, "pm10")))
       
+      # PM 1 Count
       print(ggplot(df) +
         geom_line(aes(x = date, y = pm1num)) +
         geom_hline(aes(yintercept = y_check)) +
         ggtitle(paste(person, c, env, "pm1_num")))
     
-    # Pause and print
-    Sys.sleep(2)
+    # Print
     print(paste("Plotted for", person, c, env))
   }
 }

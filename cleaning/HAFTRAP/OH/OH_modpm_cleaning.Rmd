@@ -7,11 +7,13 @@ Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
+library(readxl)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "C:/Users/vkuchhal/Documents/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
+
 
 ```{r}
 # Get file path
@@ -21,10 +23,9 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 ```
 
 ```{r}
-# Vector of participant numbers' data to be processed
-# Skipping 41211 for now because of funky data (look at CSVs)
-participants <- c("41181", "41271", "42231", "42281", "42301", "42321",
-                  "44241", "44621", "45361", "45411", "45451", "46591")
+# Get relevant participant IDs from OH_participants
+participants <- as.character(
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$modpm))
 ```
 
 ```{r}
@@ -69,7 +70,7 @@ sum_bins <- function(df) {
 ```
 
 ### Calculating 10 minute averages
-When calculating the indoor/outdoor ratio, we want to calculate them over 10 minutes as oppposed to every data point to account for the time it takes for the air to mix between indoor and outdoor. This function calculates that ten minute average.
+When calculating the indoor/outdoor ratio, we want to calculate them over 10 minutes as opposed to every data point to account for the time it takes for the air to mix between indoor and outdoor. This function calculates that ten minute average.
 ```{r}
 # Round over 10 minute averages
 round_10min <- function(df) {
@@ -87,7 +88,7 @@ round_10min <- function(df) {
 
 ## Main Code Run
 ### Load all data. 
-Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
+Run this carefully, checking everything, and only once!
 ```{r}
 # Initialize master dataframe for all data
 all_df <- data.frame()
@@ -141,8 +142,12 @@ main_df <- all_df %>%
 
 ```{r}
 # Filter out values over a certain threshold
-main_df_indoor <- subset(main_df, environment == "indoor" & pm1 < 400 & pm25 < 500 & pm10 < 2000)
-main_df_outdoor <- subset(main_df, environment == "outdoor" & pm1 < 50 & pm25 < 100 & pm10 < 1000)
+main_df_indoor <- subset(main_df, 
+                         environment == "indoor" & 
+                           pm1 < 400 & pm25 < 500 & pm10 < 2000)
+main_df_outdoor <- subset(main_df, 
+                          environment == "outdoor" & 
+                            pm1 < 50 & pm25 < 100 & pm10 < 1000)
 
 main_df <- rbind(main_df_indoor, main_df_outdoor)
 ```
@@ -191,5 +196,5 @@ main_df <- drop_na(main_df) %>%
 ### Save Data
 The `main_df` dataframe is saved to `cleaned_modpm.RData`
 ```{r}
-save(main_df, file = paste0(path_to_data, "cleaned_modpm.RData"))
+save(main_df, file = paste0("cleaning/HAFTRAP/OH/", "cleaned_modpm.RData"))
 ```
