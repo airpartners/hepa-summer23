@@ -5,19 +5,18 @@
 **HAVE YOU RUN `OH_cpc_cleaning`?**
 *This file loads a dataframe created from running `OH_cpc_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This file is used to create diurnal plots for the HAFTRAP Mod-PM data. It can be modified to create diurnal plots for a single participant vs. multiple/all participants. 
+This file is used to create diurnal plots for the HAFTRAP CPC data.
 
 ```{r}
 # import necessary libraries
 library(tidyverse)
-library(ggplot2)
 library(data.table)
-library(lubridate)
+library(scales)
 ```
 
 ```{r, setup, include=FALSE}
 # set working directory
-knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
@@ -29,7 +28,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # set path to data
-path_to_data <- "data/HAFTRAP/OH/modpm/"
+path_to_data <- "cleaning/HAFTRAP/OH/"
 ```
 
 ## Load data
@@ -38,124 +37,98 @@ path_to_data <- "data/HAFTRAP/OH/modpm/"
 load(paste0(path_to_data, "cleaned_cpc.RData"))
 ```
 
+## Main Code Run
 ```{r}
-# vector of participant numbers' data to be processed (modify to analyze specific participants)
-participants <- c("41271", "42281", "45361", "44621", "45451")
-
-# filter dataframe based on participants
-main_main_df <- filter(main_main_main_df, participant_id %in% participants)
+# Pre-processing to add relevant columns
+my_df <- main_df %>%
+  # Round date to nearest ten minutes
+  mutate(date_round = round_date(date, unit = "10 mins")) %>%
+  # Get day of the week as integer from 1 to 7
+  mutate(wkdy = wday(date)) %>%
+  # Classify as weekday or weekend
+  mutate(is_wknd = wkdy %in% c(1, 7)) %>%
+  # Extract time of the day from datetime
+  mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S"))
 ```
 
 ```{r}
-# function to create a new dataframe with summary data
-summary_dataframe <- function(data) {
-  data %>%
+# Calculate summary statistics for ever ten minutes
+graph_main_df <- my_df %>%
+  # For every 10 minutes for given case, environment, weekday/end
   group_by(is_wknd, time, case, environment) %>%
-    
-  # calculate mean, median, and quartiles for all groups
-  summarise(mean = mean(concent), median = median(concent), percent5 = quantile(concent, 0.05), percent25 = quantile(concent, 0.25), percent75 = quantile(concent, 0.75), percent95 = quantile(concent, 0.95))
-}
+  # Find summary statistics
+  summarise(mean = mean(concent),
+          median = median(concent), 
+          q5 = quantile(concent, probs = 0.05), 
+          q25 = quantile(concent, probs = 0.25),
+          q75 = quantile(concent, probs = 0.75),
+          q95 = quantile(concent, probs = 0.95),
+          sd = sd(concent),
+          .groups = 'drop')
 ```
 
 ```{r}
-# round all times to 10 mins
-main_df$date_round <- round_date(main_df$date, unit = "10 mins")
-      # filter(participant_id == person, case == c, 
-      #        environment == env)
-```
-
-```{r}
-# add column based on day of the week
-main_df$wkdy <- wday(main_df$date)
-
-# add boolean column based on whether or not it is a wknd
-main_df$is_wknd <- replace(main_df$wkdy, main_df$wkdy > 1 & main_df$wkdy < 7, "FALSE")
-main_df$is_wknd <- replace(main_df$is_wknd, main_df$is_wknd == 1 | main_df$is_wknd == 7, "TRUE")
-```
-
-```{r}
-# isolate time
-main_df$time <- as.ITime(main_df$date_round)
-
-# convert back into datetime object (assigns today's date to all)
-main_df$time <- as.POSIXct(main_df$time, format="%H:%M:%S")
-```
-
-```{r}
-# create a new main_df with summary stats
-graph_main_df <- summary_dataframe(main_df)
-```
-
-```{r}
-# function to create diurnal plots + save as an svg
+# Function to create diurnal plots
 diurnal_plot <- function(data, case_str, env_str) {
+  # Filter data for specified case, environment
+  data %>%
+    filter(case == case_str, environment == env_str) %>%
   
-  # create labeller for faceted graphs
-  wknd_labels <- as_labeller(c("TRUE" = "Weekend",
-                    "FALSE" = "Weekday"))
-  
-  # filter data for pm, case, and env
-  data <- filter(data, case == case_str & environment == env_str)
-  
-  # vector for all graph labels (only way to do f-string + subscript at the same time)
-  graph_labels <- c("Daily", str_to_title(env_str), "PM", "Trends", "During", str_to_title(case_str), "Period", "[ ug/m", "]", "Concentration", "CPC")
-  
-  # # svg file to save graph
-  # svg(paste(case_str, env_str, sep = "_"))
-  
-  ggplot(data) +
+  # Make diurnal plot, x-axis as time
+  ggplot(aes(x = time)) +
+    # Plot the 5th-95th and 25th-75th percentiles
+    geom_ribbon(aes(ymin = q5, ymax = q95, fill = "#cfcfcf")) +
+    geom_ribbon(aes(ymin = q25, ymax = q75, fill = "#9a9a9a")) +
     
-    # plot the 5th-95th and 25th-75th percentiles
-    geom_ribbon(aes(x = time, ymin = percent5, ymax = percent95, fill = "#cfcfcf")) +
-    geom_ribbon(aes(x = time, ymin = percent25, ymax = percent75, fill = "#7a7a7a")) +
+    # Plot the mean and median
+    geom_line(aes(y = mean, color = "red")) +
+    geom_line(aes(y = median, color = "blue")) +
     
-    # plot the mean and median
-    geom_line(aes(x = time, y = mean, color = "red")) +
-    geom_line(aes(x = time, y = median, color = "blue")) +
+    # Facet based on weekday vs. weekend
+    facet_grid(is_wknd ~ ., labeller = 
+                 as_labeller(c("TRUE" = "Weekend", "FALSE" = "Weekday"))) +
     
-    # facet based on wkdy vs. wknd
-    facet_grid(is_wknd ~ ., labeller = wknd_labels) +
+    # Label legend for mean and median
+    scale_color_identity(name = "Averages", breaks = c("red", "blue"),
+                         labels = c("Mean", "Median"), guide = "legend") +
     
-    # label legend for mean and median
-    scale_color_identity(name = "Averages",
-                            breaks = c("red", "blue"),
-                            labels = c("Mean", "Median"),
-                            guide = "legend") +
+    # Label legend for percentiles
+    scale_fill_identity(name = "Percentiles", breaks = c("#cfcfcf", "#9a9a9a"),
+                        labels = c("5th - 95th", "25th - 75th"),
+                        guide = "legend") +
     
-    # label legend for percentiles
-    scale_fill_identity(name = "Percentiles",
-                            breaks = c("#cfcfcf", "#7a7a7a"),
-                            labels = c("5th - 95th", "25th - 75th"),
-                            guide = "legend") +
-    
-    # modifiy y-axis scaling
+    # Modify x-axis scaling
     scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:00") +
     
-    # label title and axes using vector above
-    labs(title = bquote(.(graph_labels[11]) ~ .(graph_labels[1]) ~ .(graph_labels[2]) ~ .(graph_labels[3]) ~ .(graph_labels[4]) ~ .(graph_labels[5]) ~ .(graph_labels[6]) ~ .(graph_labels[7])),
+    # Label title and axes 
+    labs(title = paste("CPC Daily", str_to_title(env_str), "Trends During",
+                       str_to_title(case_str),"Period"),
          x = "Time of Day (hrs)",
-         y = bquote(.(graph_labels[3]) ~ .(graph_labels[10]) ~ .(graph_labels[8])^3 ~ .(graph_labels[9]))) + 
+         y = bquote("UFP Particle Count "(number/m^3))) +
     
-    # # scale y-axis (log vs. linear)
-    scale_y_log10() +
-    # scale_y_log10(limits = c(1e-1,1e2)) +
-    # ylim(0,75) +
+    # Set y-axis to log scale
+    scale_y_log10(labels = number_format()) +
     
-    # add fun theme
-    theme_bw()
+    # Add fun theme
+    theme_bw() +
+    # Rotate x-axis labels for clarity
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) -> my_plot
   
-  # # close the graphics device
-  # dev.off()
+  # Save plot
+  ggsave(filename = paste0("artifacts/HAFTRAP/OH/diurnals/", "OH_cpc_",
+                           case_str, "_", env_str, ".png"), plot = my_plot)
+  
+  # Display plot
+  my_plot
 }
 ```
 
 ```{r}
-# plot all combos for diurnals
-diurnal_plot(graph_main_df, "hepa", "indoor")
-diurnal_plot(graph_main_df, "hepa", "outdoor")
-diurnal_plot(graph_main_df, "hepa", "ratio")
-
-diurnal_plot(graph_main_df, "sham", "indoor")
-diurnal_plot(graph_main_df, "sham", "outdoor")
-diurnal_plot(graph_main_df, "sham", "ratio")
+# Plot all the diurnal plots
+for (case in c("hepa", "sham")) {
+  for (env in c("indoor", "outdoor", "ratio")) {
+    print(diurnal_plot(graph_main_df, case, env))
+    print(paste("Plotted", case, env))
+  }
+}
 ```
