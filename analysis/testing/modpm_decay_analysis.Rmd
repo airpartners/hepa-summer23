@@ -1,5 +1,6 @@
 ```{r}
 # Imports
+library(tidyverse)
 library(pracma)
 library(dplyr)
 library(openair)
@@ -30,15 +31,16 @@ load(paste0(path_to_data, "cleaned_modpm.RData"))
 ```{r}
 # vector of participant numbers' data to be processed (modify to analyze specific participants)
 participants <- "41181"
+cases = "sham"
 
-# participants <- c("41181", "41211", "41271", "42231", "42281", "42301", "42321",
-#                   "44241", "44621", "45361", "45411", "45451", "46591")
+# ("41181", "41271", "42231", "42281", "42301", "42321",
+# "44241", "44621", "45361", "45411", "45451", "46591")
 ```
 
 ```{r}
 # Filter data to appropriate subset
 main_df <- filter(main_df, participant_id %in% participants)
-main_df <- filter(main_df, case == "hepa" & environment == "indoor")
+main_df <- filter(main_df, case == cases & environment == "indoor")
   
 main_df$date <- round_date(main_df$date, unit = "10 mins")
 
@@ -52,18 +54,22 @@ main_df %>%
 # function to create a new dataframe with summary data
 summary_dataframe <- function(data) {
   data %>%
+    
+  # group by 10-min intervals
   group_by(date) %>%
+    
   # calculate mean for all groups
   summarise(mean_1 = mean(pm1), mean_2.5 = mean(pm25), mean_10 = mean(pm10))
 }
 ```
 
 ```{r}
+# create a summary dataframe
 sum_main_df <- summary_dataframe(main_df)
 ```
 
 ```{r}
-# Find peaks and store in new dataframes
+# find peaks for each particle and store in new dataframes
 peaks_pm1 <- findpeaks(sum_main_df$mean_1,
                    nups = 1,
                    ndowns = 1,
@@ -125,33 +131,59 @@ get_first_valleys <- function(data, peaks, min_threshold) {
 
 ```{r}
 # Find the first valley after each peak
-valleys_pm1 <- get_first_valleys(sum_main_df$mean_1, peaks_pm1, 8)
+valley_threshold = 10
 
-valleys_pm25 <- get_first_valleys(sum_main_df$mean_2.5, peaks_pm25, 8)
+valleys_pm1 <- get_first_valleys(sum_main_df$mean_1, peaks_pm1, valley_threshold)
 
-valleys_pm10 <- get_first_valleys(sum_main_df$mean_10, peaks_pm10, 10)
+valleys_pm25 <- get_first_valleys(sum_main_df$mean_2.5, peaks_pm25, valley_threshold)
+
+valleys_pm10 <- get_first_valleys(sum_main_df$mean_10, peaks_pm10, valley_threshold)
 ```
 
 ```{r}
 # function for peak/valley filtering - if multiple peaks detect the same valley, remove everything but the last one
 filter_peaks <- function(peaks, valleys) {
-  peaks_valleys <- matrix(nrow = nrow(peaks), ncol = 4)
-
-  valleys <- valleys[order(valleys[,2],decreasing=FALSE),]
-  peaks <- peaks[order(peaks[,2],decreasing=FALSE),]
   
-  for (row in 1:nrow(peaks)) {
-    if (valleys[row] != valleys[row + 1]) {
-      
-      peaks_valleys[row, 1] <- peaks[row, 1]
-      peaks_valleys[row, 2] <- peaks[row, 2]
-      
-      peaks_valleys[row, 3] <- valleys[row, 1]
-      peaks_valleys[row, 4] <- valleys[row, 2]
+  peaks_valleys <- matrix(nrow = nrow(peaks), ncol = 4)
+  
+  peaks <- as.data.frame(peaks)
+  valleys <- as.data.frame(valleys)
+  
+  valleys <- valleys %>%
+    arrange(desc(V2))
+  peaks <- peaks %>%
+    arrange(desc(V2))
+  
+  if (nrow(peaks) == 1){
+    peaks_valleys <- cbind(select(peaks, V1, V2), valleys)
+  } else {
+  
+    for (row in 1:(nrow(peaks) - 1)) {
+      if (valleys[[row, 1]] != valleys[[row + 1, 1]]) {
+        
+        peaks_valleys[row, 1] <- peaks[row, 1]
+        peaks_valleys[row, 2] <- peaks[row, 2]
+        
+        peaks_valleys[row, 3] <- valleys[row, 1]
+        peaks_valleys[row, 4] <- valleys[row, 2]
+      }
     }
+    peaks_valleys[nrow(peaks), 1] <- peaks[nrow(peaks), 1]
+    peaks_valleys[nrow(peaks), 2] <- peaks[nrow(peaks), 2]
+        
+    peaks_valleys[nrow(peaks), 3] <- valleys[nrow(peaks), 1]
+    peaks_valleys[nrow(peaks), 4] <- valleys[nrow(peaks), 2]
   }
+  
   peaks_valleys <- na.omit(peaks_valleys)
   colnames(peaks_valleys) <- c("peaks_y", "peaks_x", "valleys_y", "valleys_x")
+
+  peaks_valleys <- as.data.frame(peaks_valleys)
+
+  # remove row if valley > peak
+  peaks_valleys$results = ifelse(peaks_valleys$valleys_y > peaks_valleys$peaks_y | peaks_valleys$valleys_y > valley_threshold, NA, 1)
+  peaks_valleys <- drop_na(peaks_valleys)
+                
   return(peaks_valleys)
 }
 ```
@@ -165,7 +197,7 @@ peaks_valleys_pm10 <- filter_peaks(peaks_pm10, valleys_pm10)
 ```
 
 ```{r}
-# Function for exponential curve fitting for air quality data; returns 
+# function for exponential curve fitting for air quality data; returns 
 # dataframe containing k-values of curves
 curve_fitting <- function(data, peaks_valleys) {
     # Create empty dataframe for storing k values
@@ -259,14 +291,38 @@ plot_peaks_valleys(sum_main_df$mean_2.5, peaks_valleys_pm25)
 plot_peaks_valleys(sum_main_df$mean_10, peaks_valleys_pm10)
 ```
 
-```{r}
-# Take the mean/median of the decay constants
-mean_pm1 <- mean(decays_pm1$k_val)
-median_pm1 <- median(decays_pm1$k_val)
+# Code for dealing with final decay constants
 
-mean_pm25 <- mean(decays_pm25$k_val)
-median_pm25 <- median(decays_pm25$k_val)
+<!-- ```{r} -->
+<!-- modify_df <- function(df, pm) { -->
+<!--   df %>% -->
+<!--     add_column(case = cases) %>% -->
+<!--     add_column(participant = participants) %>% -->
+<!--     add_column(particle = pm) -->
+<!-- } -->
+<!-- ``` -->
 
-mean_pm10 <- mean(decays_pm10$k_val)
-median_pm10 <- median(decays_pm10$k_val)
-```
+<!-- ```{r} -->
+<!-- decays_pm1_final <- modify_df(decays_pm1, "1") -->
+
+<!-- decays_pm25_final <- modify_df(decays_pm25, "2.5") -->
+
+<!-- decays_pm10_final <- modify_df(decays_pm10, "10") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- decay_constants <- rbind(decays_pm1_final, decays_pm25_final, decays_pm10_final) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # add to overall df and save -->
+<!-- decay_constants_final <- rbind(decay_constants_final, decay_constants) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- save(decay_constants_final, file = paste0(path_to_data, "decay_constants.RData")) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # decay_constants_final <- matrix(nrow = 0, ncol = 4) -->
+<!-- ``` -->
