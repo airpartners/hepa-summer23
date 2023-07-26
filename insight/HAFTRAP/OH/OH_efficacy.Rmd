@@ -2,14 +2,12 @@
 This notebook investigates whether the installation of air purifiers had a notable impact on indoor air quality across various summary metrics. It uses summary data found in `summary/HAFTRAP/OH`
 
 ```{r}
-library(ggplot2)
 library(tidyverse)
-library(formattable)
 ```
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
@@ -26,31 +24,45 @@ path_to_data <- "summary/HAFTRAP/OH/"
 ## Plotting Function
 ```{r}
 plot_heatmap <- function(joined_data, title) {
+  # Sets order for displaying particles in heatmap
   particle_order <- c("PM 1 Conc.", "PM 2.5 Conc.", "PM 10 Conc.", 
                      "PM 1 Count", "UFP Count")
+  # Sets order for displaying summary stats in heatmap
   summary_order <- c("Mean", "95th Percentile", "75th Percentile", "Median",
                      "25th Percentile", "5th Percentile")
-    
-  joined_data %>%
-  pivot_longer(mean:q95, names_to = "sum_type", values_to = "stat") %>%
   
-  mutate(type = recode(type, "pm1" = "PM 1 Conc.", "pm25" = "PM 2.5 Conc.", 
+  # Pre-process data before ploting
+  joined_data %>%
+    # Reshape for heatmap
+    pivot_longer(mean:q95, names_to = "sum_type", values_to = "stat") %>%
+    
+    # Recode for accurate labels
+    mutate(type = recode(type, "pm1" = "PM 1 Conc.", "pm25" = "PM 2.5 Conc.", 
                      "pm10" = "PM 10 Conc.", "pm1num" = "PM 1 Count",
                      "concent" = "UFP Count"),
          sum_type = recode(sum_type, "mean" = "Mean", "median" = "Median",
                            "q5" = "5th Percentile", "q25" = "25th Percentile",
                            "q75" = "75th Percentile", 
                            "q95" = "95th Percentile")) %>%
-  mutate(type = factor(type, levels = particle_order)) %>%
-  mutate(sum_type = factor(sum_type, levels = summary_order)) %>%
+    
+    # Arrange axes in specified order
+    mutate(type = factor(type, levels = particle_order)) %>%
+    mutate(sum_type = factor(sum_type, levels = summary_order)) %>%
 
-  ggplot(aes(x = type, y = sum_type)) +
-    geom_tile(aes(fill = stat)) +
-    geom_text(aes(label = paste0(round(stat, 1), "%"))) +
-    scale_fill_gradient2(low = "#ff7f7f", high = "#DeF7E9", mid = "white") +
-    labs(title = title, x = "Particle Type", y = "Summary Statistic", 
-         fill = "Reduction (%)") +
-    theme_minimal()
+    # Plot heatmap
+    ggplot(aes(x = type, y = sum_type)) +
+      # Fill with value of stat
+      geom_tile(aes(fill = stat)) +
+      # Print in value of stat
+      geom_text(aes(label = paste0(round(stat, 1), "%"))) +
+    
+      # Set color scale
+      scale_fill_gradient2(low = "#ff7f7f", high = "#DeF7E9", mid = "white") +
+      # Set axis labels, title
+      labs(title = title, x = "Particle Type", y = "Summary Statistic", 
+           fill = "Reduction (%)") +
+      # Set theme
+      theme_minimal()
 }
 ```
 
@@ -67,40 +79,19 @@ filepath <- paste0(path_to_data, "s_OH_M_quants.csv")
 modpm_stats <- read_csv(filepath, show_col_types = FALSE)
 ```
 
-## Calculate Average Percentage Reductions
-### Helper function:
-Since the process of summarizing data is almost exactly the same across Mod-PM/CPC and indoor/ratio, the following function reduces a lot of repeat code
-```{r}
-get_sums <- function(df_stats, env, p_types) {
-  df_stats %>%
-  # Filter the % reduction values for specified environment, particle types
-  filter(case == "redu", environment == env, type %in% p_types) %>%
-  
-  # Find mean of summary statistics
-  group_by(type) %>%
-  summarise(across(mean:q95, mean))
-}
-
-```
-
 ### Reduction in raw Indoor Concentrations
 ```{r}
-# Calculate CPC, Mod-PM averages for indoor
-cpc_sum <- get_sums(cpc_stats, "indoor", c("concent"))
-modpm_sum <- get_sums(modpm_stats, "indoor", 
-                      c("pm1", "pm25", "pm10", "pm1num"))
-
-joined_indoor <- rbind(modpm_sum, cpc_sum)
+joined_indoor <- rbind(modpm_stats, cpc_stats) %>%
+  filter(participant_id == "all", environment == "indoor", case == "redu") %>%
+  filter(type %in% c("pm1", "pm25", "pm10", "pm1num", "concent"))
 ```
 
 ### Reduction in Indoor/Outdoor Ratio
 ```{r}
 # Calculate CPC, Mod-PM averages for I/O ratio
-cpc_sum <- get_sums(cpc_stats, "ratio", c("concent"))
-modpm_sum <- get_sums(modpm_stats, "ratio", 
-                      c("pm1", "pm25", "pm10", "pm1num"))
-
-joined_ratio <- rbind(modpm_sum, cpc_sum)
+joined_ratio <- rbind(modpm_stats, cpc_stats) %>%
+  filter(participant_id == "all", environment == "ratio", case == "redu") %>%
+  filter(type %in% c("pm1", "pm25", "pm10", "pm1num", "concent"))
 ```
 
 ## Making pretty tables
