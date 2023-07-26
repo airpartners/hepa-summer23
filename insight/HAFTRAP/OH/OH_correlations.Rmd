@@ -42,6 +42,7 @@ corr_df %>%
          str_detect(y, "indoor$"), participant_id == "all") %>%
   arrange(case)
 ```
+You can see that the correlation between CPC and Mod-PM is slightly higher for sham than for hepa when looking at overall indoor data. Let's investigate this further with scatterplots
 
 ## Plot CPC vs. Mod-PM for Indoor
 ### Constants
