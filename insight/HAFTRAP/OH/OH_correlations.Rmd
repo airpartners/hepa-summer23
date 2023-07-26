@@ -3,11 +3,12 @@ In the `analysis` stage, correlation coefficients were computed for every variab
 
 ```{r}
 library(tidyverse)
+library(corrr)
 ```
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
@@ -23,97 +24,191 @@ path_to_data <- "summary/HAFTRAP/OH/"
 ```
 
 ## Summarizing participants
-Currently, we have individual correlation coefficients for each participant. Averaging over participants reveals overall coefficients.
-
-```{r}
-# Read correlation data
-filepath <- paste0(path_to_data, "s_OH_MC_corr.csv")
-all_corrs <- read_csv(filepath, show_col_types = FALSE)
-```
+Currently, we have individual correlation coefficients for each participant. Using the merged dataframe from `OH_modpm_cpc_corrs`, we can calculate overall coefficients.
 
 ```{r}
 # Read overall merged CPC + Mod-PM data
 load(paste0(path_to_data, "merged.RData"))
-```
 
-
-```{r}
-# Get means over groups
-corrs_sum <- all_corrs %>%
-  group_by(x, y, case) %>%
-  summarise(mean_cor = mean(r), .groups = "drop")
+# Read correlation coefficient data
+corr_df <- read.csv(paste0(path_to_data, "s_OH_MC_corr.csv"))
 ```
 
 ## Indoor CPC vs. Mod-PM
 ```{r}
 # Compare concent indoor to Mod-PM indoor readings
-corrs_sum %>%
+corr_df %>%
   filter(x == "concent_indoor", str_detect(y, "^pm"), 
-         str_detect(y, "indoor$")) %>%
+         str_detect(y, "indoor$"), participant_id == "all") %>%
   arrange(case)
 ```
 
 ## Plot CPC vs. Mod-PM for Indoor
-### Plotting functions:
-Scatterplot UFP vs. PM 2.5 with single line of best fit
+### Constants
+Used to map variable to appropriate meaning while plotting
 ```{r}
-plot_single <- function(plot_df, add_title) {
-  # Get r-squared value
-r_val <- summary(lm(plot_df$pm25 ~ plot_df$concent))$r.squared
+# List mapping variable to appropriate meaning
+title_map <- list(pm1 = "PM 1", pm25 = "PM 2.5", pm10 = "PM 10", 
+                  pm1num = "PM 1 Count", concent = "UFP")
 
-# Scatterplot UFP vs. PM 2.5, line of best fit
-ggplot(plot_df, aes(x = concent, y = pm25)) +
-  # Scatterplot
-  geom_point(alpha = 0.1) +
-  # Line of best fit
-  geom_smooth(method=lm, se=FALSE) +
-  # Paste in R-square value
-  annotate("text", x = 1e5, y = 200, 
-           label = bquote(R^2 == .(round(r_val[[1]], 3)))) +
-  # Add axes names, title
-  labs(title = paste("PM 2.5 vs. UFP", add_title), 
-       x = "CPC Particle Count", y = "PM 2.5 Concentration")
+# List mapping variable to appropriate meaning
+axes_map <- list(pm1 = "PM 1 Concentration", pm25 = "PM 2.5 Concentration",
+               pm10 = "PM 10 Concentration", pm1num = "PM 1 Particle Count",
+               concent = "CPC Particle Count")
+```
+
+### Plotting functions:
+#### Single Line of Best Fit Scatterplot
+The following function is a general function that takes any two variables in the provided dataframe, filters for specified case and environment, and scatterplots them with their R-squared value
+```{r}
+one_line <- function(df, constraint, var_x, var_y, case_str, env_str) {
+  # Filter by specified case and environment
+  plot_df <- filter(df, case == case_str, environment == env_str)
+  
+  # Filter by specified constraint (no filtering if overall)
+  if (constraint == "Overall") {  } else{
+    plot_df <- filter(plot_df, participant_id == constraint)
+  }
+  
+  # Get r-squared value
+  r_val <- summary(lm(plot_df[[var_y]] ~ plot_df[[var_x]]))$r.squared
+  
+  # Scatterplot provided x vs. provided y with line of best fit
+  ggplot(plot_df, aes(x = .data[[var_x]], y = .data[[var_y]])) +
+    # Scatterplot
+    geom_point(alpha = 0.1) +
+    # Line of best fit
+    geom_smooth(method=lm, se=FALSE) +
+    
+    # Paste in R-square value
+    annotate("text", x = 0.8*max(plot_df[[var_x]]), 
+             y = 0.8*max(plot_df[[var_y]]), 
+             label = bquote(R^2 == .(round(r_val[[1]], 3)))) +
+    
+    # Add axes names, title
+    labs(title = paste(title_map[[var_y]], "vs.", title_map[[var_x]],
+                       "in", constraint, str_to_title(case_str), "Period"), 
+         x = axes_map[[var_x]], y = axes_map[[var_y]]) -> my_plot
+    
+  # Save plot
+  ggsave(filename = paste("artifacts/HAFTRAP/OH/scatterplot/OH", constraint,
+                           var_x, var_y, case_str, env_str, "one.png", 
+                          sep = "_"), plot = my_plot)
+  # Display plot
+  my_plot
 }
 ```
 
-Scatterplot UFP vs. PM 2.5 with two lines of best fit
+#### Two lines of best fit Scatterplot (CPC vs. Mod-PM only)
+The following function plots a provided Mod-PM reading against CPC particle count at a provided level of constraint. The provided data is filtered and split between two clusters. Two lines of best fit are calculated for each of the clusters.
+
+Note that (by nature of this analysis) this function only only makes sense to be used between CPC particle count and Mod-PM readings - the legend labels reflect that. However, those are the only things that would need to be modified (as well as the cluster splitting equation) in case this function should be used beyond this analysis.
 ```{r}
-plot_double <- function(plot_df, add_title) {
+# List mapping variable to constant for clustering in two_line
+cluster_val <- list(pm1 = 0.002, pm25 = 0.002, pm10 = 0.002, pm1num = 0.002)
+
+two_line <- function(df, constraint, var_x, var_y, case_str, env_str) {
+  # Grouped column name
+  var_grouped <- paste0(var_y, "_grouped")
+  
+  # Filter by specified case and environment
+  plot_df <- filter(df, case == case_str, environment == env_str) %>%
+    # Add column for splitting
+    mutate(!!var_grouped := as.factor(
+      ifelse(.data[[var_y]] < cluster_val[[var_y]] * .data[[var_x]], 
+             "Mod-PM Missed", "Mod-PM + CPC Detected")))
+  
+  # Filter by specified constraint (no filtering if overall)
+  if (constraint == "Overall") {  } else{
+    plot_df <- filter(plot_df, participant_id == constraint)
+  }
+  
+  # Set model
+  my_model <- paste(var_y, "~", var_x)
+  
   # Calculate r-squared, proportion of points
   props <- plot_df %>% 
     # For each group
-    group_by(pm25_group) %>% 
+    group_by(across(last_col())) %>% 
     # Calculate proportion of points, r-squared
     summarize(proportion = 100 * n() / nrow(plot_df),
-              rsq = summary(lm(pm25~concent))$r.squared) %>%
+              rsq = summary(lm(eval(parse(text = my_model))))$r.squared) %>%
     # Format appropriately for annotation
     mutate(proportion = paste0("(", round(proportion, 1), "%)"), 
            rsq = round(rsq, 3))
   
   # Recode values to include proportion in factor, pipe into plotting
   plot_df %>%
-    mutate(pm25_group = 
-             recode(pm25_group, 
+    mutate((!!var_grouped) := 
+             recode(.data[[var_grouped]], 
                     "Mod-PM Missed" = 
                       paste("Mod-PM Missed", props$proportion[2]),
                     "Mod-PM + CPC Detected" = 
                       paste("Mod-PM + CPC Detected", props$proportion[1]))) %>%
   
   # Scatterplot with two lines of best fit for separate clusters
-  ggplot(aes(x = concent, y = pm25, color = pm25_group)) +
+  ggplot(aes(x = .data[[var_x]], y = .data[[var_y]], 
+             color = .data[[var_grouped]])) +
     # Scatter-plot
     geom_point(alpha = 0.1) +
     # Lines of best fit
     geom_smooth(method=lm, se=FALSE) +
     # Paste in R-square value for Mod-PM + CPC Detected
-    annotate("text", x = 6e4, y = 200, 
+    annotate("text", x = 0.5*max(plot_df[[var_x]]), 
+             y = 0.8*max(plot_df[[var_y]]), 
                label = bquote(R^2 == .(props$rsq[1]))) +
     # Paste in R-square value for Mod-PM Missed
-    annotate("text", x = 1e5, y = 50, 
+    annotate("text", x = 0.8*max(plot_df[[var_x]]), 
+             y = 0.2*max(plot_df[[var_y]]), 
                label = bquote(R^2 == .(props$rsq[2]))) +
     # Add axes labels, title
-    labs(title = paste("Split PM 2.5 vs. UFP", add_title), 
-         x = "CPC Particle Count", y = "PM 2.5 Concentration", color = "Group")
+    labs(title = paste("Split", title_map[[var_y]], "vs.", title_map[[var_x]],
+                       "in", constraint, str_to_title(case_str), "Period"), 
+         x = axes_map[[var_x]], y = axes_map[[var_y]], 
+         color = "Group") -> my_plot
+    
+  # Save plot
+  ggsave(filename = paste("artifacts/HAFTRAP/OH/scatterplot/OH", constraint,
+                           var_x, var_y, case_str, env_str, "two.png", 
+                          sep = "_"), plot = my_plot)
+  # Display plot
+  my_plot
+}
+```
+
+#### Time-series plot to compare two variables
+Plots two time-series overlaying each other to compare two different measurements for a particular participant in a specified case. Usually used to compare CPC (UFP Particle Count) to a Mod-PM reading. If using for a different set of variables, change the scaling constant (sc) appropriately (e.g.- sc is ~1 for comparison between Mod-PM variables).
+```{r}
+series_compare <- function(df, person, var_a, var_b, case_str, env_str, sc){
+  # Filter dataframe
+  df %>% 
+    filter(participant_id == person, case == case_str, 
+                     environment == env_str) %>%
+  # Plot time-series of UFP with PM 2.5
+  ggplot(aes(x = date)) + 
+    # Create second (right) y-axis with 200 times the scale of first
+    scale_y_continuous(sec.axis = sec_axis(~.*sc, name = axes_map[[var_a]])) +
+    # Plot CPC reading against right axis
+    geom_line(aes(y = .data[[var_a]]/sc, color = title_map[[var_a]])) +
+    # Plot PM 2.5 reading against left axis
+    geom_line(aes(y = .data[[var_b]], color = title_map[[var_b]])) +
+    
+    # Set colors
+    scale_color_manual(name = "Particles", 
+                       values = setNames(c('#56B4E9', '#E69F00'),
+                                         c(title_map[[var_a]],
+                                           title_map[[var_b]]))) +
+    
+    # Set axes labels, title
+    labs(title = paste("CPC vs. Mod-PM Readings for Participant", person), 
+         x = "Date", y = axes_map[[var_b]]) -> my_plot
+    
+  # Save plot
+  ggsave(filename = paste("artifacts/HAFTRAP/OH/scatterplot/OH", person,
+                           var_a, var_b, case_str, env_str, "timeseries.png",
+                          sep = "_"), plot = my_plot)
+  # Display plot
+  my_plot
 }
 ```
 
@@ -122,93 +217,36 @@ plot_double <- function(plot_df, add_title) {
 
 CPC Particle Count Indoor vs. PM 2.5 Concentration Indoor (sham)
 ```{r}
-# Create dataframe of data to be plotted
-filtered_overall <- main_df %>%
-  # Filter for sham and indoor data
-  filter(case == "sham", environment == "indoor")
-  
-# Plot scatterplot with line of best fit
-plot_single(filtered_overall, "Overall")
+for (case in c("sham", "hepa")) {
+  for (pm_type in c("pm1", "pm25", "pm10", "pm1num")) {
+    # Plot scatterplot with line of best fit
+    print(one_line(main_df, "Overall", "concent", pm_type, case, "indoor"))
+    print(paste("Plotted", pm_type, case))
+  }
+}
 ```
-```{r}
-# Split PM 2.5 data into two groups for separate plotting
-filtered_overall %>%
-  # Split data based on y = x line
-  mutate(pm25_group = as.factor(ifelse(
-    pm25 < 0.002*concent, "Mod-PM Missed", "Mod-PM + CPC Detected"))) %>%
-  
-  # Plot scatterplot with two lines of best fit
-  plot_double("Overall")
 
+```{r}
+for (case in c("sham", "hepa")) {
+  for (pm_type in c("pm1", "pm25", "pm10", "pm1num")) {
+    # Plot scatterplot with line of best fit
+    print(two_line(main_df, "Overall", "concent", pm_type, case, "indoor"))
+    print(paste("Plotted", pm_type, case))
+  }
+}
 ```
+
 
 ### Zoom into single participant
 Looking at the same data but for a single participant so that a time-series comparison can also be plotted
 ```{r}
-# Create dataframe of data to be plotted
-filtered_participant <- main_df %>%
-  # Filter for sham, indoor, and participant
-  filter(case == "sham", environment == "indoor", 
-         participant_id == "42281")
-  
-# Plot scatterplot with line of best fit
-plot_single(filtered_participant, "for Participant 42281")
+# Looking into PM 2.5 for Participant 42281
+one_line(main_df, "42281", "concent", "pm25", "sham", "indoor")
+two_line(main_df, "42281", "concent", "pm25", "sham", "indoor")
 ```
 
+Plotting a time-series for that participant in that situation provides us with additional context on where the readings agreed and where they did not (see helper function series_compare)
 ```{r}
-# Split PM 2.5 data into two groups for separate plotting
-filtered_participant %>%
-  # Split data on y = x line
-  mutate(pm25_group = as.factor(ifelse(
-    pm25 < 0.002*concent, "Mod-PM Missed", "Mod-PM + CPC Detected"))) %>%
-  
-  # Plot scatterplot with two lines of best fit
-  plot_double("for Participant 42281")
+series_compare(main_df, "42281", "concent", "pm25", "sham", "indoor", 200)
 ```
 
-
-```{r}
-# Plot time-series of UFP with PM 2.5
-ggplot(filtered_participant, aes(x = date)) + 
-  # Create second (right) y-axis with 200 times the scale of first
-  scale_y_continuous(sec.axis = sec_axis(~.*200, name = "UFP Count")) +
-  # Plot CPC reading against right axis
-  geom_line(aes(y = concent/200, color = "UFP")) +
-  # Plot PM 2.5 reading against left axis
-  geom_line(aes(y = pm25, color = "PM 2.5")) +
-  # Set colors
-  scale_color_manual(name='Particles', breaks=c('PM 2.5', 'UFP'), 
-                     values=c('PM 2.5'='#56B4E9', 'UFP'='#E69F00')) +
-  # Set axes labels, title
-  labs(title = "CPC vs. Mod-PM Readings (Participant 42281)", 
-       x = "Date", y = "PM 2.5 Concentration")
-```
-## Others
-```{r}
-# Look at all variables with a mean r-value > 0.6
-corrs_sum %>% 
-  arrange(desc(mean_cor)) %>% 
-  filter(mean_cor > 0.6)
-```
-None of the variables with high R-values give us significant special insight between variables, apart from PM 1 and PM 2.5 appearing to be closely related with a correlation coefficient of 0.972 for indoor sham and 0.967 for indoor hepa.
-
-PM 1 Concentration Indoor vs. PM 2.5 Concentration Indoor (sham)
-```{r}
-# Get r-squared value
-r_val <- summary(lm(filtered_overall$pm25 ~ filtered_overall$pm1))$r.squared
-
-# Scatterplot UFP vs. PM 2.5, line of best fit
-ggplot(filtered_overall, aes(x = pm1, y = pm25)) +
-  # Scatterplot
-  geom_point(alpha = 0.1) +
-  # Line of best fit
-  geom_smooth(method=lm, se=FALSE) +
-  # Paste in R-square value
-  annotate("text", x = 100, y = 200, 
-           label = bquote(R^2 == .(round(r_val[[1]], 3)))) +
-  # Add axes names, title
-  labs(title = "PM 2.5 vs. PM 1 Overall", 
-       x = "PM 1 Concentration", y = "PM 2.5 Concentration")
-
-```
-```
