@@ -23,14 +23,19 @@ path_to_data <- "summary/HAFTRAP/OH/"
 
 ## Plotting Function
 ```{r}
-plot_heatmap <- function(joined_data, title) {
-  # Sets order for displaying particles in heatmap
-  particle_order <- c("PM 1 Conc.", "PM 2.5 Conc.", "PM 10 Conc.", 
-                     "PM 1 Count", "UFP Count")
-  # Sets order for displaying summary stats in heatmap
-  summary_order <- c("Mean", "95th Percentile", "75th Percentile", "Median",
+## Global variables for plotting function
+# Maps environment to title
+env_title <- list(indoor = "Reduction in Raw Indoor Readings", 
+                  ratio = "Reduction in Indoor/Outdoor Ratio")
+
+# Sets order for displaying particles in heatmap
+particle_order <- c("PM 1 Conc.", "PM 2.5 Conc.", "PM 10 Conc.", 
+                   "PM 1 Count", "UFP Count")
+# Sets order for displaying summary stats in heatmap
+summary_order <- c("Mean", "95th Percentile", "75th Percentile", "Median",
                      "25th Percentile", "5th Percentile")
-  
+
+plot_heatmap <- function(joined_data, env) {
   # Pre-process data before ploting
   joined_data %>%
     # Reshape for heatmap
@@ -59,10 +64,16 @@ plot_heatmap <- function(joined_data, title) {
       # Set color scale
       scale_fill_gradient2(low = "#ff7f7f", high = "#DeF7E9", mid = "white") +
       # Set axis labels, title
-      labs(title = title, x = "Particle Type", y = "Summary Statistic", 
+      labs(title = env_title[[env]], 
+           x = "Particle Type", y = "Summary Statistic", 
            fill = "Reduction (%)") +
       # Set theme
-      theme_minimal()
+      theme_minimal() -> my_plot
+  # Save plot
+  ggsave(filename = paste0("artifacts/HAFTRAP/OH/reduction/", "OH_", env,
+                           "_heatmap.png"), plot = my_plot)
+  # Display plot
+  my_plot
 }
 ```
 
@@ -96,8 +107,8 @@ joined_ratio <- rbind(modpm_stats, cpc_stats) %>%
 
 ## Making pretty tables
 ```{r}
-plot_heatmap(joined_indoor, "Reduction in Raw Indoor Readings")
-plot_heatmap(joined_ratio, "Reduction in Indoor/Outdoor Ratio")
+plot_heatmap(joined_indoor, "indoor")
+plot_heatmap(joined_ratio, "ratio")
 ```
 
 
@@ -106,7 +117,9 @@ plot_heatmap(joined_ratio, "Reduction in Indoor/Outdoor Ratio")
 Save the two tables with efficacy in CSV files
 ```{r}
 # Save summary statistic files to CSVs
-write.csv(joined_indoor, "artifacts/indoor_reduction.csv")
-write.csv(joined_ratio, "artifacts/ratio_reduction.csv")
+write.csv(joined_indoor,
+          "artifacts/HAFTRAP/OH/reduction/OH_indoor_reduction.csv")
+write.csv(joined_ratio,
+          "artifacts/HAFTRAP/OH/reduction/OH_ratio_reduction.csv")
 ```
 
