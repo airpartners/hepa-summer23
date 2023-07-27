@@ -1,44 +1,37 @@
 ---
-title: Data Guide for Air Partners
+title: Data Guide for Olin's HAFTRAP Deployments (OH)
 ---
 
+This document describes the organization of data, code files, and outputs in the Summer 2023 phase of analyzing Olin's HAFTRAP deployments. **If you haven't already, read the [main data guide](../data_guide.html) to understand the overall pipeline structure** (this link may only work if opened in browser).
 
-This document describes the organization of data, code files, and outputs in the Summer 2023 phase of the Air Partners HEPA air purifier pilot. The reliability and continued maintenance of this document cannot be guaranteed after August 4, 2023. The information in this document assumes reasonable familiarity with this project. For further questions regarding this document, feel free to contact [Vedaant Kuchhal](mailto:vedaantk22@gmail.com).
-
-
-## Location Coding
-At its core, data is categorized, analyzed, and interpreted based on the location where it is collected. This repository looks at data from four different projects around the Boston area, each with their own set of stakeholders, environmental factors, and distinct pilot locations within them. For this reason, a standard set of location codes will be used throughout this project. The following codes will be used to organize folders, name files, and refer to locations throughout this repository:
-
-<img src=".img/.hepa_table.png" width="800" />
+The reliability and continued maintenance of this document cannot be guaranteed after August 4, 2023. The information in this document assumes reasonable familiarity with this project. For further questions regarding this document, feel free to contact [Vedaant Kuchhal](mailto:vedaantk22@gmail.com).
 
 
-The complete table with this image (with additional details on deployments and naming) can be found [here](https://docs.google.com/spreadsheets/d/18_yT_Jh7BIjvvfufrR16GAfotsUWucHm40TVTF5LHp8/edit?usp=sharing)
+## Overview
+The Olin HAFTRAP deployments are part of the HAFTRAP study focusing on participants living along the highway I-93 in Somerville. The study is conducted in a clinical trial format, which means the following things for the air quality data:
+
+* The participants are coded by anonymized participant IDs
+* The air purifier was deployed in two one-week segments. In one week, the participants got a fake purifier that did not do anything (`sham`), whereas the other, they got a real, working HEPA air purifier (`hepa`).
+* For each participant, there was one set of sensors sampling indoors, and an equivalent set sampling outdoors.
+* For Olin HAFTRAP in particular, two types of sensors were deployed: low-cost Modulair- PM (Mod-PM) sensors measuring particles between 0.35-10 microns, and more expensive Condensation Particle Counter (CPC) sensors measuring ultrafine particles (UFPs) less than 0.35 microns in diameter.
+
+
+*All* files that are associated with Olin HAFTRAP should have `OH_` prefixed to their name.
+
+## Pre-requisites
+To run the code in `cleaning`, `analysis`, and `insight`, two things are required:
+
+1. Install R and RStudio
+2. Set up Github and clone [this project's repository](https://github.com/airpartners/hepa-summer23/)
+
+Optionally, it will make life vastly easier for you if you can get [Github working through RStudio](https://happygitwithr.com/rstudio-git-github.html). Any other requirements (especially additional packages to install) will be described in the relevant part of the pipeline.
 
 ## Data Pipeline
-Each study region (East Boston, HAFTRAP, Revere, Roxbury) has its own history of prior Air Partners work, situational complexities, and data quality. To organize and document the various study-specific factors in a comprehensible format, we developed a broad data pipeline structure around which all the projects regarding HEPA air purifier pilots are organized. 
+Unlike the main data guide, this description of the pipeline focuses on *understanding the files and getting the code to run*. Before we dive in, look at the following figure that outlines all the files in the entire pipeline:
 
-This data pipeline has six components:
+<img src="../.img/.OH_files.jpg"/>
 
-<img src=".img/.pipeline.png"/>
-
-Each component will have its own folder in the root directory, named `data`,`cleaning`, `analysis`, `summary`, `insight`, and `artifacts` respectively.
-
-<br>
-
-If you have one takeaway from this data guide, it should be this:  **all locations follow the same data pipeline structure, which means that each folder in the pipeline contains the same set of location folders**.
-
-<br>
-
-Confusing? Here's an example of where the pipeline is housed for Olin's HAFTRAP deployments (OH):
-
-<img src=".img/.pipeline_OH.png"/>
-
-As you can see, the location folders follow the same structure outlined in the [above table](#location-coding).
-
-To keep things nice and standardized, there are common conventions and organization structures for each component of the pipeline, even between different locations. 
-
-Each location has its own data guide with the specifics for the files and instructions for running the pipeline for that particular location. The location-specific data guides are linked at the end of this file. *Please read this data guide first as it provides an important overview of each of the six components.*
-
+Click [here]() to see an isolated version you can zoom into.
 ## Raw Data (`data`)
 **This component has by far the most files, and it is the largest and most important of the six components to read to understand how files are organized and new files can be added.**
 
@@ -70,7 +63,7 @@ You should already have looked at the [standard location codes](#location-coding
 #### Sensor Codes
 The sensors deployed in various phases of this project are each coded by a single uppercase letter:
 
-<img src=".img/.sensor_codes.png" width="400" />
+<img src="../.img/.sensor_codes.png" width="400" />
 
 In case the data is merged between different sensors, all relevant sensor codes are used (e.g.- `MC` for a file that contains Mod-PM + CPC data).
 
@@ -119,7 +112,7 @@ There are two key differences with Summary Data compared to Raw Data:
 
 1) The `summary` folder *is* tracked by Git. This is because the summary data files are much tinier than the raw data they are produced from. (E.g.- OH raw data is ~2.8 GB, OH summary data is ~580 KB)
 
-2) While the files follow the same file naming structure, they are prepended with the prefix `s_` to distinguish them as summary data files. Additionally, since the data is summarized (no longer separate files for indoor/outdoor, for example), a different set of suffixes are used. Once again, specifics depend on the location, but here are some examples:
+2) While the files follow the same file naming structure, they are prepended with the prefix `s_` to distinguish them as summary data files. Additionally, since the data is summarized (no longer separate files for indoor/outdoor, for example, a different set of suffixes are used. Once again, specifics depend on the location, but here are some examples:
 
 * `quants` contains summary statistics such as mean, median, 5th, 25th, 75th, and 95th percentile.
 * `corr` contains the correlation matrix for the dataset analyzed
@@ -134,3 +127,21 @@ This folder is essentially a dump of the outputs from the `analysis` and `insigh
 
 1. The entire folder is *untracked by git*. There is no copy on an external drive, so to get the code output artifacts you'll need to, well, run the code.
 2. The folder will be organized into reasonably named subfolders (e.g. - the diurnal plots go into a folder named `diurnals`). The assumption is that by the time you are dealing with this folder, you already have a good enough understanding of the code and its outputs.
+
+
+
+#### The CPC Exception - TODO Move into OH_data_guide.
+There is one exception to the [data pipeline](#data-pipeline) and therefore the folder structure. You will see 'raw data' CSV files in the `cpc` folders, but in reality these files have been pre-processed from actual sensor output.
+
+A CPC sensor outputs a new text file of data for *every day* it runs. These raw text files are stored in a subfolder of `cpc` (elegantly named `very_raw_data`). A pre-processing script found in `analysis` - location described in [analysis](#initial-analysis) - parses through the text files and outputs one CSV per participant, per environment (indoor/outdoor) which contains the **relevant variables** from the raw data. No other cleaning/filtering is done in pre-processing.
+
+For all intents and purposes, only the correctly named CSV files found directly in the `cpc` folder will be used for all analysis. The true sensor output text files are only present for debugging and completeness in documentation.
+
+All the other components are much simpler and therefore have much shorter explanations!
+
+### OH (Olin's deployments for HAFTRAP) - TODO Move to OH_data_guide
+* `initial_data_analysis.Rmd`: Is a starter file to quickly build up working filter, cleaning, and analysis code. Kind of like a play testing war zone, ignore this file if you're trying to comprehend clean, logical code.
+
+HAFTRAP:
+
+* `haftrap_OH_single_summary.Rmd`: The DR1 stands for "Design Review One". It initially contained scrappily-written code for a design review with Doug Brugge, but now should have a clean pipeline to compute summary statistics from one participant's deployment with sham and true sensors.
