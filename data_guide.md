@@ -65,6 +65,8 @@ Each location folder is further subdivided into folders by sensor type. The fold
 Data files are labelled with the following naming convention:
 `LocationCode_SensorCode_ID_suffix`
 
+**When adding a new file to the dataset, name it appropriately according to convention**.
+
 You should already have looked at the [standard location codes](#location-coding). Now, let's familiarize ourselves with the sensor codes.
 
 #### Sensor Codes
