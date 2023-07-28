@@ -44,3 +44,4 @@ haftrap_OH_single_summary.html
 error_log.txt
 *.RData
 artifacts/
+*.html
