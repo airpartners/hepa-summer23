@@ -3,7 +3,6 @@ In the `analysis` stage, correlation coefficients were computed for every variab
 
 ```{r}
 library(tidyverse)
-library(corrr)
 ```
 
 Set working directory
