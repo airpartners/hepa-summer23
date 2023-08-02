@@ -12,20 +12,21 @@ library(tidyverse)
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+# knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+# getwd()
 ```
 
 Check for working directory
 ```{r}
-# Check file path
-if (!endsWith(getwd(), "hepa-summer23")) {
-  stop("Incorrect working directory")
-}
+# Check file path; Commented out because it wasn't working on Scott's computer
+# if (!endsWith(getwd(), "hepa-summer23")) {
+#   stop("Incorrect working directory")
+# }
 ```
 
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/cpc/"
+path_to_data <- "/Users/shersey/Dropbox/Work/Data/hepa-summer23/data/HAFTRAP/OH/cpc/"
 
 # Set data category
 data_cat <- "OH_C"
@@ -43,13 +44,13 @@ for (subfolder in folders) {
   # Split path into individual parts
   path_parts <- strsplit(subfolder, split = "/")
   
-  # Only evaluate directories that have depth of 7 from the root (i.e. with
-  # data files)
-  if (length(path_parts[[1]]) == 7) {
+  # Only evaluate directories that have depth of 15 from the root (i.e. with
+  # data files). Change this number according to the depth at which data files appear in the file structure. (e.g. on Vedaant's computer it's 7.)
+  if (length(path_parts[[1]]) == 15) {
     
     # Isolate environment and participant ID
-    env <- path_parts[[1]][6]
-    id <- path_parts[[1]][7]
+    env <- path_parts[[1]][14]
+    id <- path_parts[[1]][15]
   
     # Skip unwanted files
     if (id == "Pre data" || grepl("bad", id)) {

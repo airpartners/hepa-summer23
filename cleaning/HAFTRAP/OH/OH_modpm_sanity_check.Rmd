@@ -17,7 +17,7 @@ library(ggplot2)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+knitr::opts_knit$set(root.dir = "/Users/shersey/Dropbox/Work/Data/hepa-summer23")
 ```
 
 Check for working directory
@@ -43,7 +43,7 @@ path_to_data <- "cleaning/HAFTRAP/OH/"
 
 ## Load data
 ```{r}
-# Load Mod-PM data from RData file
+# Load Mod-PM data from RData file; loads as main_df
 load(paste0(path_to_data, "cleaned_modpm.RData"))
 ```
 

@@ -13,25 +13,26 @@ library(readxl)
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+# knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+# getwd()
 ```
 
 Check for working directory
 ```{r}
 # Check file path
-if (!endsWith(getwd(), "hepa-summer23")) {
-  stop("Incorrect working directory")
-}
+# if (!endsWith(getwd(), "hepa-summer23")) {
+#   stop("Incorrect working directory")
+# }
 ```
 
 Participant IDs and corresponding time map tables
 ```{r}
 # Get relevant participant IDs from OH_participants
 participants <- as.character(
-  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$cpc))
+  na.omit(read_excel("/Users/shersey/Dropbox/Work/Data/hepa-summer23/data/HAFTRAP/OH/OH_participants.xlsx")$cpc))
 
 # Read summary table of times
-time_map <- read_excel("data/HAFTRAP/OH/OH_notes_summarized.xlsx") %>%
+time_map <- read_excel("/Users/shersey/Dropbox/Work/Data/hepa-summer23/data/HAFTRAP/OH/OH_notes_summarized.xlsx") %>%
   # Convert to appropriate variable types
   mutate(across(dt_start:dt_end, 
                   ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
@@ -41,7 +42,7 @@ time_map <- read_excel("data/HAFTRAP/OH/OH_notes_summarized.xlsx") %>%
 
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/cpc/"
+path_to_data <- "/Users/shersey/Dropbox/Work/Data/hepa-summer23/data/HAFTRAP/OH/cpc/"
 
 # Set data category
 data_cat <- "OH_C"
@@ -203,5 +204,5 @@ main_df <- drop_na(main_df)
 ### Save Data
 The `main_df` dataframe is saved to `cleaned_cpc.RData`
 ```{r}
-save(main_df, file = paste0("cleaning/HAFTRAP/OH/", "cleaned_cpc.RData"))
+save(main_df, file = paste0("/Users/shersey/Dropbox/Work/Data/hepa-summer23/cleaning/HAFTRAP/OH/", "cleaned_cpc.RData"))
 ```
