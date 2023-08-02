@@ -16,7 +16,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 path_to_data <- "data/HAFTRAP/OH/modpm/"
 
 # Load modpm data from RData file
-load(paste0(path_to_data, "decay_constants_modpm.RData"))
+load(paste0(path_to_data, "decay_constants.RData"))
 ```
 
 ```{r}
@@ -132,9 +132,5 @@ summary_wide %>%
                names_to = c(".value", "case"), names_sep = "_") %>%
   # Filter out all NaN and Inf values
   filter_all(all_vars(!is.infinite(.))) -> summary_normal
-```
-
-```{r}
-save(summary_normal, file = paste0(path_to_data, "decay_modpm_sum_stats.RData"))
 ```
 

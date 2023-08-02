@@ -1,5 +1,14 @@
+# HAFTRAP Decay Analysis (for Mod-PM)
+
+## STOP
+
+**HAVE YOU RUN `OH_modpm_cleaning`?**
+*This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to find decay constants for the HAFTRAP Mod-PM data.
+
 ```{r}
-# Imports
+# import necessary libraries
 library(tidyverse)
 library(pracma)
 library(dplyr)
@@ -38,12 +47,14 @@ cases = "sham"
 ```
 
 ```{r}
-# Filter data to appropriate subset
+# filter data to appropriate subset
 main_df <- filter(main_df, participant_id %in% participants)
 main_df <- filter(main_df, case == cases & environment == "indoor")
 
+# round date to nearest ten minutes
 main_df$date <- round_date(main_df$date, unit = "10 mins")
 
+# fill any gaps in data
 main_df %>%
   fill_gaps(7, frequency = "10 mins") %>%
   mutate(t = as.numeric(date) - as.numeric(date)[1]) %>%
@@ -70,6 +81,7 @@ sum_main_df <- summary_dataframe(main_df)
 
 ```{r}
 # find peaks for each particle and store in new dataframes
+## can change values to accomodate dataset (mainly modify minpeakheight)
 peaks_pm1 <- findpeaks(sum_main_df$mean_1,
                    nups = 1,
                    ndowns = 1,
@@ -93,12 +105,12 @@ peaks_pm10 <- findpeaks(sum_main_df$mean_10,
 ```
 
 ```{r}
-# Function to get first valley after peak
+# function to get first valley after peak
 get_first_valleys <- function(data, peaks, min_threshold) {
   if (is.null(peaks)) {
     return(print("There are no peaks/valleys"))
   }
-  # Iterate through rows of peaks matrix
+  # iterate through rows of peaks matrix
   valley_mat <- matrix(nrow = nrow(peaks), ncol = 2)
   for (row in 1:nrow(peaks)) { #nolint
     idx <- peaks[row, 2]
@@ -110,7 +122,8 @@ get_first_valleys <- function(data, peaks, min_threshold) {
         n <- FALSE
       } else {
         # otherwise, get slope (approximately)
-        # checks that next three points are going up to consider it a valley
+        # checks that next 1/2/3 points are positive to consider it a valley
+        ## change # of + points depending on how messy the data is
         slope <- data[idx + 1] - data[idx]
         slope2 <- data[idx + 2] - data[idx + 1]
         slope3 <- data[idx + 3] - data[idx + 2]
@@ -130,9 +143,10 @@ get_first_valleys <- function(data, peaks, min_threshold) {
 ```
 
 ```{r}
-# Find the first valley after each peak
+# find the first valley after each peak
 valley_threshold = 10
 
+# can also set individual valley thresholds if necessary
 valleys_pm1 <- get_first_valleys(sum_main_df$mean_1, peaks_pm1, valley_threshold)
 
 valleys_pm25 <- get_first_valleys(sum_main_df$mean_2.5, peaks_pm25, valley_threshold)
@@ -141,7 +155,7 @@ valleys_pm10 <- get_first_valleys(sum_main_df$mean_10, peaks_pm10, valley_thresh
 ```
 
 ```{r}
-# function for peak/valley filtering - if multiple peaks detect the same valley, remove everything but the last one
+# function for peak/valley filtering
 filter_peaks <- function(peaks, valleys) {
   
   peaks_valleys <- matrix(nrow = nrow(peaks), ncol = 4)
@@ -149,15 +163,18 @@ filter_peaks <- function(peaks, valleys) {
   peaks <- as.data.frame(peaks)
   valleys <- as.data.frame(valleys)
   
+  # arranges both peaks and valleys in descending order
   valleys <- valleys %>%
     arrange(desc(V2))
   peaks <- peaks %>%
     arrange(desc(V2))
   
+  # skips loop if there is only one peak
   if (nrow(peaks) == 1){
     peaks_valleys <- cbind(select(peaks, V1, V2), valleys)
   } else {
-  
+    
+    # if multiple peaks detect the same valley, removes all but the last peak
     for (row in 1:(nrow(peaks) - 1)) {
       if (valleys[[row, 1]] != valleys[[row + 1, 1]]) {
         
@@ -175,12 +192,13 @@ filter_peaks <- function(peaks, valleys) {
     peaks_valleys[nrow(peaks), 4] <- valleys[nrow(peaks), 2]
   }
   
+  # removes na values
   peaks_valleys <- na.omit(peaks_valleys)
   colnames(peaks_valleys) <- c("peaks_y", "peaks_x", "valleys_y", "valleys_x")
 
   peaks_valleys <- as.data.frame(peaks_valleys)
 
-  # remove row if valley > peak
+  # remove row if valley > peak or if final valley is above threshold
   peaks_valleys$results = ifelse(peaks_valleys$valleys_y > peaks_valleys$peaks_y | peaks_valleys$valleys_y > valley_threshold, NA, 1)
   peaks_valleys <- drop_na(peaks_valleys)
                 
@@ -189,6 +207,7 @@ filter_peaks <- function(peaks, valleys) {
 ```
 
 ```{r}
+# filter peaks/valleys for each dataset
 peaks_valleys_pm1 <- filter_peaks(peaks_pm1, valleys_pm1)
 
 peaks_valleys_pm25 <- filter_peaks(peaks_pm25, valleys_pm25)
@@ -240,6 +259,8 @@ curve_fitting <- function(data, peaks_valleys) {
         "k_val" = c(alpha),
         "conv_tol" = c(conv)
       )
+      # can uncomment the print to see what errors are happening
+      # otherwise, this ignores any errors
       }, error = function(e) { # print(e)
       }, warning = function(w) {
       }, finally = {
@@ -253,7 +274,7 @@ curve_fitting <- function(data, peaks_valleys) {
 ```
 
 ```{r}
-# Find the decay value (k constant) for each peak
+# find the decay value (k constant) for each peak
 decays_pm1 <- curve_fitting(sum_main_df$mean_1, peaks_valleys_pm1)
 ```
 
