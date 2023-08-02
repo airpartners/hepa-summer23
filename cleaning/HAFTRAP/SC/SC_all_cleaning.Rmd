@@ -1,0 +1,290 @@
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+
+```{r}
+# Set path to data
+path_to_data <- "data/HAFTRAP/SC/"
+
+# Set category (Modulair + ACSM + SEMS)
+data_cat <- "SC_RASCT"
+```
+
+```{r}
+# Only participant 1 for now
+participants <- as.character(1)
+
+# Read relevant summary notes for time splitting
+time_map <- read_excel(paste0(path_to_data, "SC_notes_summarized.xlsx"))
+```
+
+### Filter by relevant times
+Each participant contains data for periods where both the purifier was off or on. This function filters the relevant time periods and adds an added variable to track off or on readings.
+```{r}
+# Function to include whether hepa purifier is on or off
+include_case <- function(df, person, cd) {
+  df %>%
+    # Select current participant
+    filter(participant_id == person) %>%
+    # Add case column
+    mutate(case = case_when(
+      # For off periods
+      # Note: 'cd' is the table 'current_dates' in function call
+      between(date, cd$dt_start[cd$case == "off"], 
+              cd$dt_end[cd$case == "off"]) ~ 'off',
+      # For on periods
+      between(date, cd$dt_start[cd$case == "on"], 
+              cd$dt_end[cd$case == "on"]) ~ 'on'))
+}
+```
+
+### Make sections for each pair
+For data where the sensors have valve switching indoor-outdoor, this function makes a "section" for each pair. Since ratio is calculated from *previous* outdoor divided by indoor, removes the first set of indoor values. 
+```{r}
+# Make a "section" for I/O pair to calculate ratios
+make_section <- function(df) {
+  df %>%
+    # Drop rows with NaNs (removes empty time values)
+    drop_na() %>% 
+    # Order by date - indoor-outdoor alternating sections is now clear to see
+    arrange(date) %>%
+    # Increase value of "section" by 1 every time environment changes
+    mutate(section = cumsum(environment != lag(environment, default = ""))) %>%
+    # Remove first set of "indoor" readings (why explained in get_ratios)
+    filter(section > 1) %>%
+    # Floor divide so that one outdoor-indoor pair is one section
+    mutate(section = section %/% 2)
+}
+```
+
+### Get first dates
+```{r}
+# Isolate single date for each section - take first in group
+first_dates <- function(df) {
+  df %>%
+    group_by(section) %>%
+    slice(1) %>%
+    ungroup() %>%
+    select(section, date)
+}
+```
+
+### Get ratios
+All the code used to calculate ratios and add it to dataframe.
+```{r}
+get_ratios <- function(df, val_cols) {
+  # Group by, summarize, and widen
+  df_wide <- df %>%
+    # Group by (mainly) section and environment
+    group_by(section, environment, case, participant_id) %>%
+    # Calculate the mean for each indoor/outdoor for each section
+    summarise(across(all_of(val_cols), mean), .groups = "drop") %>%
+    # Split indoor and outdoor values into separate columns
+    pivot_wider(names_from = environment, 
+                values_from = val_cols)
+    
+  # If there is only one value column, prepend column name to correct
+  if (length(val_cols) == 1) {
+    df_wide <- df_wide %>% rename_with(~paste(val_cols, ., sep = "_"),
+                                       indoor:outdoor)
+  }
+  
+  # Divide indoor by outdoor to calculate ratios
+  df_ratio <- select(df_wide, ends_with("indoor"))/
+    select(df_wide, ends_with("outdoor"))
+  
+  # Rename computed columns
+  colnames(df_ratio) <- sub("_indoor", "", colnames(df_ratio))
+  
+  # Merge back with joined data-frame
+  df_ratio <- cbind(df_wide, df_ratio) %>%
+    # Only keep case, section, participant
+    select(!(ends_with("indoor") | ends_with("outdoor"))) %>%
+    # Add environment as ratio
+    mutate(environment = "ratio") %>%
+    # Merge in the appropriate date
+    left_join(first_dates(df), by = "section")
+  
+  # Bind back into main dataframe
+  rbind(df, df_ratio)
+}
+```
+
+### Make dataframe from specified range
+This function takes a dataframe where the selected sensors have a valve switching indoor-outdoor - with readings at the same time. 
+```{r}
+# Makes a cleaned dataframe with ratios
+make_df <- function(df, col_vec) {
+  # Merge selected columns with standard set of columns
+  joined_vec <- c("date", "case", "environment", "participant_id", col_vec)
+  
+  df %>%
+    # Select all specified columns and make section
+    select(all_of(joined_vec)) %>%
+    make_section() %>%
+    
+    # Calculated indoor/outdoor ratios for each section for specified columns
+    get_ratios(col_vec) %>%
+  
+    # Drops section column
+    select(-section)
+}
+```
+
+## Main Code Run
+### Load all data. 
+Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
+```{r}
+# Initialize master dataframe for all data
+all_df <- data.frame()
+
+# Loop through each participant
+for (person in participants) {
+  # Loop through each environment
+  for (env in c("indoor", "outdoor")) {
+    # Set file path
+    # Filename = data category + participant ID + environment
+    file_name <- paste(data_cat, person, env, sep = "_")
+    
+    # File path = path to folder, type csv
+    file_path <- paste0(path_to_data, file_name, ".csv")
+    
+    # Read csv
+    df <- read_csv(file_path, show_col_types = FALSE) %>%
+      # Add the environment type (e.g. indoor) and participant ID
+      mutate(environment = env, participant_id = person) %>%
+      # Rename columns to lowercase
+      rename_all(tolower)
+    
+    # Remove suffixes ("_in" for indoor, "_out" for outdoor) for binding
+    col_suffix <- if (env == "indoor") "_in" else "_out"
+    colnames(df) <- gsub(paste0(col_suffix, "$"), "", colnames(df))
+
+    # Append to main dataframe
+    all_df <- rbind(all_df, df)
+  }
+  print(paste("Loaded participant", person))
+}
+```
+Deal with datetimes
+```{r}
+# Convert character to datetime
+clean_df <- all_df %>%
+  # Convert to datetime object
+  mutate(date = as.POSIXct(acsm_local_time, format = "%m/%d/%Y %H:%M", 
+                           tz = "America/New_York")) %>%
+  # Drop acsm_local_time column (replaced by date)
+  select(-acsm_local_time) %>%
+  # Remove repeat readings
+  distinct(participant_id, date, environment, .keep_all = TRUE)
+```
+
+Add case (HEPA filter "on" or "off")
+```{r}
+# Filter by time to find whether hepa is off or on
+case_df <- data.frame()
+for (person in participants) {
+  # Filter by current participant
+  current_dates <- time_map %>% 
+    filter(participant_id == person)
+  # Filter by date for off and on (see helper function)
+  df <- include_case(clean_df, person, current_dates)
+  # Append to overall dataframe
+  case_df <- rbind(case_df, df)
+}
+```
+
+Compute additional columns
+```{r}
+# Compute important columns
+main_df <- case_df %>%
+  # Sum particle counts
+  mutate(mod_pm1num = mod_bin0 + mod_bin1 + mod_bin2) %>%
+  # Convert to rowwise to prevent NaNs being carried over
+  rowwise() %>%
+  # Create SEMS bin for < 50 nm (checking sems_bin_dia columns)
+  mutate(sems_sum50 = sum(c_across(sems_bin_conc1:sems_bin_conc30))) %>%
+  # Create SEMS bin for < 100 nm
+  mutate(sems_sum100 = sum(c_across(sems_bin_conc1:sems_bin_conc38))) %>%
+  # Create SEMS bin for < 1000 nm (effectively sum all columns)
+  mutate(sems_sum1000 = sum(c_across(sems_bin_conc1:sems_bin_conc59)))
+```
+
+Split into separate dataframes, add ratios
+```{r}
+# Make clean dataframe, calculate ratios for each data "group"
+# For SEMS data
+sems_df <- make_df(main_df, c("sems_sum50", "sems_sum100", "sems_sum1000"))
+
+# For ACSM data for specific pollutants
+acsm_df1 <- make_df(main_df, c("acsm_chl", "acsm_nh4", "acsm_no3", "acsm_org", 
+                               "acsm_so4"))
+
+# For other ACSM data
+acsm_df2 <- make_df(main_df, c("acsm_f43", "acsm_f44", "acsm_f57",
+                               "acsm_ratio_55_57"))
+
+# For data from Teledyne sensors
+td_df <- make_df(main_df, c("t300_co", "t200u_no", "t200u_no2", "t200u_nox"))
+
+# For CPC count
+cpc_df <- make_df(main_df, c("mcpc_counts"))
+```
+
+Process Modulair data
+```{r}
+# Deal with modulair data separately since it has simultaneous indoor + outdoor
+mod_df <- main_df %>% 
+  # Select Modulair data columns
+  select(date, environment, participant_id, case, mod_pm25, mod_pm10, mod_pm1,
+         mod_o3, mod_no2, mod_no, mod_co, mod_pm1num) %>%
+  # Create new column with dates rounded to ten minutes
+  mutate(date_round = round_date(date, "10 minutes")) %>%
+  # Order by rounded dates (remove row-wise)
+  arrange(date_round) %>% 
+  ungroup() %>%
+  select(-date_round) %>%
+  # Increment by one everytime environment changes
+  mutate(section = cumsum(environment != lag(environment, default = ""))) %>%
+  # Make single indoor-outdoor pair as one section (no dropping first "indoor")
+  mutate(section = (section + 1) %/% 2) %>%
+  
+  # Get indoor-outdoor ratio for each section for specified columns
+  get_ratios(c("mod_pm25", "mod_pm10", "mod_pm1","mod_o3", 
+               "mod_no2", "mod_no", "mod_co", "mod_pm1num")) %>%
+
+  # Drop section column
+  select(-section)
+```
+
+## Save Data
+Merge all dataframes into one and save into `cleaned_everything.Rdata`
+```{r}
+obs_cols <- c("date", "participant_id", "case", "environment")
+
+main_df <- mod_df %>%
+  full_join(sems_df, by = obs_cols) %>%
+  full_join(acsm_df1, by = obs_cols) %>%
+  full_join(acsm_df2, by = obs_cols) %>%
+  full_join(td_df, by = obs_cols) %>%
+  full_join(cpc_df, by = obs_cols)
+
+save(main_df, file = 
+       paste0("cleaning/HAFTRAP/SC/", "cleaned_everything.RData"))
+```
+
