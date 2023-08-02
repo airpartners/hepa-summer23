@@ -13,14 +13,10 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/cpc/"
+path_to_data <- "summary/HAFTRAP/OH/"
 
-# Load modpm data from RData file
-load(paste0(path_to_data, "decay_constants_cpc.RData"))
-```
-
-```{r}
-decay_constants <- decay_constants_final
+# Load modpm data from csv file
+decay_constants <- read.csv(paste0(path_to_data, "OH_C_decay.csv"))
 ```
 
 ```{r}
@@ -109,7 +105,6 @@ summary_wide$median_redu[summary_wide$type == 'k'] <- summary_wide$median_redu*(
 summary_wide$sd_redu[summary_wide$type == 'k'] <- summary_wide$sd_redu*(-1)
 ```
 
-
 ```{r}
 summary_wide %>%
   # Gather: Return to original shape by removing the 'sham/hepa/redu'
@@ -118,6 +113,15 @@ summary_wide %>%
                names_to = c(".value", "case"), names_sep = "_") %>%
   # Filter out all NaN and Inf values
   filter_all(all_vars(!is.infinite(.))) -> summary_normal
+```
+
+```{r}
+dir.create("artifacts/decay")
+```
+
+```{r}
+# Save final decay summary dataframe to CSV
+write.csv(summary_normal, "artifacts/decay/OH_C_decay_summary.csv")
 ```
 
 
