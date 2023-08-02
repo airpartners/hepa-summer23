@@ -13,10 +13,10 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/modpm/"
+path_to_data <- "data/HAFTRAP/OH/cpc/"
 
 # Load modpm data from RData file
-load(paste0(path_to_data, "decay_constants_modpm.RData"))
+load(paste0(path_to_data, "decay_constants_cpc.RData"))
 ```
 
 ```{r}
@@ -52,20 +52,9 @@ my_summarise <- function(grouped_df) {
 # Calculate summary statistics for each participant
 participant_summary <- decay_constants %>%
   # Group by participant ID, case, environment, and type
-  group_by(participant, case, particle) %>%
+  group_by(participant, case) %>%
   # Calculate summary statistics
   my_summarise()
-```
-
-```{r}
-# Calculate summary statistics over all the data
-particle_summary <- decay_constants %>%
-  # Group by case, environment, and type
-  group_by(case, particle) %>%
-  # Calculate summary statistics
-  my_summarise() %>%
-  # Add participant ID column as 'all'
-  mutate(participant = "all")
 ```
 
 ```{r}
@@ -75,22 +64,19 @@ overall_summary <- decay_constants %>%
   group_by(case) %>%
   # Calculate summary statistics
   my_summarise() %>%
-  # Add participant column as 'all'
-  mutate(participant = "all") %>%
-  # Add particle column as 'all'
-  mutate(particle = "all")
+  # Add participant ID column as 'all'
+  mutate(participant = "all")
 ```
 
 ```{r}
 # Bind together participant, particle, and overall summary statistics
-summary <- rbind(participant_summary, particle_summary, overall_summary)
+summary <- rbind(participant_summary, overall_summary)
 ```
 
 ```{r}
 summary <- pivot_longer(summary, mean_k:sd_wdth,
                names_to = c(".value", "type"), names_sep = "_")
 ```
-
 
 ### Calculate percentage reduction in concentration from sham to hepa
 Follows the same logic as calculating indoor-outdoor ratios. Spread to form 
@@ -134,7 +120,4 @@ summary_wide %>%
   filter_all(all_vars(!is.infinite(.))) -> summary_normal
 ```
 
-```{r}
-save(summary_normal, file = paste0(path_to_data, "decay_modpm_sum_stats.RData"))
-```
 
