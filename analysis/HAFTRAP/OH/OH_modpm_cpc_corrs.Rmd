@@ -22,7 +22,7 @@ library(readxl)
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+knitr::opts_knit$set(root.dir = "/Users/shersey/Dropbox/Work/Data/hepa-summer23")
 ```
 
 Check for working directory
