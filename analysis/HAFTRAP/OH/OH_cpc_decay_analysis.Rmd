@@ -11,8 +11,6 @@ This file is used to find decay constants for the HAFTRAP CPC data.
 # import necessary libraries
 library(tidyverse)
 library(pracma)
-library(dplyr)
-library(openair)
 library(forecastML)
 library(zoom)
 ```

@@ -11,8 +11,6 @@ This file is used to find decay constants for the HAFTRAP Mod-PM data.
 # import necessary libraries
 library(tidyverse)
 library(pracma)
-library(dplyr)
-library(openair)
 library(forecastML)
 library(zoom)
 ```
@@ -310,46 +308,49 @@ plot_peaks_valleys(sum_main_df$mean_1, peaks_valleys_pm1)
 plot_peaks_valleys(sum_main_df$mean_2.5, peaks_valleys_pm25)
 
 plot_peaks_valleys(sum_main_df$mean_10, peaks_valleys_pm10)
+# can uncomment to zoom in on graphs
+# zm()
 ```
 
 # Code for dealing with final decay constants
 ## comment out when testing values (only run this section when ready to save 
 data for a participant)
-```{r}
-# uncomment and run once at the beginning to create a new empty df
-# decay_constants_final <- matrix(nrow = 0, ncol = 4)
-```
 
-```{r}
-# function to add columns to specify case, participant, and particle
-modify_df <- function(df, pm) {
-  df %>%
-    add_column(case = cases) %>%
-    add_column(participant = participants) %>%
-    add_column(particle = pm)
-}
-```
+<!-- ```{r} -->
+<!-- # uncomment and run once at the beginning to create a new empty df -->
+<!-- # decay_constants_final <- matrix(nrow = 0, ncol = 4) -->
+<!-- ``` -->
 
-```{r}
-# add columns to all dataframes
-decays_pm1_final <- modify_df(decays_pm1, "1")
+<!-- ```{r} -->
+<!-- # function to add columns to specify case, participant, and particle -->
+<!-- modify_df <- function(df, pm) { -->
+<!--   df %>% -->
+<!--     add_column(case = cases) %>% -->
+<!--     add_column(participant = participants) %>% -->
+<!--     add_column(particle = pm) -->
+<!-- } -->
+<!-- ``` -->
 
-decays_pm25_final <- modify_df(decays_pm25, "2.5")
+<!-- ```{r} -->
+<!-- # add columns to all dataframes -->
+<!-- decays_pm1_final <- modify_df(decays_pm1, "1") -->
 
-decays_pm10_final <- modify_df(decays_pm10, "10")
-```
+<!-- decays_pm25_final <- modify_df(decays_pm25, "2.5") -->
 
-```{r}
-# bind all particle dataframes
-decay_constants <- rbind(decays_pm1_final, decays_pm25_final, decays_pm10_final)
-```
+<!-- decays_pm10_final <- modify_df(decays_pm10, "10") -->
+<!-- ``` -->
 
-```{r}
-# add to overall df
-decay_constants_final <- rbind(decay_constants_final, decay_constants)
-```
+<!-- ```{r} -->
+<!-- # bind all particle dataframes -->
+<!-- decay_constants <- rbind(decays_pm1_final, decays_pm25_final, decays_pm10_final) -->
+<!-- ``` -->
 
-```{r}
-# Save final decay dataframe to CSV
-write.csv(decay_constants_final, "summary/HAFTRAP/OH/OH_M_decay.csv")
-```
+<!-- ```{r} -->
+<!-- # add to overall df -->
+<!-- decay_constants_final <- rbind(decay_constants_final, decay_constants) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # Save final decay dataframe to CSV -->
+<!-- write.csv(decay_constants_final, "summary/HAFTRAP/OH/OH_M_decay.csv") -->
+<!-- ``` -->
