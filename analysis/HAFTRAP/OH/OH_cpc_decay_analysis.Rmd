@@ -1,5 +1,14 @@
+# HAFTRAP Decay Analysis (for CPC)
+
+## STOP
+
+**HAVE YOU RUN `OH_cpc_cleaning`?**
+*This file loads a dataframe created from running `OH_cpc_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to find decay constants for the HAFTRAP CPC data.
+
 ```{r}
-# Imports
+# import necessary libraries
 library(tidyverse)
 library(pracma)
 library(dplyr)
@@ -43,10 +52,12 @@ df <- main_df %>%
 ```
 
 ```{r}
+# round date to nearest ten minutes
 df$date <- round_date(df$date, unit = "10 mins")
 ```
 
 ```{r}
+# fill any gaps in data
 df <- df %>%
   fill_gaps(frequency = "10 min") %>%
   mutate(t = as.numeric(date) - as.numeric(date)[1]) %>%
@@ -73,6 +84,7 @@ sum_df <- summary_dataframe(df)
 
 ```{r}
 # find peaks for each particle and store in new dataframes
+## can change values to accomodate dataset (mainly modify minpeakheight)
 peaks <- findpeaks(sum_df$mean,
                    nups = 1,
                    ndowns = 1,
@@ -99,7 +111,8 @@ get_first_valleys <- function(data, peaks, min_threshold) {
         n <- FALSE
       } else {
         # otherwise, get slope (approximately)
-        # checks that next three points are going up to consider it a valley
+        # checks that next 1/2/3 points are positive to consider it a valley
+        ## change # of + points depending on how messy the data is
         slope <- data[idx + 1] - data[idx]
         slope2 <- data[idx + 2] - data[idx + 1]
         slope3 <- data[idx + 3] - data[idx + 2]
@@ -126,7 +139,7 @@ valleys <- get_first_valleys(sum_df$mean, peaks, valley_threshold)
 ```
 
 ```{r}
-# function for peak/valley filtering - if multiple peaks detect the same valley, remove everything but the last one
+# function for peak/valley filtering
 filter_peaks <- function(peaks, valleys) {
   
   peaks_valleys <- matrix(nrow = nrow(peaks), ncol = 4)
@@ -134,15 +147,18 @@ filter_peaks <- function(peaks, valleys) {
   peaks <- as.data.frame(peaks)
   valleys <- as.data.frame(valleys)
   
+ # arranges both peaks and valleys in descending order
   valleys <- valleys %>%
     arrange(desc(V2))
   peaks <- peaks %>%
     arrange(desc(V2))
   
+  # skips loop if there is only one peak
   if (nrow(peaks) == 1){
     peaks_valleys <- cbind(select(peaks, V1, V2), valleys)
   } else {
   
+    # if multiple peaks detect the same valley, removes all but the last peak
     for (row in 1:(nrow(peaks) - 1)) {
       if (valleys[[row, 1]] != valleys[[row + 1, 1]]) {
         
@@ -160,12 +176,13 @@ filter_peaks <- function(peaks, valleys) {
     peaks_valleys[nrow(peaks), 4] <- valleys[nrow(peaks), 2]
   }
   
+  # remove na values
   peaks_valleys <- na.omit(peaks_valleys)
   colnames(peaks_valleys) <- c("peaks_y", "peaks_x", "valleys_y", "valleys_x")
 
   peaks_valleys <- as.data.frame(peaks_valleys)
 
-  # remove row if valley > peak
+  # remove row if valley > peak or if final valley is above threshold
   peaks_valleys$results = ifelse(peaks_valleys$valleys_y > peaks_valleys$peaks_y | peaks_valleys$valleys_y > valley_threshold, NA, 1)
   peaks_valleys <- drop_na(peaks_valleys)
                 
@@ -174,6 +191,7 @@ filter_peaks <- function(peaks, valleys) {
 ```
 
 ```{r}
+# use function to filter peaks/valleys
 peaks_valleys <- filter_peaks(peaks, valleys)
 ```
 
@@ -221,6 +239,8 @@ curve_fitting <- function(data, peaks_valleys) {
         "k_val" = c(alpha),
         "conv_tol" = c(conv)
       )
+      # can uncomment the print to see what errors are happening
+      # otherwise, this ignores any errors
       }, error = function(e) { # print(e)
       }, warning = function(w) {
       }, finally = {
@@ -258,30 +278,34 @@ plot_peaks_valleys(sum_df$mean, peaks_valleys)
 decays <- curve_fitting(sum_df$mean, peaks_valleys)
 ```
 
+# Code for dealing with final decay constants
+## comment out when testing values (only run this section when ready to save 
+data for a participant)
+```{r}
+# uncomment and run once at the beginning to create a new empty df
+# decay_constants_final <- matrix(nrow = 0, ncol = 4)
+```
 
+```{r}
+# function to add columns to specify case and participant
+modify_df <- function(df) {
+  df %>%
+    add_column(case = cases) %>%
+    add_column(participant = participants)
+}
+```
 
-<!-- ```{r} -->
-<!-- modify_df <- function(df) { -->
-<!--   df %>% -->
-<!--     add_column(case = cases) %>% -->
-<!--     add_column(participant = participants) -->
-<!-- } -->
-<!-- ``` -->
+```{r}
+# use function to add columns to dataframe
+decay_constants <- modify_df(decays)
+```
 
-<!-- ```{r} -->
-<!-- decay_constants <- modify_df(decays) -->
-<!-- ``` -->
+```{r}
+# add to overall df
+decay_constants_final <- rbind(decay_constants_final, decay_constants)
+```
 
-<!-- ```{r} -->
-<!-- # add to overall df and save -->
-<!-- decay_constants_final <- rbind(decay_constants_final, decay_constants) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- save(decay_constants_final, file = paste0(path_to_data, "decay_constants_cpc.RData")) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- # decay_constants_final <- matrix(nrow = 0, ncol = 4) -->
-<!-- ``` -->
-
+```{r}
+# Save final decay dataframe to CSV
+write.csv(decay_constants_final, "summary/HAFTRAP/OH/OH_C_decay.csv")
+```

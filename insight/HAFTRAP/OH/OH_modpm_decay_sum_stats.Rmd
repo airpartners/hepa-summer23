@@ -1,3 +1,11 @@
+# HAFTRAP Summary Statistics for Decay Data (for Mod-PM)
+
+## STOP
+
+**HAVE YOU RUN `OH_modpm_decay_analysis`?**
+*This file loads a dataframe created from running `OH_modpm_decay_analysis`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to calculate summary statistics from the decay constants for the HAFTRAP Mod-PM data.
 
 ```{r, setup, include=FALSE}
 # set working directory
@@ -13,14 +21,10 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/cpc/"
+path_to_data <- "summary/HAFTRAP/OH/"
 
-# Load modpm data from RData file
-load(paste0(path_to_data, "decay_constants_cpc.RData"))
-```
-
-```{r}
-decay_constants <- decay_constants_final
+# Load modpm data from csv file
+decay_constants <- read.csv(paste0(path_to_data, "OH_M_decay.csv"))
 ```
 
 ```{r}
@@ -29,10 +33,12 @@ decay_constants$peak_wdth <- decay_constants$valley_idx - decay_constants$peak_i
 ```
 
 ```{r}
+# filter out decays constants greater than 2
 decay_constants <- decay_constants[decay_constants$k_val < 2, ]  
 ```
 
 ```{r}
+# function to calculate mean, median, and sd for k-value, peak width, and peak height
 my_summarise <- function(grouped_df) {
   grouped_df %>%
     summarise(mean_k = mean(k_val),
@@ -51,17 +57,17 @@ my_summarise <- function(grouped_df) {
 ```{r}
 # Calculate summary statistics for each participant
 participant_summary <- decay_constants %>%
-  # Group by participant ID, case, environment, and type
-  group_by(participant, case) %>%
+  # Group by participant ID, case, and particle
+  group_by(participant, case, particle) %>%
   # Calculate summary statistics
   my_summarise()
 ```
 
 ```{r}
 # Calculate summary statistics over all the data
-overall_summary <- decay_constants %>%
-  # Group by case, environment, and type
-  group_by(case) %>%
+particle_summary <- decay_constants %>%
+  # Group by case and particle
+  group_by(case, particle) %>%
   # Calculate summary statistics
   my_summarise() %>%
   # Add participant ID column as 'all'
@@ -69,14 +75,29 @@ overall_summary <- decay_constants %>%
 ```
 
 ```{r}
-# Bind together participant, particle, and overall summary statistics
-summary <- rbind(participant_summary, overall_summary)
+# Calculate summary statistics over all the data
+overall_summary <- decay_constants %>%
+  # Group by case
+  group_by(case) %>%
+  # Calculate summary statistics
+  my_summarise() %>%
+  # Add participant column as 'all'
+  mutate(participant = "all") %>%
+  # Add particle column as 'all'
+  mutate(particle = "all")
 ```
 
 ```{r}
+# Bind together participant, particle, and overall summary statistics
+summary <- rbind(participant_summary, particle_summary, overall_summary)
+```
+
+```{r}
+# create new column for particle type
 summary <- pivot_longer(summary, mean_k:sd_wdth,
                names_to = c(".value", "type"), names_sep = "_")
 ```
+
 
 ### Calculate percentage reduction in concentration from sham to hepa
 Follows the same logic as calculating indoor-outdoor ratios. Spread to form 
@@ -104,11 +125,11 @@ summary_wide <- summary_wide %>%
 ```
 
 ```{r}
+# multiply k-val reduction values by -1 to make it percent increase
 summary_wide$mean_redu[summary_wide$type == 'k'] <- summary_wide$mean_redu*(-1)
 summary_wide$median_redu[summary_wide$type == 'k'] <- summary_wide$median_redu*(-1)
 summary_wide$sd_redu[summary_wide$type == 'k'] <- summary_wide$sd_redu*(-1)
 ```
-
 
 ```{r}
 summary_wide %>%
@@ -120,4 +141,12 @@ summary_wide %>%
   filter_all(all_vars(!is.infinite(.))) -> summary_normal
 ```
 
+```{r}
+# create a new decay folder (might already exist)
+dir.create("artifacts/decay")
+```
 
+```{r}
+# Save final decay summary dataframe to CSV
+write.csv(summary_normal, "artifacts/decay/OH_M_decay_summary.csv")
+```
