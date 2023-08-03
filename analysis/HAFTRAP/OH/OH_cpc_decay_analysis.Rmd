@@ -17,7 +17,7 @@ library(zoom)
 
 ```{r, setup, include=FALSE}
 # set working directory
-knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
 ```
 
 ```{r}
@@ -28,18 +28,14 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 ```
 
 ```{r}
-# Set path to data
-path_to_data <- "data/HAFTRAP/OH/cpc/"
-
 # Load modpm data from RData file
-load(paste0(path_to_data, "cleaned_cpc.RData"))
+load(paste0("cleaning/HAFTRAP/OH/", "cleaned_cpc.RData"))
 ```
 
 ```{r}
 # vector of participant numbers' data to be processed (modify to analyze specific participants)
 participants <- "45451"
 cases = "sham"
-# ("41271", "42281", "44621", 45361", "45451")
 ```
 
 ```{r}
@@ -284,26 +280,26 @@ data for a participant)
 # decay_constants_final <- matrix(nrow = 0, ncol = 4)
 ```
 
-```{r}
-# function to add columns to specify case and participant
-modify_df <- function(df) {
-  df %>%
-    add_column(case = cases) %>%
-    add_column(participant = participants)
-}
-```
+<!-- ```{r} -->
+<!-- # function to add columns to specify case and participant -->
+<!-- modify_df <- function(df) { -->
+<!--   df %>% -->
+<!--     add_column(case = cases) %>% -->
+<!--     add_column(participant = participants) -->
+<!-- } -->
+<!-- ``` -->
 
-```{r}
-# use function to add columns to dataframe
-decay_constants <- modify_df(decays)
-```
+<!-- ```{r} -->
+<!-- # use function to add columns to dataframe -->
+<!-- decay_constants <- modify_df(decays) -->
+<!-- ``` -->
 
-```{r}
-# add to overall df
-decay_constants_final <- rbind(decay_constants_final, decay_constants)
-```
+<!-- ```{r} -->
+<!-- # add to overall df -->
+<!-- decay_constants_final <- rbind(decay_constants_final, decay_constants) -->
+<!-- ``` -->
 
-```{r}
-# Save final decay dataframe to CSV
-write.csv(decay_constants_final, "summary/HAFTRAP/OH/OH_C_decay.csv")
-```
+<!-- ```{r} -->
+<!-- # Save final decay dataframe to CSV -->
+<!-- write.csv(decay_constants_final, "summary/HAFTRAP/OH/OH_C_decay.csv") -->
+<!-- ``` -->

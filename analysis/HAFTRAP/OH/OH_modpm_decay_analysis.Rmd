@@ -17,7 +17,7 @@ library(zoom)
 
 ```{r, setup, include=FALSE}
 # set working directory
-knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
 ```
 
 ```{r}
@@ -28,20 +28,14 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 ```
 
 ```{r}
-# Set path to data
-path_to_data <- "data/HAFTRAP/OH/modpm/"
-
 # Load modpm data from RData file
-load(paste0(path_to_data, "cleaned_modpm.RData"))
+load(paste0("cleaning/HAFTRAP/OH/", "cleaned_modpm.RData"))
 ```
 
 ```{r}
 # vector of participant numbers' data to be processed (modify to analyze specific participants)
 participants <- "41181"
 cases = "sham"
-
-# ("41181", "41271", "42231", "42281", "42301", "42321",
-# "44241", "44621", "45361", "45411", "45451", "46591")
 ```
 
 ```{r}
@@ -53,7 +47,7 @@ main_df <- filter(main_df, case == cases & environment == "indoor")
 main_df$date <- round_date(main_df$date, unit = "10 mins")
 
 # fill any gaps in data
-main_df %>%
+main_df <- main_df %>%
   fill_gaps(7, frequency = "10 mins") %>%
   mutate(t = as.numeric(date) - as.numeric(date)[1]) %>%
   fill(pm1, pm25, pm10)
