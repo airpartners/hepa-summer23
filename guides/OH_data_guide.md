@@ -25,14 +25,14 @@ To run the code in `cleaning`, `analysis`, and `insight`, three things are requi
 
 1. Install R and RStudio
 2. Set up Github and clone [this project's repository](https://github.com/airpartners/hepa-summer23/)
-3. Install the following packages into RStudio: `tidyverse`, `readxl`,`data.table`, `scales`, `corrr`.
+3. Install the following packages into RStudio: `tidyverse`, `readxl`,`data.table`, `scales`, `corrr`, `pracma`, `forecastML`, `zoom`.
 
 Optionally, it will make life vastly easier for you if you can get [Github working through RStudio](https://happygitwithr.com/rstudio-git-github.html).
 
-This guide also assumes access to the appropriate folders from the Air Partners Google Drive, and ff you want to download and add new data from Mod-PM sensors (described soon) you will also need to be set up appropriately with QuantAQ.
+This guide also assumes access to the appropriate folders from the Air Partners Google Drive, and if you want to download and add new data from Mod-PM sensors (described soon) you will also need to be set up appropriately with QuantAQ.
 
 ## Data Pipeline
-Unlike the main data guide, this description of the pipeline focuses on *understanding the files and getting the code to run*. Before we dive in, look at the following figure that outlines all the files in the entire pipeline:
+Unlike the main data guide, this description of the pipeline focuses on *understanding the files and getting the code to run*. Before we dive in, look at the following figure that outlines all the files (except the decay analysis files - added last-minute) in the entire pipeline:
 
 <img src="../.img/.OH_files.jpg"/>
 
@@ -181,6 +181,9 @@ If the past two rather dull sections on data organization and cleaning have made
 * `OH_timeplots.Rmd`: Quick script to generate time-series plots for a single participant with some summary statistics overlaid
 * `OH_modpm_diurnal_plotting.Rmd`: Generates diurnal plots for the different particle measurements for Mod-PM sensors.
 * `OH_cpc_diurnal_plotting.Rmd`: Generates diurnal plots for the UFP Count for CPC sensors.
+* `OH_modpm_decay_analysis.Rmd`: Calculates the decay constants for the peaks in the indoor data for Mod-PM sensors
+* `OH_cpc_decay_analysis.Rmd`: Calculates the decay constants for the peaks in the indoor data for CPC sensors
+
 
 Adding new data to any plot or table (assuming all previous steps have been followed correctly) is simply a matter of re-running the relevant script! Let's dive into a little more detail into the scripts, generally categorizing the scripts based on whether they are used for summarizing or plotting.
 
@@ -190,6 +193,8 @@ Three scripts in `analysis/HAFTRAP/OH` are used to generate new tables of summar
 1) `OH_modpm_all_stats.Rmd` and `OH_cpc_all_stats.Rmd` both do the same calculations, except that one does it for the five measurement variables (`pm1`, `pm25`, `pm10`, `pm1num`, `temp`) in Mod-PM data and the other does it for the two variables (`concent`, `inlttmp`) in CPC data. For each of the variables, the scripts calculate the mean, median, 5th, 25th, 75th, and 95th percentiles. This is done for *each participant* **and** *overall data*. Next, the scripts calculate the percentage reduction in each of those summary statistics from `sham` to `hepa`. The resulting dataframes are stored in `summary/HAFTRAP/OH` as `s_OH_M_quants.csv` and `s_OH_C_quants.csv` respectively.
 
 2) `OH_modpm_cpc_corrs.Rmd` calculates the Pearson's correlation coefficient between different variables for the `sham` and `hepa` cases separately. The correlation coefficients are calculated for 10 minute averages of all the variables (to allow time for mixing and therefore fair comparison). The script uses both CPC and Mod-PM data for participants specified in `OH_participants.xlsx`. It outputs a CSV file `s_OH_MC_corr.csv` which contains correlation coefficients both for each participant *and* overall. In addition, the script also outputs an untracked dataframe `merged.RData` into the `summary` folder which contains the 10-minute average of Mod-PM and CPC data time-synced and merged.
+
+3) `OH_modpm_decay_analysis.Rmd` and `OH_cpc_decay_analysis.Rmd` both do the same calculations, except that one does it for three measurement variables (`pm1`, `pm25`, `pm10`) in Mod-PM data and the other does it for ultrafine particle count (`concent`) in CPC data. For each of the variables, the scripts find the decay constants, peak width, and peak height. This is done for *each participant* **and** *overall data*. For the decay analysis files, the method of saving data is a bit more complicated. Much of the decay analysis is a process of testing out thresholds and variables for each participant and case. Because of this, the final code to save the decay constants is commented out to start. When starting decay analysis for a new location, run the first line of code in the final section to create a new empty dataframe. Then, for each participant, after the code is tested and the peaks/valleys are visually checked, uncomment the final code section and run it. This will append it to the existing decay data. After this, the decay constants and other relevant information will be saved to a CSV in the summary folder and can be used to compute summary statistics for the decay constants. The resulting dataframes are stored in `summary/HAFTRAP/OH` as `s_OH_M_decay.csv` and `s_OH_C_decay.csv` respectively.
 
 ### Plotting
 Other than `OH_timeplots.Rmd` (where output isn't saved), the output from all the plotting scripts is stored in `artifacts`. The plots are generated for the overall data for both Mod-PM and CPC including all participants for specific variables.
@@ -212,7 +217,7 @@ The plots are stored in `artifacts/HAFTRAP/OH/diurnals`.
 
 
 ## Summary Data (`summary`)
-Summary data is the output of the code in `analysis` and contains just four files - three CSV files tracked by Github (and therefore present in your cloned repository) and one untracked `.RData` file.
+Summary data is the output of the code in `analysis` and contains just six files - five CSV files tracked by Github (and therefore present in your cloned repository) and one untracked `.RData` file.
 
 ### Summary Statistics
 Both `s_OH_M_quants.csv` and `s_OH_C_quants.csv` contain the exact same columns.
@@ -245,8 +250,11 @@ Thankfully, the file `s_OH_MC_corr.csv` which has the correlation coefficients c
 
 Additionally, an untracked dataframe `merged.RData` is also stored in this folder. This contains cleaned time-series data for both Mod-PM and CPC, averaged over 10 minutes, and merged over `date`, `participant_id`, `case` and `environment`. It therefore has all the variables from `cleaned_modpm.Rdata` *and* `cleaned_cpc.RData`, and it's used in a script in `insight`.
 
+### Decay Analysis
+The two decay analysis files don't contain summary statistics, but rather computed decay constant values - all the values for every peak.
+
 ## Final Insights (`insight`)
-You're almost there! The number of files in this component is a shocking twelve
+You're almost there! The number of files in this component is a shocking fourteen
 ... minus ten. We'll be done before you know it.
 
 `OH_efficacy.Rmd` might be the fastest-running script in Olin HAFTRAP. That's because it doesn't compute anything - all it does is extract the percentage reductions in mean, median, 5th, 25th, 75th, and 95th percentiles for each of PM 1 Concentration, PM 2.5 Concentration, PM 10 Concentration, PM 1 Particle Count (from `s_OH_M_quants.csv`), and UFP Count (from `s_OH_C_quants.csv`) for *the overall data* and collate it into a table which is saved in a CSV. It does this for both indoor reading and indoor/outdoor ratio, resulting in two output CSVs `OH_indoor_reduction.csv` and `OH_ratio_reduction.csv` stored in `artifacts/HAFTRAP/OH/reduction`. Additionally, it generates a snazzy heatmap graph for each table which it also saves in `reduction`. This script might be simple but it's very important since these tables provide an overview of the efficacy of the air purifiers in reducing pollutant levels indoors - arguably the main point of this entire analysis.
@@ -267,6 +275,8 @@ Remember, we care about the correlation between indoor CPC Particle Count (`conc
 
 All the plots from this script (including the time-series plot) are stored in `artifacts/HAFTRAP/OH/scatterplot`.
 
+Finally, `OH_modpm_decay_sum_stats.Rmd` and `OH_cpc_decay_sum_stats.Rmd` calculate summary statistics of all the decay constants, peak heights, and peak widths - for Mod-PM and CPC respectively.
+
 ## Artifacts (`artifacts`)
 This component is essentially a dumping ground and doesn't contain anything that hasn't already been covered, but the key thing to remember is that this folder is **untracked** by Github and *no online copy exists of this anywhere* (at least as of the writing of this guide), so if you want the files in this folder, you would need to run all the relevant scripts in the correct order.
 
@@ -278,6 +288,7 @@ Lastly, as a recap, here's the folders expected in `artifacts/HAFTRAP/OH`:
 * `reduction` contains two heatmaps and two CSV files from `OH_efficacy.Rmd` that summarize overall percentage reduction in pollutant levels by the air purifiers
 * `scatterplot` contains a variety of scatterplots with one or two lines of best fit, as well as a time-series plot of PM 2.5 vs. UFP.
 * `violinplot` contains violinplots generated from `OH_violinplot.Rmd`
+* `decay` contains csv files of summary statistics of decay constants
 
 ---
 
