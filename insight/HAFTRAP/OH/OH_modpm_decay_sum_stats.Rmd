@@ -9,7 +9,7 @@ This file is used to calculate summary statistics from the decay constants for t
 
 ```{r, setup, include=FALSE}
 # set working directory
-knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
+knitr::opts_knit$set(root.dir = 'C:/Users/vkuchhal/Documents/hepa-summer23')
 ```
 
 ```{r}
@@ -143,10 +143,11 @@ summary_wide %>%
 
 ```{r}
 # create a new decay folder (might already exist)
-dir.create("artifacts/decay")
+path_name <- "artifacts/HAFTRAP/OH/decay"
+dir.create(path_name)
 ```
 
 ```{r}
 # Save final decay summary dataframe to CSV
-write.csv(summary_normal, "artifacts/decay/OH_M_decay_summary.csv")
+write.csv(summary_normal, paste0(path_name, "/OH_M_decay_summary.csv"))
 ```
