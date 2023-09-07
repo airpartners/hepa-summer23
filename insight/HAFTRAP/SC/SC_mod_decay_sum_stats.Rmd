@@ -1,0 +1,153 @@
+# HAFTRAP Summary Statistics for Decay Data (for Modulair)
+
+## STOP
+
+**HAVE YOU RUN `SC_mod_decay_analysis`?**
+*This file loads a dataframe created from running `SC_mod_decay_analysis`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to calculate summary statistics from the decay constants for the SCOPE HAFTRAP Modulair data.
+
+```{r, setup, include=FALSE}
+# set working directory
+knitr::opts_knit$set(root.dir = '/home/sjatti/Desktop/hepa-summer23')
+```
+
+```{r}
+# check file path for working directory
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/HAFTRAP/SC/"
+
+# Load modpm data from csv file
+decay_constants <- read.csv(paste0(path_to_data, "SC_M_decay.csv"))
+```
+
+```{r}
+# calculate peak width w/ peak and valley indices
+decay_constants$peak_wdth <- decay_constants$valley_idx - decay_constants$peak_idx
+```
+
+```{r}
+# filter out decays constants greater than 2
+decay_constants <- decay_constants[decay_constants$k_val < 2, ]  
+```
+
+```{r}
+# function to calculate mean, median, and sd for k-value, peak width, and peak height
+my_summarise <- function(grouped_df) {
+  grouped_df %>%
+    summarise(mean_k = mean(k_val),
+            median_k = median(k_val), 
+            sd_k = sd(k_val),
+            mean_hgt = mean(peak_hgt),
+            median_hgt = median(peak_hgt), 
+            sd_hgt = sd(peak_hgt),
+            mean_wdth = mean(peak_wdth),
+            median_wdth = median(peak_wdth), 
+            sd_wdth = sd(peak_wdth),
+            .groups = 'drop')
+}
+```
+
+```{r}
+# Calculate summary statistics for each participant
+participant_summary <- decay_constants %>%
+  # Group by participant ID, case, and particle
+  group_by(participant, case, particle) %>%
+  # Calculate summary statistics
+  my_summarise()
+```
+
+```{r}
+# Calculate summary statistics over all the data
+particle_summary <- decay_constants %>%
+  # Group by case and particle
+  group_by(case, particle) %>%
+  # Calculate summary statistics
+  my_summarise() %>%
+  # Add participant ID column as 'all'
+  mutate(participant = "all")
+```
+
+```{r}
+# Calculate summary statistics over all the data
+overall_summary <- decay_constants %>%
+  # Group by case
+  group_by(case) %>%
+  # Calculate summary statistics
+  my_summarise() %>%
+  # Add participant column as 'all'
+  mutate(participant = "all") %>%
+  # Add particle column as 'all'
+  mutate(particle = "all")
+```
+
+```{r}
+# Bind together participant, particle, and overall summary statistics
+summary <- rbind(participant_summary, particle_summary, overall_summary)
+```
+
+```{r}
+# create new column for particle type
+summary <- pivot_longer(summary, mean_k:sd_wdth,
+               names_to = c(".value", "type"), names_sep = "_")
+```
+
+
+### Calculate percentage reduction in concentration from sham to hepa
+Follows the same logic as calculating indoor-outdoor ratios. Spread to form 
+sham/hepa columns that are used to calculate percent reduction in corresponding
+summary pollution concentrations. Then gather dataframe back to original shape.
+```{r}
+# Spread: Create separate sham, hepa summary statistics columns
+summary_wide <- pivot_wider(summary, 
+                            names_from = case, values_from = mean:sd)
+
+# Calculate percentage reduction in all summary statistics
+summary_redu <- 100*(select(summary_wide, ends_with("sham")) - 
+  select(summary_wide, ends_with("hepa"))) / 
+  select(summary_wide, ends_with("sham"))
+
+# Rename computed columns to 'redu' for percentage reduction
+colnames(summary_redu) <- sub("sham", "redu", colnames(summary_redu))
+```
+
+```{r}
+# Reshape data and pipe into variable 'summary_normal'
+summary_wide <- summary_wide %>%
+  # Merge back with joined data-frame
+  cbind(summary_redu)
+```
+
+```{r}
+# multiply k-val reduction values by -1 to make it percent increase
+summary_wide$mean_redu[summary_wide$type == 'k'] <- summary_wide$mean_redu*(-1)
+summary_wide$median_redu[summary_wide$type == 'k'] <- summary_wide$median_redu*(-1)
+summary_wide$sd_redu[summary_wide$type == 'k'] <- summary_wide$sd_redu*(-1)
+```
+
+```{r}
+summary_wide %>%
+  # Gather: Return to original shape by removing the 'sham/hepa/redu'
+  # suffixes by re-forming the case variable
+  pivot_longer(mean_hepa:sd_redu,
+               names_to = c(".value", "case"), names_sep = "_") %>%
+  # Filter out all NaN and Inf values
+  filter_all(all_vars(!is.infinite(.))) -> summary_normal
+```
+
+```{r}
+# create a new decay folder (might already exist)
+path_name <- "artifacts/HAFTRAP/OH/decay"
+dir.create(path_name)
+```
+
+```{r}
+# Save final decay summary dataframe to CSV
+write.csv(summary_normal, paste0(path_name, "/OH_M_decay_summary.csv"))
+```
