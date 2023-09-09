@@ -185,18 +185,20 @@ df_round <- round_10min(main_df)
 
 ```{r}
 # Separate indoor and outdoor data
-df_indoor <- df_round %>% 
-  filter(environment == "indoor") %>%
-  select(-environment)
+df_indoor <- df_round %>%
+  filter(environment == "indoor")
 
-df_outdoor <- df_round %>% 
-  filter(environment == "outdoor") %>%
-  select(-environment)
+df_outdoor <- df_round %>%
+  filter(environment == "outdoor")
 
-df_merged <- left_join(x = df_indoor, y = df_outdoor, 
-                       by = join_by(date_round, case, participant_id), 
+# Merge data back in a left join, duplicate all the outdoor data
+df_merged <- left_join(x = df_indoor, y = df_outdoor,
+                       by = join_by(date_round, case, participant_id),
                        copy = TRUE, suffix = c("_indoor", "_outdoor")) %>%
-               select(-room_outdoor) %>% rename(room = room_indoor)
+  
+  # Remove redundant "room_outdoor", and environment columns
+  select(-contains(c("room_out", "env"))) %>% 
+  rename(room = room_indoor)
 
 # Divide indoor by outdoor to calculate ratios
 df_ratio <- select(df_merged, ends_with("indoor"))/
