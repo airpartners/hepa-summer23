@@ -177,28 +177,39 @@ main_df <- case_df
 
 ### Calculate ratio of indoor and outdoor concentration
 To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that are then divided by each other to calculate the ratio. After calculating the ratio, the dataframe is 'gathered' back up to its original shape.
+
 ```{r}
 # Round over 10 minute averages
 df_round <- round_10min(main_df)
+```
 
-# Spread: Create separate indoor and outdoor columns for measurements
-df_round_wide <- pivot_wider(df_round,
-                  names_from = environment,
-                  values_from = c(pm1, pm25, pm10, pm1num, temp))
+```{r}
+# Separate indoor and outdoor data
+df_indoor <- df_round %>% 
+  filter(environment == "indoor") %>%
+  select(-environment)
+
+df_outdoor <- df_round %>% 
+  filter(environment == "outdoor") %>%
+  select(-environment)
+
+df_merged <- left_join(x = df_indoor, y = df_outdoor, 
+                       by = join_by(date_round, case, participant_id), 
+                       copy = TRUE, suffix = c("_indoor", "_outdoor")) %>%
+               select(-room_outdoor) %>% rename(room = room_indoor)
 
 # Divide indoor by outdoor to calculate ratios
-df_ratio <- select(df_round_wide, ends_with("indoor"))/
-  select(df_round_wide, ends_with("outdoor"))
+df_ratio <- select(df_merged, ends_with("indoor"))/
+  select(df_merged, ends_with("outdoor"))
 
 # Rename computed columns to ratio
 colnames(df_ratio) <- sub("_indoor", "", colnames(df_ratio))
 
 # Merge back with joined data-frame
-df_ratio <- cbind(df_round_wide, df_ratio) %>%
+df_ratio <- cbind(df_merged, df_ratio) %>%
                     select(!(ends_with("indoor") | ends_with("outdoor"))) %>%
                     mutate(environment = "ratio") %>%
                     rename(date = date_round)
-
 ```
 
 Run this code chunk only ONCE
