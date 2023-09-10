@@ -1,0 +1,146 @@
+# East Boston Diurnal Plotting (for Mod-PM)
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning`?**
+*This file loads a dataframe created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to create diurnal plots for the East Boston Mod-PM data.
+
+```{r}
+# import necessary libraries
+library(tidyverse)
+library(data.table)
+library(scales)
+```
+
+```{r, setup, include=FALSE}
+# set working directory
+knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
+```
+
+```{r}
+# check file path for working directory
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+## Main Code Run
+```{r}
+# Pre-processing to add relevant columns
+my_df <- main_df %>%
+  # Round date to nearest ten minutes
+  mutate(date_round = round_date(date, unit = "10 mins")) %>%
+  # Get day of the week as integer from 1 to 7
+  mutate(wkdy = wday(date)) %>%
+  # Classify as weekday or weekend
+  mutate(is_wknd = wkdy %in% c(1, 7)) %>%
+  # Extract time of the day from datetime
+  mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S"))
+  
+```
+
+```{r}
+# Calculate summary statistics for ever ten minutes
+graph_main_df <- my_df %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(c(pm1, pm25, pm10), 
+               names_to = "particle", values_to = "reading") %>%
+  # For every 10 minutes for given case, environment, particle, weekday/end
+  group_by(is_wknd, time, case, environment, particle) %>%
+  # Find summary statistics
+  summarise(mean = mean(reading),
+          median = median(reading), 
+          q5 = quantile(reading, probs = 0.05), 
+          q25 = quantile(reading, probs = 0.25),
+          q75 = quantile(reading, probs = 0.75),
+          q95 = quantile(reading, probs = 0.95),
+          sd = sd(reading),
+          .groups = 'drop')
+```
+
+```{r}
+# Function to create diurnal plots
+diurnal_plot <- function(data, case_str, env_str, pm_str) {
+  # Map from particle type to subscript string
+  lab <- c(pm1 = "1", pm25 = "2.5", pm10 = "10")
+  
+  # Filter data for specified particle, case, environment
+  data %>%
+    filter(particle == pm_str, case == case_str, environment == env_str) %>%
+  
+  # Make diurnal plot, x-axis as time
+  ggplot(aes(x = time)) +
+    # Plot the 5th-95th and 25th-75th percentiles
+    geom_ribbon(aes(ymin = q5, ymax = q95, fill = "#cfcfcf")) +
+    geom_ribbon(aes(ymin = q25, ymax = q75, fill = "#9a9a9a")) +
+    
+    # Plot the mean and median
+    geom_line(aes(y = mean, color = "red")) +
+    geom_line(aes(y = median, color = "blue")) +
+    
+    # Facet based on weekday vs. weekend
+    facet_grid(is_wknd ~ ., labeller = 
+                 as_labeller(c("TRUE" = "Weekend", "FALSE" = "Weekday"))) +
+    
+    # Label legend for mean and median
+    scale_color_identity(name = "Averages", breaks = c("red", "blue"),
+                         labels = c("Mean", "Median"), guide = "legend") +
+    
+    # Label legend for percentiles
+    scale_fill_identity(name = "Percentiles", breaks = c("#cfcfcf", "#9a9a9a"),
+                        labels = c("5th - 95th", "25th - 75th"),
+                        guide = "legend") +
+    
+    # Modify x-axis scaling
+    scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:00") +
+    
+    # Label title and axes 
+    labs(title = bquote(.(paste("Mod-PM Daily", str_to_title(env_str))) ~
+                          PM[.(lab[[pm_str]])] ~
+                          .(paste("Trends During", str_to_title(case_str),
+                                  "Period"))),
+         x = "Time of Day (hrs)",
+         y = bquote("PM"[.(lab[[pm_str]])]*" Concentration "(ug/m^3))) +
+    
+    # Set y-axis to log scale
+    scale_y_log10(limits = c(1e-2,1e2), labels = number_format()) +
+    
+    # Add fun theme
+    theme_bw() +
+    # Rotate x-axis labels for clarity
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) -> my_plot
+  
+  # Save plot
+  ggsave(filename = paste0("artifacts/EastBoston/MF/diurnals/", "MF_modpm_",
+                           pm_str, "_", case_str, "_", env_str, ".png"), 
+         plot = my_plot)
+  
+  # Display plot
+  my_plot
+}
+```
+
+```{r}
+# Plot all the diurnal plots
+for (case in c("before", "after")) {
+  for (env in c("indoor", "outdoor", "ratio")) {
+    for (particle in c("pm1", "pm25", "pm10")) {
+      print(diurnal_plot(graph_main_df, case, env, particle))
+      print(paste("Plotted", case, env, particle))
+    }
+  }
+}
+```

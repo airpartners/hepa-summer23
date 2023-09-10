@@ -1,0 +1,120 @@
+# Before vs. After HEPA installation - is there a difference?
+This notebook investigates whether the installation of air purifiers had a notable impact on indoor air quality across various summary metrics. It uses summary data found in `summary/EastBoston/MF`
+
+```{r}
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+path_to_data <- "summary/EastBoston/MF/"
+```
+
+## Plotting Function
+```{r}
+## Global variables for plotting function
+# Maps environment to title
+env_title <- list(indoor = "Reduction in Raw Indoor Readings", 
+                  ratio = "Reduction in Indoor/Outdoor Ratio")
+
+# Sets order for displaying particles in heatmap
+particle_order <- c("PM 1 Conc.", "PM 2.5 Conc.", "PM 10 Conc.", 
+                   "PM 1 Count", "UFP Count")
+# Sets order for displaying summary stats in heatmap
+summary_order <- c("Mean", "95th Percentile", "75th Percentile", "Median",
+                     "25th Percentile", "5th Percentile")
+
+plot_heatmap <- function(joined_data, env) {
+  # Pre-process data before ploting
+  joined_data %>%
+    # Reshape for heatmap
+    pivot_longer(mean:q95, names_to = "sum_type", values_to = "stat") %>%
+    
+    # Recode for accurate labels
+    mutate(type = recode(type, "pm1" = "PM 1 Conc.", "pm25" = "PM 2.5 Conc.", 
+                     "pm10" = "PM 10 Conc.", "pm1num" = "PM 1 Count",
+                     "concent" = "UFP Count"),
+         sum_type = recode(sum_type, "mean" = "Mean", "median" = "Median",
+                           "q5" = "5th Percentile", "q25" = "25th Percentile",
+                           "q75" = "75th Percentile", 
+                           "q95" = "95th Percentile")) %>%
+    
+    # Arrange axes in specified order
+    mutate(type = factor(type, levels = particle_order)) %>%
+    mutate(sum_type = factor(sum_type, levels = summary_order)) %>%
+
+    # Plot heatmap
+    ggplot(aes(x = type, y = sum_type)) +
+      # Fill with value of stat
+      geom_tile(aes(fill = stat)) +
+      # Print in value of stat
+      geom_text(aes(label = paste0(round(stat, 1), "%"))) +
+    
+      # Set color scale
+      scale_fill_gradient2(low = "#ff7f7f", high = "#DeF7E9", mid = "white") +
+      # Set axis labels, title
+      labs(title = env_title[[env]], 
+           x = "Particle Type", y = "Summary Statistic", 
+           fill = "Reduction (%)") +
+      # Set theme
+      theme_minimal() -> my_plot
+  # Save plot
+  ggsave(filename = paste0("artifacts/HAFTRAP/OH/reduction/", "OH_", env,
+                           "_heatmap.png"), plot = my_plot)
+  # Display plot
+  my_plot
+}
+```
+
+## Load Data
+
+### Mod-PM
+```{r}
+filepath <- paste0(path_to_data, "s_MF_M_quants.csv")
+modpm_stats <- read_csv(filepath, show_col_types = FALSE)
+```
+
+### Reduction in Raw Indoor Concentrations
+```{r}
+joined_indoor <- modpm_stats %>%
+  filter(participant_id == "all", environment == "indoor", case == "redu") %>%
+  filter(type %in% c("pm1", "pm25", "pm10", "pm1num", "concent"))
+```
+
+### Reduction in Indoor/Outdoor Ratio
+```{r}
+# Calculate CPC, Mod-PM averages for I/O ratio
+joined_ratio <- modpm_stats %>%
+  filter(participant_id == "all", environment == "ratio", case == "redu") %>%
+  filter(type %in% c("pm1", "pm25", "pm10", "pm1num", "concent"))
+```
+
+## Making pretty tables
+```{r}
+plot_heatmap(joined_indoor, "indoor")
+plot_heatmap(joined_ratio, "ratio")
+```
+
+
+
+## Save to file
+Save the two tables with efficacy in CSV files
+```{r}
+# Save summary statistic files to CSVs
+write.csv(joined_indoor,
+          "artifacts/EastBoston/MF/reduction/MF_indoor_reduction.csv")
+write.csv(joined_ratio,
+          "artifacts/EastBoston/MF/reduction/MF_ratio_reduction.csv")
+```
+
