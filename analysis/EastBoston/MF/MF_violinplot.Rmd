@@ -1,0 +1,185 @@
+# East Boston Plotting Violinplots
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning`?**
+*This file loads dataframes created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to plot boxplots using all the Mod-PM data from the Mothers
+Out Front pilot in East Boston.
+
+Plots can be found here and saved in the folder`artifacts/EastBoston/MF/violinplot`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Path to data
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+## Load data
+
+Mod-PM
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+
+# Create copy of main_df, and delete original
+modpm_df <- main_df
+rm(main_df)
+```
+
+## Plotting for Indoor and Outdoor raw concentrations
+Define lists for plot titles
+```{r}
+titles_raw <- list(pm1 = "PM 1 Concentration", pm25 = "PM 2.5 Concentration",
+               pm10 = "PM 10 Concentration", pm1num = "PM 1 Particle Count",
+               concent = "CPC Particle Count")
+
+titles_ratio <- list(pm1 = "PM 1 I/O Ratio", pm25 = "PM 2.5 I/O Ratio",
+               pm10 = "PM 10 I/O Ratio", pm1num = "PM 1 Count I/O Ratio",
+               concent = "CPC Count I/O Ratio")
+```
+
+## Helper functions:
+### Plotting function
+The following function plots the raw data for a given dataset
+```{r}
+plot_raw <- function(df_united, p_type, val) {
+  # Filter dataset for particle type, dropping NaNs and Infs
+  df_united %>% 
+    filter(type == p_type, is.finite(reading)) %>%
+    # Order sham then hepa by creating factors
+    mutate(across(case, function(x) factor(x, levels=c("before", "after")))) %>%
+    
+  # Plot filtered indoor data
+  ggplot() +
+    # Create violinplot
+    geom_violin(aes(x = situation, y = reading, fill = case)) +
+    # Convert y-axis scale to log
+    scale_y_continuous(trans = "log10") +
+    # Set title, caption with percentage reduction
+    labs(title = paste("Overall", titles_raw[[p_type]]),
+         caption = paste0("Mean reduction = ", round(val, 1), "%")) -> my_plot
+  
+  # Save plot
+  ggsave(filename = paste0("artifacts/EastBoston/MF/violinplot/", "OH_", p_type,
+                           "_raw.png"), plot = my_plot)
+  
+  # Display plot
+  my_plot
+}
+```
+
+### Percentage reduction calculating
+The following function calculates mean percentage reduction for a specified particle type. 
+
+Note: this function doesn't calculate overall reduction, but the mean of the mean reductions for each participant. Done for consistency with output of `OH_efficacy`.
+```{r}
+# Calculate mean percentage reduction for particle in environment
+get_redu <- function(df, env, p_type) {
+  vals <- df %>% 
+    # Filter relevant environment
+    filter(environment == env) %>%
+    # Calculate mean for each case for each participant
+    group_by(case, participant_id) %>% 
+    summarize(across(all_of(p_type), mean))
+  
+  # Calculate percentage reduction for each participant and store in vector
+  vec <- 100 * (vals[vals$case == "before", 3] - vals[vals$case == "after", 3])/
+    vals[vals$case == "before", 3]
+  
+  # Return mean of vector (indexing cause vector is technically a dataframe)
+  mean(vec[[1]])
+}
+```
+
+
+### Mod-PM
+```{r}
+# Filter, order data appropriately
+modpm_united <- modpm_df %>%
+  filter(environment != "ratio") %>%
+  unite("situation",environment, case, sep = ", ", remove = FALSE) %>%
+
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(c(pm1, pm25, pm10, pm1num, temp), 
+               names_to = "type", values_to = "reading")
+```
+
+Plotting for Mod-PM
+```{r}
+for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  # Calculate percentage reduction
+  val <- get_redu(modpm_df, "indoor", p_type)
+  # Plot data
+  print(plot_raw(modpm_united, p_type, val))
+}
+```
+## Plotting for Indoor/Outdoor Ratio
+### Plotting function
+The following function plots the indoor/outdoor ratio for a given dataset
+```{r}
+plot_ratio <- function(df_ratio, p_type, val) {
+  # Filter dataset for particle type, dropping NaNs and Infs
+  df_ratio %>% 
+    filter(type == p_type, is.finite(reading)) %>%
+    # Order sham then hepa by creating factors
+    mutate(across(case, function(x) factor(x, levels=c("before", "after")))) %>%
+    
+  # Plot filtered ratio data
+  ggplot() +
+    # Create violinplot
+    geom_violin(aes(x = case, y = reading, fill = case)) +
+    # Convert y-axis scale to log
+    scale_y_continuous(trans = "log10") +
+    # Set title, caption with percentage reduction
+    labs(title = paste("Overall", titles_ratio[[p_type]]),
+         caption = paste0("Mean reduction = ", round(val, 1), "%")) -> my_plot
+  
+  # Save Plot
+  ggsave(filename = paste0("artifacts/EastBoston/MF/violinplot/", "MF_", p_type,
+                           "_ratio.png"), plot = my_plot)
+  
+  # Display plot
+  my_plot
+}
+```
+
+### Mod-PM
+```{r}
+# Filter, order data appropriately
+modpm_ratio <- modpm_df %>%
+  filter(environment == "ratio") %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(c(pm1, pm25, pm10, pm1num, temp), 
+               names_to = "type", values_to = "reading")
+```
+
+Plotting for Mod-PM
+```{r}
+for (p_type in c("pm1", "pm25", "pm10", "pm1num")) {
+  # Calculate percentage reduction
+  val <- get_redu(modpm_df, "ratio", p_type)
+  # Plot data
+  print(plot_ratio(modpm_ratio, p_type, val))
+}
+```
