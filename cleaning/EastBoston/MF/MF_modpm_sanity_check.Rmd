@@ -11,7 +11,7 @@ This file is used to sanity check data produced from `MF_modpm_cleaning`. Time-s
 Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
-library(ggplot2)
+library(tidyverse)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
@@ -103,7 +103,7 @@ for (env in c("indoor", "outdoor", "ratio")) {
       }
     } else {
         specify <- c(person, c, env)
-        plot_types(plot_df, specify, y_check)
+        plot_types(df, specify, y_check)
     }
     # Print
     print(paste("Plotted for", person, c, env))
