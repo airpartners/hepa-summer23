@@ -19,7 +19,7 @@ library(tidyverse)
 Set working directory
 NOTE: The working directory is dependent by user. 
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
@@ -72,7 +72,7 @@ main_df_long <- main_df %>%
 # Calculate summary statistics for each participant
 participant_summary <- main_df_long %>%
   # Group by participant ID, case, environment, and type
-  group_by(participant_id, case, environment, type) %>%
+  group_by(participant_id, case, environment, room, type) %>%
   # Calculate summary statistics
   my_summarise()
   
@@ -83,7 +83,7 @@ overall_summary <- main_df_long %>%
   # Calculate summary statistics
   my_summarise() %>%
   # Add participant ID column as 'all'
-  mutate(participant_id = "all")
+  mutate(participant_id = "all", room = NA)
 ```
 
 ```{r}
@@ -97,7 +97,7 @@ Follows the same logic as calculating indoor-outdoor ratios. Spread to form
 before/after columns that are used to calculate percent reduction in corresponding
 summary pollution concentrations. Then gather dataframe back to original shape.
 ```{r}
-# Spread: Create separate sham, hepa summary statistics columns
+# Spread: Create separate before, after summary statistics columns
 summary_wide <- pivot_wider(summary, 
                             names_from = case, values_from = mean:sd)
 

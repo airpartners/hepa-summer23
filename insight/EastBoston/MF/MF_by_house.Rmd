@@ -1,0 +1,37 @@
+# Before vs. After HEPA installation - is there a difference?
+This notebook collects the percentage reduction in PM 2.5 by every room in every house. Used for presentation with MOF. It uses summary data found in `summary/EastBoston/MF`
+
+```{r}
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+path_to_data <- "summary/EastBoston/MF/"
+```
+
+## Load Data
+
+### Mod-PM
+```{r}
+filepath <- paste0(path_to_data, "s_MF_M_quants.csv")
+modpm_stats <- read_csv(filepath, show_col_types = FALSE)
+```
+
+```{r}
+modpm_stats %>%
+  filter(type == "pm25", environment == "indoor", case == "redu") %>%
+  select(participant_id, room, mean)
+```
+
