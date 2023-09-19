@@ -1,0 +1,75 @@
+# Compare Kitchen and Play area for Participant 6
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning`?**
+*This file loads a dataframe created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to see if there is any correlation between the air particles in two rooms in the same house, one of them is a kitchen.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Paths
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file; loads as main_df
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+## Filter
+```{r}
+df <- main_df %>%
+      filter(participant_id == "6", case == "before", 
+             environment == "indoor")
+```
+
+## Separate Kitchen, Play Room
+```{r}
+df_kitchen <- df %>% filter(room == "kitchen")
+df_play <- df %>% filter(room == "play")
+```
+
+## Merge dataframes
+```{r}
+df_merged <- inner_join(df_kitchen, df_play, suffix = c("_kitchen", "_play"),
+                   by = join_by(date, participant_id, environment, case))
+```
+
+```{r}
+df_merged %>%
+  mutate(time_round = as.integer(hour(round_date(date, "4 hours")))) %>%
+  ggplot(aes(x = pm25_kitchen, y = pm25_play, color = factor(time_round))) +
+    # Scatter-plot
+    geom_point(alpha = 0.1) +
+    # # Lines of best fit
+    # geom_smooth(method=lm, se=FALSE) +
+    scale_color_manual(values = rainbow(6)) +
+    ylim(0, 200) +
+    xlim(0, 200)
+  
+```
+
+
