@@ -1,0 +1,167 @@
+# Modulair-PM Data Cleaning
+This file organizes HOBO data, which are in CSV files (one file has multiple deployments). Output is saved in a `hobo.RData` file that is *untracked* by Github. *All files that depend on using HOBO data must be run after running this file.*
+
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(readxl)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+## Helper functions
+```{r}
+# Function to reformat time-stamps to time object and round to nearest minute
+improve_timestamps <- function(df) {
+  df %>%
+    # Reformat timestamps to sensible format
+    mutate(date = as.POSIXct(date, tz = "America/New_York",
+                             format = "%m/%d/%y %I:%M:%S %p")) %>%
+    # Round times to nearest minute
+    mutate(date = round_date(date, unit = "minute"))
+}
+```
+
+```{r}
+include_participant <- function(df, person, cd) {
+  df %>%
+    # Select current participant
+    filter(participant_id == person) %>%
+    # Add case column
+    mutate(case = case_when(
+      # Before purifier is switched on
+      # Note: 'cd' is the table 'current_dates' in function call
+      between(date, cd$dt_start, cd$dt_hepa) ~ 'before',
+      # After purifier is switched on
+      between(date, cd$dt_hepa, cd$dt_end) ~ 'after'))
+}
+```
+
+```{r}
+include_case <- function(df, person, cd) {
+  df %>%
+    # Select current participant
+    filter(participant_id == person) %>%
+    # Add case column
+    mutate(case = case_when(
+      # Before purifier is switched on
+      # Note: 'cd' is the table 'current_dates' in function call
+      between(date, cd$dt_start, cd$dt_hepa) ~ 'before',
+      # After purifier is switched on
+      between(date, cd$dt_hepa, cd$dt_end) ~ 'after'))
+}
+```
+
+```{r}
+# Read summary table of times
+time_map <- read_excel("data/EastBoston/MF/MF_notes_summarized.xlsx") %>%
+  # Convert to appropriate variable types
+  mutate(across(c(dt_start, dt_hepa, dt_end), 
+                  ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
+  mutate(across(c(dt_start, dt_hepa, dt_end), 
+                  ~force_tz(.x, tz = "America/New_York")))
+```
+
+
+```{r}
+# Set path to data
+path_to_data <- "data/EastBoston/MF/hobo/"
+
+# Set data category
+data_cat <- "MF_H"
+```
+
+```{r, warning=FALSE}
+
+# Initialize master dataframe for all data
+all_df <- data.frame()
+
+# Loop through each participant
+for (file_name in list.files(path_to_data)) {
+  # Read csv
+  file_path <- paste0(path_to_data, file_name)
+  df <- read_csv(file_path, skip = 1, show_col_types = FALSE)
+  
+  # Remove unnecessary columns
+  df <- df[,2:8] %>% drop_na()
+  
+  # Rename columns
+  colnames(df) <- c("date", "voltage", "current", "power", "energy", 
+                    "power_app", "power_fact")
+  
+  # Convert timestamps to datetime
+  df <- improve_timestamps(df)
+  
+  # Extract serial number from file name
+  name_split <- strsplit(file_name, "[_.]")[[1]] %>% head(-1)
+  serial_no <- name_split[3]
+  
+  # Add serial number to dataframe
+  df <- mutate(df, sn_hobo = serial_no)
+  
+  # Append to main dataframe
+  all_df <- rbind(all_df, df)
+  
+  print(paste("Loaded HOBO logger", serial_no))
+  # parts <- time_map %>% filter(sn_hobo == serial_no)
+  
+  # # Add the participant ID, environment, and room (if present, else NA)
+  # df <- mutate(df, participant_id = person, environment = env, room = place)
+  # 
+  # # Append to main dataframe
+  # all_df <- rbind(all_df, df)
+  # 
+  # print(paste("Loaded participant", person, env, place))
+}
+```
+```{r}
+# Initialize master dataframe for all data
+clean_df <- data.frame()
+
+for (serial_no in unique(all_df$sn_hobo)) {
+  df <- all_df %>% filter(sn_hobo == serial_no)
+  parts <- time_map %>% filter(sn_hobo == serial_no)
+  
+  serial_df <- data.frame()
+  for (person in unique(parts$participant_id)) {
+    cd <- parts %>% filter(participant_id == person)
+    person_df <- df %>%
+      filter(between(date, cd$dt_start, cd$dt_end)) %>%
+      # Add case column
+      mutate(participant_id = person)
+    
+    serial_df <- rbind(serial_df, person_df)
+  }
+  clean_df <- rbind(clean_df, serial_df)
+}
+```
+
+```{r}
+# List of participants (by default all, feel free to set to custom)
+participants <- unique(clean_df$participant_id)
+
+# Filter by time to find whether before or after HEPA purifier installation
+case_df <- data.frame()
+for (person in participants) {
+  # Filter indoor (dates match outdoor) and by current participant
+  current_dates <- time_map %>% 
+    filter(environment == "outdoor") %>%
+    filter(participant_id == person)
+  # Filter by date for sham and hepa (see helper function)
+  df <- include_case(clean_df, person, current_dates)
+  # Append to overall dataframe
+  case_df <- rbind(case_df, df)
+}
+```

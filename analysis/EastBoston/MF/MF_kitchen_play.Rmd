@@ -61,6 +61,7 @@ df_merged <- inner_join(df_kitchen, df_play, suffix = c("_kitchen", "_play"),
 ```{r}
 df_merged %>%
   mutate(time_round = as.integer(hour(round_date(date, "4 hours")))) %>%
+  filter(time_round %in% c(8, 16, 20)) %>%
   ggplot(aes(x = pm25_kitchen, y = pm25_play, color = factor(time_round))) +
     # Scatter-plot
     geom_point(alpha = 0.1) +
