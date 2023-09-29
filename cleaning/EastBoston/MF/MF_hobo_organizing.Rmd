@@ -165,3 +165,14 @@ for (person in participants) {
   case_df <- rbind(case_df, df)
 }
 ```
+
+```{r}
+# More cleaning to come
+main_df <- case_df
+```
+
+### Save Data
+The `main_df` dataframe is saved to `cleaned_modpm.RData`
+```{r}
+save(main_df, file = paste0("cleaning/EastBoston/MF/", "cleaned_hobo.RData"))
+```
