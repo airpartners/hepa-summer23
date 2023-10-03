@@ -1,0 +1,58 @@
+# Summarize HOBO Data
+
+## STOP
+
+**HAVE YOU RUN `MF_hobo_cleaning`?**
+*This file loads a dataframe created from running `MF_hobo_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to sanity check data produced from `MF_hobo_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `MF_hobo_cleaning`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+Participant IDs
+```{r}
+# Get relevant participant IDs from MF_participants
+participants <- c("2", "3", "5", "6", "7", "8")
+```
+
+Paths
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file; loads as main_df
+load(paste0(path_to_data, "cleaned_hobo.RData"))
+```
+
+## Find means
+```{r}
+main_df %>%
+  group_by(participant_id) %>%
+  summarise(prop_on = sum(power > 0)/n()) -> props_df
+```
+## Save to file
+Summary statistics are saved in a CSV file.
+```{r}
+# Save summary statistic files to CSVs
+write.csv(props_df, "summary/EastBoston/MF/s_MF_H_props.csv")
+```
