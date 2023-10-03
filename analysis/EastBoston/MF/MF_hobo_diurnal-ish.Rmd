@@ -5,7 +5,7 @@
 **HAVE YOU RUN `MF_hobo_cleaning`?**
 *This file loads a dataframe created from running `MF_hobo_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This file is used to sanity check data produced from `MF_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `MF_modpm_cleaning`.
+This file is used to plot a daily picture of purifier power usage from `MF_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `MF_modpm_cleaning`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -55,35 +55,19 @@ plot_one <- function(plot_df, person, t) {
 }
 ```
 
-```{r}
-plot_types <- function(input_df, p) {
-  # Plot time-series of subset with an appropriate horizontal line
-  # PM 1
-  print(plot_one(input_df, p, "voltage"))
-  # PM 2.5
-  print(plot_one(input_df, p, "current"))
-  # PM 10
-  print(plot_one(input_df, p, "power"))
-  # PM 1 Count
-  print(plot_one(input_df, p, "energy"))
-}
-```
-
 
 ```{r}
-# Input participant ID
-person <- readline("Enter participant ID: ")
-# Re-try if incorrect
-while (!(person %in% participants)) {
-  person <- readline("Error! Invalid ID, Re-enter: ")
+
+for (person in participants) {
+  main_df %>%
+    filter(participant_id == person, case == "after") %>%
+    # FIGURE OUT DIURNAL THING
+    mutate(time = as.POSIXct(
+      format(date, format="%H:%M:%S"), format="%H:%M:%S")) %>%
+    ggplot() +
+      geom_point(aes(x = time, y = power), alpha = 0.1) +
+      ggtitle(paste("Power for", person)) -> my_plot
+  
+  print(my_plot)
 }
-
-df <- main_df %>%
-      filter(participant_id == person, case == "after")
-    
-plot_types(df, person)
-    
-# Print
-print(paste("Plotted for", person))
-
 ```
