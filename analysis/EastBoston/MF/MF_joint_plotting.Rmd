@@ -30,6 +30,12 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 }
 ```
 
+Participant IDs
+```{r}
+# Get relevant participant IDs from MF_participants
+participants <- c("2", "3", "5", "6", "7", "8")
+```
+
 Paths
 ```{r}
 # Set path to data
@@ -61,18 +67,44 @@ rm(main_df)
 ## Main Code Run
 ### Plot
 ```{r}
-modpm_plot <- modpm_df %>%
-  filter(participant_id == "3", environment == "indoor") %>%
-  ggplot() +
-    geom_line(aes(x = date, y = pm25))
-```
-```{r}
+# Input participant ID
+person <- readline("Enter participant ID: ")
+# Re-try if incorrecto
+while (!(person %in% participants)) {
+  person <- readline("Error! Invalid ID, Re-enter: ")
+}
+
+plot_list <- list()
+
+df <- modpm_df %>% filter(participant_id == person, environment == "indoor")
+
+rooms <- unique(df$room)
+
+if (length(rooms) > 1) {
+  for (i in seq_along(rooms)) {
+    r <- rooms[[i]]
+    modpm_plot <-  df %>%
+      filter(room == r) %>%
+      ggplot() +
+        geom_line(aes(x = date, y = pm25), color = "#0072B2") +
+        scale_y_continuous(limits = c(0, 200))
+    
+    plot_list[[i]] <- modpm_plot
+  }
+} else {
+  plot_list[[1]] <- ggplot(df) + 
+    geom_line(aes(x = date, y = pm25), color = "#0072B2")
+}
+
 hobo_plot <- hobo_df %>%
-  filter(participant_id == "3") %>%
+  filter(participant_id == person) %>%
   ggplot() +
-    geom_line(aes(x = date, y = power))
+    geom_line(aes(x = date, y = power), color = "#D55E00")
+
+plot_list[[length(rooms) + 1]] <- hobo_plot
 ```
+
 ```{r}
-grid.arrange(modpm_plot, hobo_plot, ncol = 1)
+grid.arrange(grobs = plot_list, ncol = 1)
 ```
 
