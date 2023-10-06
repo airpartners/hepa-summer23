@@ -1,0 +1,78 @@
+# Mothers Out Front Merging Mod-PM + HOBO
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning` AND `MF_hobo_cleaning`?**
+*This file loads dataframes created from running `MF_modpm_cleaning` AND `MF_hobo_cleaning`. Make sure you run those files first (if you haven't already) before running this file.*
+
+This script merges Mod-PM and HOBO data into one dataframe to plot them concurrently
+
+As a by-product to calculating correlation coefficients, this script also generates a data-frame stored in `merged.RData`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(gridExtra)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Paths
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+## Load data
+Mod-PM
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+
+modpm_df <- main_df
+rm(main_df)
+```
+
+HOBO
+```{r}
+# Load HOBO data from RData file
+load(paste0(path_to_data, "cleaned_hobo.RData"))
+
+hobo_df <- main_df
+# Delete original
+rm(main_df)
+```
+
+
+
+## Main Code Run
+### Plot
+```{r}
+modpm_plot <- modpm_df %>%
+  filter(participant_id == "3", environment == "indoor") %>%
+  ggplot() +
+    geom_line(aes(x = date, y = pm25))
+```
+```{r}
+hobo_plot <- hobo_df %>%
+  filter(participant_id == "3") %>%
+  ggplot() +
+    geom_line(aes(x = date, y = power))
+```
+```{r}
+grid.arrange(modpm_plot, hobo_plot, ncol = 1)
+```
+
