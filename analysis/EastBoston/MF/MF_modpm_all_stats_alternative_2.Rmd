@@ -1,0 +1,166 @@
+# EastBoston Data Summarization - multiple (for Mod-PM)
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning`?**
+*This file loads a dataframe created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to calculate summary statistics for multiple participants in the East Boston pilot, for Mod-PM deployments by Olin. **It specifically calculates percentage reduction by filtering "after" values to only the times when the Air Purifier is switched on.**
+
+Results can be found in `summary/EastBoston/MF/s_MF_M_quants.csv`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+## Load data
+Mod-PM
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+
+modpm_df <- main_df %>% filter(environment == "indoor")
+rm(main_df)
+```
+
+HOBO
+```{r}
+# Load HOBO data from RData file
+load(paste0(path_to_data, "cleaned_hobo.RData"))
+
+hobo_df <- main_df %>% drop_na()
+# Delete original
+rm(main_df)
+```
+
+## Helper Function: Calculate summary statistics
+Provided a given grouped dataframe, calculate all relevant summary statistics
+```{r}
+my_summarise <- function(grouped_df) {
+  grouped_df %>%
+    summarise(mean = mean(reading),
+            median = median(reading), 
+            q5 = quantile(reading, probs = 0.05), 
+            q25 = quantile(reading, probs = 0.25),
+            q75 = quantile(reading, probs = 0.75),
+            q95 = quantile(reading, probs = 0.95),
+            sd = sd(reading),
+            .groups = 'drop')
+}
+```
+
+
+## Main Code Run
+### Merge HOBO and Mod-PM data
+```{r}
+# Merge data
+merged_df <- left_join(modpm_df, hobo_df, 
+                       by = c("date", "participant_id", "case")) %>%
+  # Remove missing data - TEMPORARY
+  filter(!(participant_id %in% c("10", "11"))) %>%
+  # Group by and order by time
+  group_by(participant_id, case, room) %>%
+  arrange(date) %>%
+  # Fill in HOBO columns for every minute
+  fill(power, sn_hobo, .direction = "downup") %>%
+  ungroup()
+```
+
+### Filter for necessary values
+```{r}
+main_df <- merged_df %>%
+  filter(!(case == "after" & power == 0)) %>%
+  select(-power, -sn_hobo)
+```
+
+
+### Gather, group, and summarize
+To calculate summary statistics of the data, the different measurements (PM1,  PM2.5, PM10, PM1_num, and temperature) are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
+
+```{r}
+main_df_long <- main_df %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(c(pm1, pm25, pm10, pm1num, temp), 
+               names_to = "type", values_to = "reading") %>%
+  # Drop NaN, inf values for summary calculation
+  filter(is.finite(reading))
+
+# Calculate summary statistics for each participant
+participant_summary <- main_df_long %>%
+  # Group by participant ID, case, environment, and type
+  group_by(participant_id, case, environment, room, type) %>%
+  # Calculate summary statistics
+  my_summarise()
+  
+# Calculate summary statistics over all the data
+overall_summary <- main_df_long %>%
+  # Group by case, environment, and type
+  group_by(case, environment, type) %>%
+  # Calculate summary statistics
+  my_summarise() %>%
+  # Add participant ID column as 'all'
+  mutate(participant_id = "all", room = NA)
+```
+
+```{r}
+# Bind together participant and overall summary statistics
+summary <- rbind(participant_summary, overall_summary)
+```
+
+
+### Calculate percentage reduction in concentration from before to after HEPA installation
+Follows the same logic as calculating indoor-outdoor ratios. Spread to form 
+before/after columns that are used to calculate percent reduction in corresponding
+summary pollution concentrations. Then gather dataframe back to original shape.
+```{r}
+# Spread: Create separate before, after summary statistics columns
+summary_wide <- pivot_wider(summary, 
+                            names_from = case, values_from = mean:sd)
+
+# Calculate percentage reduction in all summary statistics
+summary_redu <- 100*(select(summary_wide, ends_with("before")) - 
+  select(summary_wide, ends_with("after"))) / 
+  select(summary_wide, ends_with("before"))
+
+# Rename computed columns to 'redu' for percentage reduction
+colnames(summary_redu) <- sub("before", "redu", colnames(summary_redu))
+
+# Reshape data and pipe into variable 'summary_normal'
+summary_wide %>%
+  # Merge back with joined data-frame
+  cbind(summary_redu) %>%
+  # Gather: Return to original shape by removing the 'sham/hepa/redu'
+  # suffixes by re-forming the case variable
+  pivot_longer(mean_after:sd_redu, 
+               names_to = c(".value", "case"), names_sep = "_") %>%
+  # Filter out all NaN and Inf values
+  filter_all(all_vars(!is.infinite(.))) -> summary_normal
+```
+
+## Save to file
+Summary statistics are saved in a CSV file.
+```{r}
+# Save summary statistic files to CSVs
+write.csv(summary_normal, "summary/EastBoston/MF/s_MF_M_quants_alternative2.csv")
+```
