@@ -7,7 +7,7 @@
 
 This script is used to calculated summary statistics for multiple participants in the HAFTRAP study, for all deployments in the SCOPE project.
 
-Results can be found in `summary/HAFTRAP/OH/s_OH_M_quants.csv`.
+Results can be found in `summary/HAFTRAP/SC/s_SC_RASCT_quants.csv`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -18,7 +18,7 @@ library(tidyverse)
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "C:/Users/vkuchhal/Documents/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
