@@ -1,0 +1,194 @@
+# HAFTRAP Plotting Violinplots
+
+## STOP
+
+**HAVE YOU RUN `SC_all_cleaning`?**
+*This file loads dataframes created from running `SC_all_cleaning`. Make sure you run it first (if you haven't already) before running this file.*
+
+This script is used to plot boxplots using all the data from the SCOPE HAFTRAP study.
+
+Plots can be found here and saved in the folder`artifacts/HAFTRAP/SC/violinplot`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Path to data
+```{r}
+# Set path to data
+path_to_data <- "cleaning/HAFTRAP/SC/"
+```
+
+## Load data
+```{r}
+# Load all data from RData file
+load(paste0(path_to_data, "cleaned_everything.RData"))
+```
+
+
+```{r}
+labels_df <- read.csv("analysis/HAFTRAP/SC/plot_labels.csv", row.names = 1)
+labels_list <- setNames(split(labels_df, seq(nrow(labels_df))),
+                        rownames(labels_df))
+```
+
+
+## Plotting for Indoor and Outdoor raw concentrations
+Define lists for plot titles
+```{r}
+titles_raw <- list(pm1 = "PM 1 Concentration", pm25 = "PM 2.5 Concentration",
+               pm10 = "PM 10 Concentration", pm1num = "PM 1 Particle Count",
+               concent = "CPC Particle Count")
+
+titles_ratio <- list(pm1 = "PM 1 I/O Ratio", pm25 = "PM 2.5 I/O Ratio",
+               pm10 = "PM 10 I/O Ratio", pm1num = "PM 1 Count I/O Ratio",
+               concent = "CPC Count I/O Ratio")
+```
+
+## Helper functions:
+### Plotting function
+The following function plots the raw data for a given dataset
+```{r}
+plot_raw <- function(df_united, p_type, val) {
+  # Filter dataset for particle type, dropping NaNs and Infs
+  df_united %>% 
+    filter(type == p_type, is.finite(reading)) %>%
+    # Order sham then hepa by creating factors
+    mutate(across(case, \(x) factor(x, levels=c("off", "on")))) %>%
+    
+  # Plot filtered indoor data
+  ggplot() +
+    # Create violinplot
+    geom_violin(aes(x = situation, y = reading, fill = case)) +
+    # Convert y-axis scale to log
+    scale_y_continuous(trans = "log10") +
+    # Set title, caption with percentage reduction
+    labs(title = paste("Overall", labels_list[[p_type]][["title_raw"]]),
+         caption = paste0("Mean reduction = ", round(val, 1), "%")) -> my_plot
+  
+  # Save plot
+  ggsave(filename = paste0("artifacts/HAFTRAP/SC/violinplot/", "SC_", p_type,
+                           "_raw.png"), plot = my_plot)
+  
+  print(paste("Plotted for", labels_list[[p_type]][["title_raw"]]))
+  
+  # Display plot
+  my_plot
+}
+```
+
+### Percentage reduction calculating
+The following function calculates mean percentage reduction for a specified particle type. 
+```{r}
+# Calculate mean percentage reduction for particle in environment
+get_redu <- function(df, env, p_type) {
+  vals <- df %>% 
+    filter(environment == env, type == p_type) %>%
+    group_by(case, participant_id) %>% 
+    filter(is.finite(reading)) %>% 
+    summarize(my_mean = mean(reading))
+  
+  # Calculate percentage reduction for each participant and store in vector
+  vec <- 100 * (vals[vals$case == "off", 3] - vals[vals$case == "on", 3])/
+    vals[vals$case == "off", 3]
+  
+  # Return mean of vector (indexing cause vector is technically a dataframe)
+  mean(vec[[1]])
+}
+```
+
+### Code Run
+```{r}
+# Filter, order data appropriately
+main_united <- main_df %>%
+  filter(environment != "ratio") %>%
+  unite("situation", environment, case, sep = ", ", remove = FALSE) %>%
+
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(c(mod_pm25, mod_pm10, mod_pm1, mod_o3, mod_no2, mod_no, mod_co,
+                 mod_pm1num, sems_sum50, sems_sum100, sems_sum1000, acsm_chl,
+                 acsm_nh4, acsm_no3, acsm_org, acsm_so4, acsm_f43, acsm_f44,
+                 acsm_f57, acsm_ratio_55_57, t300_co, t200u_no, t200u_no2,
+                 t200u_nox, mcpc_counts), 
+               names_to = "type", values_to = "reading")
+```
+
+Plotting for all data
+```{r}
+for (p_type in unique(main_united$type)) {
+  # Calculate percentage reduction
+  val <- get_redu(main_united, "indoor", p_type)
+  # Plot data
+  print(plot_raw(main_united, p_type, val))
+}
+```
+
+## Plotting for Indoor/Outdoor Ratio
+### Plotting function
+The following function plots the indoor/outdoor ratio for a given dataset
+```{r}
+plot_ratio <- function(df_ratio, p_type, val) {
+  # Filter dataset for particle type, dropping NaNs and Infs
+  df_ratio %>% 
+    filter(type == p_type, is.finite(reading)) %>%
+    # Order off then on by creating factors
+    mutate(across(case, \(x) factor(x, levels=c("off", "on")))) %>%
+    
+  # Plot filtered ratio data
+  ggplot() +
+    # Create violinplot
+    geom_violin(aes(x = case, y = reading, fill = case)) +
+    # Convert y-axis scale to log
+    scale_y_continuous(trans = "log10") +
+    # Set title, caption with percentage reduction
+    labs(title = paste("Overall", labels_list[[p_type]][["title_ratio"]]),
+         caption = paste0("Mean reduction = ", round(val, 1), "%")) -> my_plot
+  
+  # Save Plot
+  ggsave(filename = paste0("artifacts/HAFTRAP/SC/violinplot/", "SC_", p_type,
+                           "_ratio.png"), plot = my_plot)
+  
+  print(paste("Plotted for", labels_list[[p_type]][["title_ratio"]]))
+  # Display plot
+  my_plot
+}
+```
+
+### Code Run
+```{r}
+# Filter, order data appropriately
+main_ratio <- main_df %>%
+  filter(environment == "ratio") %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(c(mod_pm25, mod_pm10, mod_pm1, mod_o3, mod_no2, mod_no, mod_co,
+                 mod_pm1num, sems_sum50, sems_sum100, sems_sum1000, acsm_chl,
+                 acsm_nh4, acsm_no3, acsm_org, acsm_so4, acsm_f43, acsm_f44,
+                 acsm_f57, acsm_ratio_55_57, t300_co, t200u_no, t200u_no2,
+                 t200u_nox, mcpc_counts), 
+               names_to = "type", values_to = "reading")
+```
+
+Plotting for Mod-PM
+```{r}
+for (p_type in unique(main_ratio$type)) {
+  # Calculate percentage reduction
+  val <- get_redu(main_ratio, "ratio", p_type)
+  # Plot data
+  print(plot_ratio(main_ratio, p_type, val))
+}
+```
