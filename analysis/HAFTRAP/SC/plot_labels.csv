@@ -1,0 +1,26 @@
+﻿col_name,title_raw,title_ratio
+mod_pm25,PM 2.5 Concentration,PM 2.5 I/O Ratio
+mod_pm10,PM 10 Concentration,PM 10 I/O Ratio
+mod_pm1,PM 1 Concentration,PM 1 I/O Ratio
+mod_o3,O3 Concentration,O3 I/O Ratio
+mod_no2,NO2 Concentration,NO2 I/O Ratio
+mod_no,NO Concentration,NO I/O Ratio
+mod_co,CO Concentration,CO I/O Ratio
+mod_pm1num,PM 1 Particle Count,PM 1 Count I/O Ratio
+sems_sum50,sems_sum50,sems_sum50
+sems_sum100,sems_sum100,sems_sum100
+sems_sum1000,sems_sum1000,sems_sum1000
+acsm_chl,acsm_chl,acsm_chl
+acsm_nh4,acsm_nh4,acsm_nh5
+acsm_no3,acsm_no3,acsm_no4
+acsm_org,acsm_org,acsm_org
+acsm_so4,acsm_so4,acsm_so5
+acsm_f43,acsm_f43,acsm_f43
+acsm_f44,acsm_f44,acsm_f44
+acsm_f57,acsm_f57,acsm_f57
+acsm_ratio_55_57,acsm_ratio_55_57,acsm_ratio_55_58
+t300_co,t300_co,t300_co
+t200u_no,t200u_no,t200u_no
+t200u_no2,t200u_no2,t200u_no3
+t200u_nox,t200u_nox,t200u_nox
+mcpc_counts,CPC Particle Count,CPC Count I/O Ratio

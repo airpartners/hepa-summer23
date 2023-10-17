@@ -1,0 +1,110 @@
+# Mothers Out Front Merging Mod-PM + HOBO
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning` AND `MF_hobo_cleaning`?**
+*This file loads dataframes created from running `MF_modpm_cleaning` AND `MF_hobo_cleaning`. Make sure you run those files first (if you haven't already) before running this file.*
+
+This script merges Mod-PM and HOBO data into one dataframe to plot them concurrently
+
+As a by-product to calculating correlation coefficients, this script also generates a data-frame stored in `merged.RData`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(gridExtra)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Participant IDs
+```{r}
+# Get relevant participant IDs from MF_participants
+participants <- c("2", "3", "5", "6", "7", "8")
+```
+
+Paths
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+## Load data
+Mod-PM
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+
+modpm_df <- main_df
+rm(main_df)
+```
+
+HOBO
+```{r}
+# Load HOBO data from RData file
+load(paste0(path_to_data, "cleaned_hobo.RData"))
+
+hobo_df <- main_df
+# Delete original
+rm(main_df)
+```
+
+
+
+## Main Code Run
+### Plot
+```{r}
+# Input participant ID
+person <- readline("Enter participant ID: ")
+# Re-try if incorrecto
+while (!(person %in% participants)) {
+  person <- readline("Error! Invalid ID, Re-enter: ")
+}
+
+plot_list <- list()
+
+df <- modpm_df %>% filter(participant_id == person, environment == "indoor")
+
+rooms <- unique(df$room)
+
+if (length(rooms) > 1) {
+  for (i in seq_along(rooms)) {
+    r <- rooms[[i]]
+    modpm_plot <-  df %>%
+      filter(room == r) %>%
+      ggplot() +
+        geom_line(aes(x = date, y = pm25), color = "#0072B2") +
+        scale_y_continuous(limits = c(0, 200))
+    
+    plot_list[[i]] <- modpm_plot
+  }
+} else {
+  plot_list[[1]] <- ggplot(df) + 
+    geom_line(aes(x = date, y = pm25), color = "#0072B2")
+}
+
+hobo_plot <- hobo_df %>%
+  filter(participant_id == person) %>%
+  ggplot() +
+    geom_line(aes(x = date, y = power), color = "#D55E00")
+
+plot_list[[length(rooms) + 1]] <- hobo_plot
+```
+
+```{r}
+grid.arrange(grobs = plot_list, ncol = 1)
+```
+

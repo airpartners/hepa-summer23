@@ -1,0 +1,77 @@
+# SCOPE HAFTRAP Sanity Checking
+
+## STOP
+
+**HAVE YOU RUN `SC_all_cleaning`?**
+*This file loads a dataframe created from running `SC_all_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to sanity check cleaning results for multiple participants in the HAFTRAP study, for all deployments in the SCOPE project.
+
+Results can be found in `summary/HAFTRAP/OH/s_OH_M_quants.csv`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/HAFTRAP/SC/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_everything.RData"))
+```
+
+```{r}
+participants = c("1")
+```
+
+```{r}
+column_names <- 
+  colnames(main_df %>% select(-date, -environment, -case, -participant_id))
+```
+
+
+## Plot Data
+```{r}
+# Input participant ID
+person <- readline("Enter participant ID: ")
+# Re-try if incorrect
+while (!(person %in% participants)) {
+  person <- readline("Error! Invalid ID, Re-enter: ")
+}
+
+# Plot stuff
+for (env in c("indoor", "outdoor", "ratio")) {
+  for (c in c("on","off")) {
+    # Filter data to appropriate subset
+    df <- main_df %>%
+      filter(participant_id == person, case == c, 
+             environment == env)
+    for (t in column_names) {
+      print(ggplot(df) +
+        geom_line(aes(x = date, y = .data[[t]])) +
+        ggtitle(paste(person, c, env, t)))
+    }
+    # Print
+    print(paste("Plotted for", person, c, env))
+  }
+}
+```

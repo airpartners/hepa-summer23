@@ -1,5 +1,3 @@
-TODO: Change so that it plots before/after separately
-
 # Sanity Check HOBO Data
 
 ## STOP
@@ -7,7 +5,7 @@ TODO: Change so that it plots before/after separately
 **HAVE YOU RUN `MF_hobo_cleaning`?**
 *This file loads a dataframe created from running `MF_hobo_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This file is used to sanity check data produced from `MF_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `MF_modpm_cleaning`.
+This file is used to plot a daily picture of purifier power usage from `MF_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `MF_modpm_cleaning`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -50,20 +48,26 @@ load(paste0(path_to_data, "cleaned_hobo.RData"))
 ### Plotting functions
 Simplifies plotting of data
 ```{r}
-plot_one <- function(plot_df, person, c, t) {
-  plot_df %>%
-    filter(case == c, participant_id == person) %>%
-    ggplot() +
-      geom_line(aes(x = date, y = .data[[t]])) +
-      ggtitle(paste(person, t, c))
+plot_one <- function(plot_df, person, t) {
+  ggplot(plot_df) +
+    geom_line(aes(x = date, y = .data[[t]])) +
+    ggtitle(paste(person, t))
 }
 ```
 
+
 ```{r}
-for (p in participants) {
-  print(plot_one(main_df, p, "before", "power"))
-  print(plot_one(main_df, p, "after", "power"))
-  # Print
-  print(paste("Plotted for", p))
+
+for (person in participants) {
+  main_df %>%
+    filter(participant_id == person, case == "after") %>%
+    # FIGURE OUT DIURNAL THING
+    mutate(time = as.POSIXct(
+      format(date, format="%H:%M:%S"), format="%H:%M:%S")) %>%
+    ggplot() +
+      geom_point(aes(x = time, y = power), alpha = 0.1) +
+      ggtitle(paste("Power for", person)) -> my_plot
+  
+  print(my_plot)
 }
 ```
