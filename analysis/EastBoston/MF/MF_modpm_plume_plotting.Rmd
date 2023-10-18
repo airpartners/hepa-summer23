@@ -142,13 +142,23 @@ curve_fitting <- function(data, peaks) {
     "valley_idx_a" = numeric(0),
     "peak_hgt" = numeric(0),
     "k_val" = numeric(0),
-    "conv_tol" = numeric(0)
+    "conv_tol" = numeric(0),
+    "cumm_pm" = numeric(0)
   )
   # Define parameters for curve fitting function for each row
   for (row in 1:nrow(peaks)) {
     row <- as.double(row)
     i_range <- peaks[row, 2]:peaks[row, 4]
-    sect <- data[i_range]
+    # Check if time is sorted in this range; if not, reverse the indices
+    time_check <- data$time[i_range]
+    is_sorted_asc <- all(time_check[-1] >= time_check[-length(time_check)])
+    if (is_sorted_asc) {
+      sect <- rev(data$pm25[i_range])
+    } else {
+      # sect <- data$pm25[i_range]
+      sect <- data$pm25[i_range]
+    }
+    # print(sect)
     t <- i_range - peaks[row, 2] + 1
     df <- data.frame(t = t, y = sect)
     # Get exponential fit
@@ -208,10 +218,10 @@ peaks_a <- findpeaks(my_df_after$pm25,
 # Get valleys before and after to isolate each plume
 peaks_b <- get_local_valleys(my_df_before$pm25,
                              peaks = peaks_b,
-                             min_threshold = 10)
+                             min_threshold = 50)
 peaks_a <- get_local_valleys(my_df_after$pm25,
                              peaks = peaks_a,
-                             min_threshold = 10)
+                             min_threshold = 50)
 ```
 
 ```{r}
@@ -231,13 +241,13 @@ points(peaks_b[, 4], my_df_before$pm25[peaks_b[, 4]], pch = 20, col = "green")
 
 ```{r}
 # perform decay analysis
-decays_before <- curve_fitting(my_df_before$pm25, peaks = peaks_b)
+decays_before <- curve_fitting(my_df_before, peaks = peaks_b)
 decays_before
 ```
 
 ```{r}
 # perform decay analysis
-decays_after <- curve_fitting(my_df_after$pm25, peaks = peaks_a)
+decays_after <- curve_fitting(my_df_after, peaks = peaks_a)
 decays_after
 ```
 
@@ -246,8 +256,8 @@ decays_after
 ```{r}
 # Before HEPA deployment
 peak_idxs <- c(
-  tail(decays_before, n=1)$valley_idx_b,
-  tail(decays_before, n=1)$valley_idx_a
+  tail(decays_before, n=1)$valley_idx_a,
+  tail(decays_before, n=1)$valley_idx_b
 )
 my_df_before %>%
   ggplot(aes(x = as.numeric(row.names(my_df_before)))) +
@@ -256,6 +266,7 @@ my_df_before %>%
   # Labels
   xlab('Time Since Sensor Deployment (10min)') + 
   ylab('PM2.5 Levels') +
+  ylim(0,1000) +
   # Add fun theme
   theme_bw() +
   # Scale to just around the plume
@@ -265,8 +276,8 @@ my_df_before %>%
 ```{r}
 # After HEPA deployment
 peak_idxs <- c(
-  tail(decays_after, n=1)$valley_idx_b,
-  tail(decays_after, n=1)$valley_idx_a
+  tail(decays_after, n=1)$valley_idx_a,
+  tail(decays_after, n=1)$valley_idx_b
 )
 my_df_after %>%
   ggplot(aes(x = as.numeric(row.names(my_df_after)))) +
@@ -275,6 +286,7 @@ my_df_after %>%
   # Labels
   xlab('Time Since Sensor Deployment (10min)') + 
   ylab('PM2.5 Levels') +
+  ylim(0,1000) +
   # Add fun theme
   theme_bw() +
   # Scale to just around the plume
@@ -304,7 +316,52 @@ decay_sum <-
       k_val_min = min(k_val, na.rm = TRUE),
       k_val_max = max(k_val, na.rm = TRUE),
       peak_hgt_mean = mean(peak_hgt, na.rm = TRUE),
+      peak_hgt_median = median(peak_hgt, na.rm = TRUE),
       peak_wdh_mean = mean(peak_width, na.rm = TRUE)
     )
 decay_sum
 ```
+
+```{r}
+peak_width_sum <-
+  all_decays %>%
+    group_by(hepa) %>%
+    summarize(
+      peak_wdh_mean = mean(peak_width, na.rm = TRUE),
+      peak_wdh_median = median(peak_width, na.rm = TRUE),
+      peak_wdh_min = min(peak_width, na.rm = TRUE),
+      peak_wdh_max = max(peak_width, na.rm = TRUE),
+    )
+peak_width_sum
+```
+
+TODO: Create a function here for calculating the cumulative PM of a peak and
+correlate it to peak widths.
+```{r}
+get_cumm_PM <- function(decays_data, plume_data) {
+  total_pm <- 0
+  for (row in 1:nrow(decays_data)) {
+    idx_b <- decays_data$valley_idx_b[row]
+    idx_a <- decays_data$valley_idx_a[row]
+    plume_pm <- sum(plume_data$pm25[idx_b:idx_a])
+    total_pm <- total_pm + plume_pm
+  }
+  total_pm
+}
+```
+
+```{r}
+before_pm <- get_cumm_PM(decays_before, my_df_before)
+after_pm <- get_cumm_PM(decays_after, my_df_after)
+c(before_pm, after_pm)
+```
+
+
+
+
+
+
+
+
+
+
