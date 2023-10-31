@@ -28,11 +28,11 @@ path_to_data <- "summary/HAFTRAP/SC/"
 env_title <- list(indoor = "Reduction in Raw Indoor Readings", 
                   ratio = "Reduction in Indoor/Outdoor Ratio")
 
-particle_list <- c("mod_pm1", "mcpc_counts", "acsm_org", "t200u_no", "t200u_no2", "t300_co", "acsm_ratio_55_57")
+particle_list <- c("mod_pm1", "mod_pm25", "mod_pm10", "mcpc_counts",
+                   "acsm_org", "sems_sum100", "t200u_no")
 
 # Sets order for displaying particles in heatmap
-particle_order <- c("PM 1 Conc.", "UFP Count", "ACSM Org.", 
-                   "NO", "NO2", "CO", "ACSM Ratio")
+particle_order <- c("PM 1", "PM 2.5", "PM 10", "PNC", "Organic", "UFP", "NO")
 
 # Sets order for displaying summary stats in heatmap
 summary_order <- c("Mean", "95th Percentile", "75th Percentile", "Median",
@@ -46,8 +46,10 @@ plot_heatmap <- function(joined_data, env) {
     pivot_longer(mean:q95, names_to = "sum_type", values_to = "stat") %>%
     
     # Recode for accurate labels
-    mutate(type = recode(type, "pm1" = "PM 1 Conc.", "mcpc_counts" = "UFP Count", "acsm_org" = "ACSM Org.", 
-                   "t200u_no" = "NO", "t200u_no2" = "NO2", "t300_co" = "CO", "acsm_ratio_55_57" = "ACSM Ratio"),
+    mutate(type = recode(type, "mod_pm1" = "PM 1", "mod_pm25" = "PM 2.5", 
+                         "mod_pm10" = "PM 10", "mcpc_counts" = "PNC", 
+                         "acsm_org" = "Organic", "sems_sum100" = "UFP",
+                         "t200u_no" = "NO"),
          sum_type = recode(sum_type, "mean" = "Mean", "median" = "Median",
                            "q5" = "5th Percentile", "q25" = "25th Percentile",
                            "q75" = "75th Percentile", 
@@ -55,12 +57,14 @@ plot_heatmap <- function(joined_data, env) {
     
     # Arrange axes in specified order
     mutate(type = factor(type, levels = particle_order)) %>%
-    mutate(sum_type = factor(sum_type, levels = summary_order)) %>%
+    mutate(sum_type = factor(sum_type, levels = summary_order)) -> temp_df
     
-    drop_na() %>%
+    print(temp_df)
+    
+    # drop_na() %>%
     
     # Plot heatmap
-    ggplot(aes(x = type, y = sum_type)) +
+    ggplot(temp_df, aes(x = type, y = sum_type)) +
       # Fill with value of stat
       geom_tile(aes(fill = stat)) +
       # Print in value of stat
@@ -68,7 +72,7 @@ plot_heatmap <- function(joined_data, env) {
     
       # Set color scale
       scale_fill_gradient2(low = "#ff7f7f", high = "#DeF7E9", mid = "white",
-                           limits = c(-100, 100), guide = "colorbar",
+                           limits = c(-100, 100),
                            oob = scales::squish) +
       # Set axis labels, title
       labs(title = env_title[[env]], 
