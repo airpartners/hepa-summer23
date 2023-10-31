@@ -1,0 +1,48 @@
+# East Boston Diurnal Plotting (for Mod-PM) Using Open Air
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning`?**
+*This file loads a dataframe created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to create diurnal plots using the openair library for the East Boston Mod-PM data.
+
+```{r}
+# import necessary libraries
+library(tidyverse)
+library(openair)
+```
+
+```{r, setup, include=FALSE}
+# set working directory
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# check file path for working directory
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+```{r}
+main_df %>%
+  filter(participant_id == "3", environment == "outdoor") %>%
+  timePlot(pollutant = c("pm1", "pm25", "pm10"))
+```
+```{r}
+df <- filter(main_df, environment == "indoor", case == "before")
+timeVariation(df, pollutant = "pm25", col = "firebrick")
+```
+

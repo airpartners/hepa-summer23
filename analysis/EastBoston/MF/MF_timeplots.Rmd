@@ -1,0 +1,110 @@
+# EastBoston Plotting Boxplots
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning`?**
+*This file loads dataframes created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used in generating a specific kind of plot that isn't saved in `artifacts`. The original written version uses CPC data for participant 44621  to plot timeseries to look at relationship between mean, median, and 95th percentile.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Participant IDs and corresponding time map tables
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+## Load data
+CPC - filter data to whole minutes
+```{r}
+# Load CPC data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+```{r}
+# Filter desired participant and environment
+plot_df <- main_df %>%
+  # Choose participant ID from most CPC Q95 increase in s_MF_c_quants.csv
+  filter(participant_id == "3", environment == "indoor") %>%
+  select(date, pm25, case)
+```
+
+```{r}
+# Summary statistics (copied over from MF_modpm_all_stats)
+plot_df %>%
+  # Drop NaN, inf values for summary calculation
+  filter(is.finite(pm25)) %>%
+  # Group by participant ID, case, environment, and type
+  group_by(case) %>%
+  
+  # Calculate summary statistics and pipe to variable 'summary'
+  summarise(mean = mean(pm25),
+            median = median(pm25), 
+            q5 = quantile(pm25, probs = 0.05), 
+            q25 = quantile(pm25, probs = 0.25),
+            q75 = quantile(pm25, probs = 0.75),
+            q95 = quantile(pm25, probs = 0.95),
+            .groups = 'drop') -> summary
+
+# This is very bad janky code to calculate % reduction, sorry. Prints warning
+summary <- rbind(summary, apply(select_if(summary, is.numeric), 2, 
+                                function(x) 100 * (x[2] - x[1]) / x[2]))
+
+# Specify order
+summary$case <- factor(c("after", "before", "redu"))
+
+# Plot for only before, after
+summary_plot <- filter(summary, case %in% c("after", "before"))
+```
+
+
+```{r}
+# Store plot in object
+my_plot <- plot_df %>%
+  # Re-order the case in levels of "before", then "after"
+  mutate(across(case, \(x) factor(x, levels=c("before", "after")))) %>%
+  
+  # Plot time-series with 95th percentile, mean, median
+  ggplot() +
+    # Plot a line graph of Mod-PM reading vs. date, one line for each case
+    geom_line(aes(x = date, y = pm25, color = case)) +
+    # Split into two separate graphs in single row (same y axis) by case
+    facet_wrap(~case, nrow = 1, scales = "free_x") +
+    # Plot the horizontal line for mean
+    geom_hline(data = summary_plot, 
+               aes(yintercept = mean), linetype = "dashed", alpha = 0.5) +
+    # Set the line type for each horizontal line
+    scale_linetype_manual(name='Summaries',
+                       breaks=c('95th', 'Mean', 'Median'),
+                       values=c('Median'='solid',
+                                'Mean'='dashed', '95th'='dotted')) +
+    # Set axes labels, title
+    labs(title = "PM 2.5 Concentration for Participant 3",
+         x = "Date", y = "Particle Concentration")
+
+# Show plot
+my_plot
+```
+
+```{r}
+# Show plot zoomed in on smaller y-range
+my_plot + ylim(0, 100)
+```

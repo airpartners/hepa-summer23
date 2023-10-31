@@ -12,6 +12,7 @@ Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
+library(openair)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
@@ -42,8 +43,7 @@ load(paste0(path_to_data, "cleaned_modpm.RData"))
 ## Filter
 ```{r}
 df <- main_df %>%
-      filter(participant_id == "6", case == "before", 
-             environment == "indoor")
+      filter(participant_id == "6", environment == "indoor")
 ```
 
 ## Separate Kitchen, Play Room
@@ -61,7 +61,7 @@ df_merged <- inner_join(df_kitchen, df_play, suffix = c("_kitchen", "_play"),
 ```{r}
 df_merged %>%
   mutate(time_round = as.integer(hour(round_date(date, "4 hours")))) %>%
-  filter(time_round %in% c(8, 16, 20)) %>%
+  filter(time_round %in% c(8, 16, 20), case == "before") %>%
   ggplot(aes(x = pm25_kitchen, y = pm25_play, color = factor(time_round))) +
     # Scatter-plot
     geom_point(alpha = 0.1) +
@@ -73,4 +73,11 @@ df_merged %>%
   
 ```
 
+```{r}
+df_merged %>%
+  filter(case == "after") %>%
+  timePlot(pollutant = c("pm25_kitchen", "pm25_play"),
+           name.pol = c("pm25 kitchen", "pm25 playroom"),
+           ylim = c(0, 600))
+```
 
