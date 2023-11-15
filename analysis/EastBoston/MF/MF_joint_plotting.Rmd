@@ -87,19 +87,29 @@ if (length(rooms) > 1) {
       filter(room == r) %>%
       ggplot() +
         geom_line(aes(x = date, y = pm25), color = "#0072B2") +
-        scale_y_continuous(limits = c(0, 200))
+        scale_y_continuous(limits = c(0, 200)) +
+        # Set axes labels, title
+        labs(title = paste("PM 2.5 Concentration for Participant", person),
+             y = "Particle Concentration") + 
+        theme(axis.text.x = element_blank(), axis.title.x = element_blank())
     
     plot_list[[i]] <- modpm_plot
   }
 } else {
   plot_list[[1]] <- ggplot(df) + 
-    geom_line(aes(x = date, y = pm25), color = "#0072B2")
+    geom_line(aes(x = date, y = pm25), color = "#0072B2") +
+    # Set axes labels, title
+    labs(title = paste("PM 2.5 Concentration vs. HEPA Purifier Power Usage"),
+         y = "Particle Concentration") + 
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank())
 }
 
 hobo_plot <- hobo_df %>%
   filter(participant_id == person) %>%
   ggplot() +
-    geom_line(aes(x = date, y = power), color = "#D55E00")
+    geom_line(aes(x = date, y = power), color = "#D55E00") +
+    # Set axes labels
+    labs(x = "Date", y = "Power")
 
 plot_list[[length(rooms) + 1]] <- hobo_plot
 ```
