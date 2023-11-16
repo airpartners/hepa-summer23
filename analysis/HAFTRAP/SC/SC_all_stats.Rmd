@@ -101,7 +101,7 @@ main_df_long <- main_df %>%
   pivot_longer(!c(date, environment, participant_id, case), 
                names_to = "type", values_to = "reading") %>%
   # Drop NaN, inf values for summary calculation
-  filter(is.finite(reading))
+  filter(is.finite(reading)) 
 
 # Calculate summary statistics for each participant
 participant_summary <- main_df_long %>%

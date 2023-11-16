@@ -1,13 +1,13 @@
-# EastBoston Data Summarization - multiple (for Mod-PM)
+# Roxbury Data Summarization - multiple (for Mod-PM)
 
 ## STOP
 
-**HAVE YOU RUN `MF_modpm_cleaning`?**
-*This file loads a dataframe created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+**HAVE YOU RUN `IB_modpm_cleaning`?**
+*This file loads a dataframe created from running `IB_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This script is used to calculated summary statistics for multiple participants in the East Boston pilot, for Mod-PM deployments by Olin. This is different from `MF_modpm_all_stats` in that it filters out participant 11 (the one anomalous value).
+This script is used to calculated summary statistics for multiple participants in the Roxbury pilot, for Mod-PM deployments by Olin.
 
-Results can be found in `summary/EastBoston/MF/s_MF_M_quants.csv`.
+Results can be found in `summary/Roxbury/IB/s_IB_M_quants.csv`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -31,18 +31,13 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Set path to data
-path_to_data <- "cleaning/EastBoston/MF/"
+path_to_data <- "cleaning/Roxbury/IB/"
 ```
 
 ## Load data
 ```{r}
 # Load Mod-PM data from RData file
 load(paste0(path_to_data, "cleaned_modpm.RData"))
-```
-
-## Filter out anomalous value
-```{r}
-main_df <- main_df %>% filter(participant_id != "11")
 ```
 
 ## Helper Function: Calculate summary statistics
@@ -64,12 +59,12 @@ my_summarise <- function(grouped_df) {
 
 ## Main Code Run
 ### Gather, group, and summarize
-To calculate summary statistics of the data, the different measurements (PM1,  PM2.5, PM10, PM1_num, and temperature) are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
+To calculate summary statistics of the data, the different measurements (PM1,  PM2.5, and PM10) are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
 
 ```{r}
 main_df_long <- main_df %>%
   # Gather dataframe to create single variable for measurements
-  pivot_longer(c(pm1, pm25, pm10, pm1num, temp), 
+  pivot_longer(c(pm1, pm25, pm10), 
                names_to = "type", values_to = "reading") %>%
   # Drop NaN, inf values for summary calculation
   filter(is.finite(reading))
@@ -130,5 +125,5 @@ summary_wide %>%
 Summary statistics are saved in a CSV file.
 ```{r}
 # Save summary statistic files to CSVs
-# write.csv(summary_normal, "summary/EastBoston/MF/s_MF_M_quants.csv")
+write.csv(summary_normal, "summary/Roxbury/IB/s_IB_M_quants.csv")
 ```

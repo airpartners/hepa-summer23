@@ -1,0 +1,41 @@
+# Roxbury Pie Chart Creation (for Mod-PM)
+
+## STOP
+
+**HAVE YOU RUN `IB_modpm_cleaning`?**
+*This file loads a dataframe created from running `IB_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to create pie charts the amount of time chosen for "safe" levels of concentration for multiple participants in the Roxbury pilot, for Mod-PM deployments by Olin.
+
+Results can be found in `summary/Roxbury/IB/s_IB_M_quants.csv`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/Roxbury/IB/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```

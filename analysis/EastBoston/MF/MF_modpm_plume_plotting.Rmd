@@ -1,14 +1,22 @@
+---
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
 # East Boston Plume Plotting (for Mod-PM)
-Plot various plumes before and after HEPA instalation to compare their heights,
-widths, decay constants, etc.
+
+Plot various plumes before and after HEPA instalation to compare their
+heights, widths, decay constants, etc.
 
 ## STOP
 
-**HAVE YOU RUN `MF_modpm_cleaning`?**
-*This file loads a dataframe created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+**HAVE YOU RUN `MF_modpm_cleaning`?** *This file loads a dataframe
+created from running `MF_modpm_cleaning`. Make sure you run that file
+first (if you haven't already) before running this file.*
 
-This file is used to analyze decay constants and complete plume visualizations
-for the East Boston Mod-PM data.
+This file is used to analyze decay constants and complete plume
+visualizations for the East Boston Mod-PM data.
 
 ```{r}
 # import necessary libraries
@@ -36,12 +44,14 @@ path_to_data <- "cleaning/EastBoston/MF/"
 ```
 
 ## Load data
+
 ```{r}
 # Load Mod-PM data from RData file
 load(paste0(path_to_data, "cleaned_modpm.RData"))
 ```
 
 ## Main Code Run
+
 ```{r}
 # Pre-processing to add relevant columns
 my_df <- main_df %>%
@@ -53,14 +63,14 @@ my_df <- main_df %>%
   mutate(is_wknd = wkdy %in% c(1, 7)) %>%
   # Extract time of the day from datetime
   mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S"))
-  
+my_df
 ```
 
 ```{r}
-# Calculate summary statistics for ever ten minutes
+# Calculate summary statistics for every ten minutes
 graph_main_df <- my_df %>%
   # Gather dataframe to create single variable for measurements
-  pivot_longer(c(pm1, pm25, pm25), 
+  pivot_longer(c(pm1, pm25, pm10), 
                names_to = "particle", values_to = "reading") %>%
   # For every 10 minutes for given case, environment, particle, weekday/end
   group_by(is_wknd, time, case, environment, particle) %>%
@@ -73,10 +83,24 @@ graph_main_df <- my_df %>%
           q95 = quantile(reading, probs = 0.95),
           sd = sd(reading),
           .groups = 'drop')
+graph_main_df
+```
+
+```{r}
+# Calculate average baseline parameter and mean parameters, which will be used
+# to define the baseline and the minimum height of peaks
+pm25_indoor <- graph_main_df[graph_main_df$environment=='indoor' & graph_main_df$particle=='pm25',]
+pm_baseline <- pm25_indoor %>%
+  group_by(case) %>%
+  summarise(mean = mean(q25))
+pm_min_heights <- pm25_indoor %>%
+  group_by(case) %>%
+  summarise(mean = mean(mean))
 ```
 
 
 # Helper functions for plume analysis
+
 ```{r}
 # Find the first local minimum before/after the index of peak_row in y
 # that occurs below the min_threshold.
@@ -125,7 +149,16 @@ get_local_valleys <- function(data, peaks, min_threshold) {
     # set values of matrix so that column 4 is index of valley after peak
     peaks[row, 4] <- idx
   }
-  peaks
+  # Convert to dataframe and remove duplicate valleys
+  colnames(peaks) <- c("peak_hgt", "peak", "valley_b", "valley_a")
+  peaks_df <- as.data.frame(peaks)
+  
+  # Sorting peaks_df by peak in descending order
+  peaks_df <- peaks_df[order(-peaks_df$peak),]
+  
+  # Drop duplicate valleys, keeping highest peak for each duplicate
+  result_peaks <- peaks_df[!duplicated(peaks_df[, c("valley_b", "valley_a")]),]
+  result_peaks
 }
 ```
 
@@ -135,25 +168,34 @@ get_local_valleys <- function(data, peaks, min_threshold) {
 # NOTE: if the curve is too small or doesn't contain enough information for this
 # computation, peak will be omitted from final return
 curve_fitting <- function(data, peaks) {
-    # Create empty DataFrame for storing k values
+  # Create empty DataFrame for storing k values
   alphas.data <- data.frame(
     "peak_idx" = numeric(0),
     "valley_idx_b" = numeric(0),
     "valley_idx_a" = numeric(0),
     "peak_hgt" = numeric(0),
     "k_val" = numeric(0),
-    "conv_tol" = numeric(0)
+    "conv_tol" = numeric(0),
+    "cumm_pm" = numeric(0)
   )
   # Define parameters for curve fitting function for each row
   for (row in 1:nrow(peaks)) {
     row <- as.double(row)
     i_range <- peaks[row, 2]:peaks[row, 4]
-    sect <- data[i_range]
+    # Check if time is sorted in this range; if not, reverse the indices
+    time_check <- data$time[i_range]
+    is_sorted_asc <- all(time_check[-1] >= time_check[-length(time_check)])
+    if (is_sorted_asc) {
+      sect <- rev(data$pm25[i_range])
+    } else {
+      sect <- data$pm25[i_range]
+    }
+    # print(sect)
     t <- i_range - peaks[row, 2] + 1
     df <- data.frame(t = t, y = sect)
     # Get exponential fit
     nlc <- nls.control(maxiter = 1000)
-    fit <- try(nls(y ~ SSasymp(t, yf, y0, log_alpha), data = df, control = nlc))
+    fit <- try(nls(y ~ SSasymp(t, yf, y0, log_alpha), data = df))
     if (class(fit) != "nls") {
       next
     }
@@ -166,6 +208,9 @@ curve_fitting <- function(data, peaks) {
     # NOTE: R^2 value can be calculated but is not a useful metric
     # for nonlinear models
     conv <- fit$convInfo$finTol
+    # Calculate cumulative PM for each plume
+    plume_pm <- sum(data$pm25[peaks[row, 3]:peaks[row, 4]])
+    
     # Add alpha to dataframe
     alphas.newdata <- data.frame(
       "peak_idx" = c(peaks[row, 2]),
@@ -173,7 +218,8 @@ curve_fitting <- function(data, peaks) {
       "valley_idx_a" = c(peaks[row, 4]),
       "peak_hgt" = c(peaks[row, 1]),
       "k_val" = c(alpha),
-      "conv_tol" = c(conv)
+      "conv_tol" = c(conv),
+      "cumm_pm" = c(plume_pm)
     )
     alphas.data <- rbind(alphas.data, alphas.newdata)
   }
@@ -182,8 +228,8 @@ curve_fitting <- function(data, peaks) {
 }
 ```
 
+### Main Plume Analysis
 
-### Main plume analysis
 ```{r}
 # Separate my_df by before vs. after
 my_df_before <- my_df[my_df$case=='before',]
@@ -193,28 +239,31 @@ my_df_after  <- my_df[my_df$case=='after',]
 peaks_b <- findpeaks(my_df_before$pm25,
                      nups = 1,
                      ndowns = 2,
-                     minpeakheight = 50,
+                     minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='before', 'mean']),
                      minpeakdistance = 200,
                      threshold = 0)
 peaks_a <- findpeaks(my_df_after$pm25,
-                   nups = 1,
-                   ndowns = 2,
-                   minpeakheight = 50,
-                   minpeakdistance = 200,
-                   threshold = 0)
+                     nups = 1,
+                     ndowns = 2,
+                     minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='after', 'mean']),
+                     minpeakdistance = 200,
+                     threshold = 0)
 ```
 
 ```{r}
 # Get valleys before and after to isolate each plume
 peaks_b <- get_local_valleys(my_df_before$pm25,
                              peaks = peaks_b,
-                             min_threshold = 10)
+                             min_threshold = as.numeric(pm_baseline[pm_baseline$case=='before', 'mean']))
+                             # min_threshold = 5)
 peaks_a <- get_local_valleys(my_df_after$pm25,
                              peaks = peaks_a,
-                             min_threshold = 10)
+                             min_threshold = as.numeric(pm_baseline[pm_baseline$case=='after', 'mean']))
+                             # min_threshold = 5)
 ```
 
 ```{r}
+
 # Plot peaks and valleys on top of current time series with valleys 
 # (sanity check)
 plot(my_df_before$pm25,
@@ -231,23 +280,23 @@ points(peaks_b[, 4], my_df_before$pm25[peaks_b[, 4]], pch = 20, col = "green")
 
 ```{r}
 # perform decay analysis
-decays_before <- curve_fitting(my_df_before$pm25, peaks = peaks_b)
+decays_before <- curve_fitting(my_df_before, peaks = peaks_b)
 decays_before
 ```
 
 ```{r}
 # perform decay analysis
-decays_after <- curve_fitting(my_df_after$pm25, peaks = peaks_a)
+decays_after <- curve_fitting(my_df_after, peaks = peaks_a)
 decays_after
 ```
 
-
 # Displaying peaks with best fits
+
 ```{r}
 # Before HEPA deployment
 peak_idxs <- c(
-  tail(decays_before, n=1)$valley_idx_b,
-  tail(decays_before, n=1)$valley_idx_a
+  tail(decays_before, n=1)$valley_idx_a,
+  tail(decays_before, n=1)$valley_idx_b
 )
 my_df_before %>%
   ggplot(aes(x = as.numeric(row.names(my_df_before)))) +
@@ -256,6 +305,7 @@ my_df_before %>%
   # Labels
   xlab('Time Since Sensor Deployment (10min)') + 
   ylab('PM2.5 Levels') +
+  # ylim(0,500) +
   # Add fun theme
   theme_bw() +
   # Scale to just around the plume
@@ -265,8 +315,8 @@ my_df_before %>%
 ```{r}
 # After HEPA deployment
 peak_idxs <- c(
-  tail(decays_after, n=1)$valley_idx_b,
-  tail(decays_after, n=1)$valley_idx_a
+  tail(decays_after, n=1)$valley_idx_a,
+  tail(decays_after, n=1)$valley_idx_b
 )
 my_df_after %>%
   ggplot(aes(x = as.numeric(row.names(my_df_after)))) +
@@ -275,6 +325,7 @@ my_df_after %>%
   # Labels
   xlab('Time Since Sensor Deployment (10min)') + 
   ylab('PM2.5 Levels') +
+  ylim(0,500) +
   # Add fun theme
   theme_bw() +
   # Scale to just around the plume
@@ -299,12 +350,148 @@ decay_sum <-
   all_decays %>%
     group_by(hepa) %>%
     summarize(
+      # kval
       k_val_mean = mean(k_val, na.rm = TRUE),
       k_val_median = median(k_val, na.rm = TRUE),
       k_val_min = min(k_val, na.rm = TRUE),
       k_val_max = max(k_val, na.rm = TRUE),
+      # peak heights
       peak_hgt_mean = mean(peak_hgt, na.rm = TRUE),
-      peak_wdh_mean = mean(peak_width, na.rm = TRUE)
+      peak_hgt_median = median(peak_hgt, na.rm = TRUE),
+      peak_wdh_min = min(peak_width, na.rm = TRUE),
+      peak_wdh_max = max(peak_width, na.rm = TRUE),
+      # peak widths
+      peak_wdh_mean = mean(peak_width, na.rm = TRUE),
+      peak_wdh_median = median(peak_width, na.rm = TRUE),
+      peak_wdh_min = min(peak_width, na.rm = TRUE),
+      peak_wdh_max = max(peak_width, na.rm = TRUE),
+      # cumulative PM
+      total_plume_area = sum(cumm_pm, na.rm = TRUE)
     )
 decay_sum
 ```
+
+## Plume Analysis by Participant
+
+The rest of this file calculated statistics on plume reduction
+throughout the dataset. Below summarizes all that analysis into one
+function, creating reduction statistics, and performing that function on
+the dataset as it is grouped by participation and room.
+
+```{r}
+plume_redus <- function(data, id) {
+  sub_data <- data[data$participant_id == id,]
+  # Drop NA data
+  sub_data <- sub_data[!is.na(sub_data$pm25),]
+  # Separate my_df by before vs. after
+  my_df_before <- sub_data[sub_data$case=='before',]
+  my_df_after  <- sub_data[sub_data$case=='after',]
+
+  # Get peaks from before and after
+  peaks_b <- findpeaks(my_df_before$pm25,
+                       nups = 1,
+                       ndowns = 2,
+                       minpeakheight = 20,
+                       minpeakdistance = 200,
+                       threshold = 0)
+  peaks_a <- findpeaks(my_df_after$pm25,
+                     nups = 1,
+                     ndowns = 2,
+                     minpeakheight = 20,
+                     minpeakdistance = 200,
+                     threshold = 0)
+
+  # Get valleys before and after to isolate each plume
+  peaks_b <- get_local_valleys(my_df_before$pm25,
+                               peaks = peaks_b,
+                               min_threshold = 5)
+  peaks_a <- get_local_valleys(my_df_after$pm25,
+                               peaks = peaks_a,
+                               min_threshold = 5)
+  
+  # perform decay analysis for before and after
+  decays_before <- curve_fitting(my_df_before, peaks = peaks_b)
+  decays_after  <- curve_fitting(my_df_after, peaks = peaks_a)
+  
+  # Merge decay tables, adding a column indicating whether HEPA installed or not
+  decays_before$hepa <- FALSE
+  decays_after$hepa <- TRUE
+  all_decays <- merge(decays_before, decays_after, all = TRUE)
+  
+  # Get index of when HEPA was installed
+  hepa_install_idx <- match(TRUE, all_decays$hepa)
+  
+  # Create summary of decay values for before and after
+  all_decays["hepa_installed"] <- all_decays["peak_idx"] >= hepa_install_idx
+  all_decays["peak_width"] <- all_decays["valley_idx_a"] - all_decays["valley_idx_b"]
+  
+  decay_sum <-
+    all_decays %>%
+      group_by(hepa) %>%
+      summarize(
+        # kval
+        k_val_mean = mean(k_val, na.rm = TRUE),
+        k_val_median = median(k_val, na.rm = TRUE),
+        # k_val_min = min(k_val, na.rm = TRUE),
+        # k_val_max = max(k_val, na.rm = TRUE),
+        # peak heights
+        peak_hgt_mean = mean(peak_hgt, na.rm = TRUE),
+        peak_hgt_median = median(peak_hgt, na.rm = TRUE),
+        # peak_wdh_min = min(peak_width, na.rm = TRUE),
+        # peak_wdh_max = max(peak_width, na.rm = TRUE),
+        # # peak widths
+        peak_wdh_mean = mean(peak_width, na.rm = TRUE),
+        peak_wdh_median = median(peak_width, na.rm = TRUE),
+        # peak_wdh_min = min(peak_width, na.rm = TRUE),
+        # peak_wdh_max = max(peak_width, na.rm = TRUE),
+        # cumulative PM
+        total_plume_area = sum(cumm_pm, na.rm = TRUE),
+      )
+  return(decay_sum)
+}
+```
+
+```{r}
+# Create empty DataFrame for storing k values
+plume_reduc.data <- data.frame(
+  "participant_id" = numeric(0),
+  "k_val_mean" = numeric(0),
+  "k_val_median" = numeric(0),
+  # "k_val_min" = numeric(0),
+  # "k_val_max" = numeric(0),
+  "peak_hgt_mean" = numeric(0),
+  "peak_hgt_median" = numeric(0),
+  # "peak_hgt_min" = numeric(0),
+  # "peak_hgt_max" = numeric(0),
+  "peak_wdh_mean" = numeric(0),
+  "peak_wdh_median" = numeric(0),
+  # "peak_wdh_min" = numeric(0),
+  # "peak_wdh_max" = numeric(0),
+  "total_plume_area" = numeric(0),
+  "hepa" = numeric(0)
+)
+
+for (id in unique(my_df$participant_id)) {
+    res <- plume_redus(my_df, id)
+    plume_reduc.newdata <- data.frame(
+      "participant_id" = id,
+      "hepa" = res$hepa,
+      "k_val_mean" = res$k_val_mean,
+      "k_val_median" = res$k_val_median,
+      # "k_val_min" = res$k_val_min,
+      # "k_val_max" = res$k_val_max,
+      "peak_hgt_mean" = res$peak_hgt_mean,
+      "peak_hgt_median" = res$peak_hgt_median,
+      # "peak_hgt_min" = res$peak_hgt_min,
+      # "peak_hgt_max" = res$peak_hgt_max,
+      "peak_wdh_mean" = res$peak_wdh_mean,
+      "peak_wdh_median" = res$peak_wdh_median,
+      # "peak_wdh_min" = res$peak_wdh_min,
+      # "peak_wdh_max" = res$peak_wdh_max,
+      "total_plume_area" = res$total_plume_area
+    )
+    plume_reduc.data <- rbind(plume_reduc.data, plume_reduc.newdata)
+}
+plume_reduc.data
+```
+

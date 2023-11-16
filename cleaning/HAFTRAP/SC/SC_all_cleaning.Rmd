@@ -27,7 +27,7 @@ data_cat <- "SC_RASCT"
 
 ```{r}
 # Only participant 1 for now
-participants <- as.character(1)
+participants <- c("1", "3", "4")
 
 # Read relevant summary notes for time splitting
 time_map <- read_excel(paste0(path_to_data, "SC_notes_summarized.xlsx"))
@@ -140,8 +140,8 @@ make_df <- function(df, col_vec) {
     
     # Calculated indoor/outdoor ratios for each section for specified columns
     get_ratios(col_vec) %>%
-  
-    # Drops section column
+    
+    # Make section
     select(-section)
 }
 ```
@@ -282,7 +282,7 @@ main_df <- mod_df %>%
   full_join(acsm_df1, by = obs_cols) %>%
   full_join(acsm_df2, by = obs_cols) %>%
   full_join(td_df, by = obs_cols) %>%
-  full_join(cpc_df, by = obs_cols)
+  full_join(cpc_df, by = obs_cols) 
 
 save(main_df, file = 
        paste0("cleaning/HAFTRAP/SC/", "cleaned_everything.RData"))

@@ -1,0 +1,122 @@
+# HAFTRAP Data Cleaning and Summaries - multiple (for CPC)
+
+## STOP
+
+**HAVE YOU RUN `SC_all_cleaning`?**
+*This file loads dataframes created from running `SC_all_cleaning`. Make sure you run those files first (if you haven't already) before running this file.*
+
+This script calculates correlation coefficients for data collected from all sensors in the SCOPE HAFTRAP study
+
+Results can be found in `summary/HAFTRAP/SC/s_SC_RASTC_corr.csv`.
+
+As a by-product to calculating correlation coefficients, this script also generates a data-frame stored in `merged.RData` for use in `SC_correlations`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(corrr)
+library(readxl)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Participant IDs and corresponding time map tables
+```{r}
+# Get relevant participant IDs from OH_participants
+participants <- c("1", "2", "3","4")
+
+# Set path to data
+path_to_data <- "cleaning/HAFTRAP/SC/"
+```
+
+
+## Helper Functions:
+### Calculating 10 minute averages
+When correlating data, we want to make sure that there has been enough time for air to mix, therefore we calculate 10-minute averages of the data.
+```{r}
+# Round over 10 minute averages
+round_10min <- function(df, vec) {
+  df %>%
+  # Create new column with rounded dates
+  mutate(date_round = round_date(date, "10 minutes")) %>%
+  # Group by the rounded datetime
+  group_by(case, environment, participant_id, date_round) %>%
+  # Calculate mean over ten minutes
+  summarize(across(all_of(vec), mean), .groups = "drop") %>%
+  # Rename data column
+  rename(date = date_round)
+}
+```
+
+### Calculating correlation coefficients
+Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
+```{r}
+# Function to calculate correlation matrices
+get_corr <- function(df, case, env, col_1, col_2) {
+  df %>%
+    filter(case == case, environment == env) %>%
+    select(col_1, col_2) %>% 
+    filter_all(all_vars(is.finite(.))) %>%
+    # Calculate correlations (suppress output message)
+    cor() -> cor_mat
+    
+  data.frame(coefficient = cor_mat[[2]], col1 = col_1, col2 = col_2,
+             case = case, environment = env)
+}
+```
+
+## Load data
+
+Mod-PM
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_everything.RData"))
+```
+
+
+
+## Main Code Run
+### Calculate correlation matrices
+Helps better understand the relationship between different variables in sham and true HEPA conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
+
+```{r}
+# Create dataframe to hold correlation coefficients
+corr_df <- data.frame()
+strings <- main_df %>% select_if(is.numeric) %>% colnames()
+all_cols <- t(combn(strings, 2))
+
+# Loop through each case
+for (c in c("off", "on")) {
+    # Loop through each environment
+    for (env in c("indoor", "outdoor")) {
+      # Loop through each pair of columns
+      for (i in 1:nrow(all_cols)) {
+        df <- main_df %>% get_corr(c, env, 
+                                   all_cols[i, 1], all_cols[i, 2])
+        corr_df <- rbind(corr_df, df)
+    }
+    print(paste("Computed correlation coefficients for all", c, env)) 
+  }
+}
+
+```
+
+## Save to file
+Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
+```{r}
+# Save summary statistic files to CSVs
+write.csv(corr_df, "summary/HAFTRAP/SC/s_SC_RASTC_corr.csv")
+```
