@@ -5,7 +5,7 @@
 **HAVE YOU RUN `IB_modpm_cleaning`?**
 *This file loads a dataframe created from running `IB_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This script is used to calculated summary statistics for multiple participants in the East Boston pilot, for Mod-PM deployments by Olin.
+This script is used to calculated summary statistics for multiple participants in the Roxbury pilot, for Mod-PM deployments by Olin.
 
 Results can be found in `summary/Roxbury/IB/s_IB_M_quants.csv`.
 
