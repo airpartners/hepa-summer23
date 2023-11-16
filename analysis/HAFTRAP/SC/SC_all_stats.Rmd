@@ -14,11 +14,12 @@ Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
+library(openair)
 ```
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+knitr::opts_knit$set(root.dir = "/Users/shersey/Dropbox/Work/Data/hepa-summer23")
 ```
 
 ```{r}
@@ -37,6 +38,40 @@ path_to_data <- "cleaning/HAFTRAP/SC/"
 ```{r}
 # Load Mod-PM data from RData file
 load(paste0(path_to_data, "cleaned_everything.RData"))
+```
+
+## Create some exploratory OpenAir plots
+```{r}
+# choose indoor or outdoor
+env <- "indoor"
+
+# choose HEPA on/off
+cs <- c("off", "on")
+
+# choose participant(s)
+part <- c("1","3", "4")
+
+#filter by in vs out, on vs off vs all, and participants
+df <- filter(main_df, environment == env, participant_id == part, case == cs)
+
+
+#timePlot(df, pollutant = c("mcpc_counts", "acsm_org", "acsm_so4", "acsm_f43", "acsm_f44"), y.relation = "free")
+
+#linearRelation(df, x = "mcpc_counts", y = "mod_pm1num", period = "day.hour")
+
+# diurnals
+timeVariation(df, pollutant = c( "t200u_no", "t200u_no2", "t300_co"), ylab = "PNC (ug/m3)", normalise = TRUE)
+timeVariation(df, pollutant = c( "mcpc_counts", "acsm_org", "acsm_ratio_55_57"), ylab = "PNC (ug/m3)", normalise = TRUE)
+#timeVariation(df, pollutant = c( "sems_sum50", "sems_sum100", "sems_sum1000"), ylab = "PNC (ug/m3)", normalise = TRUE)
+
+#timeVariation(df, pollutant = c("acsm_org", "acsm_ratio_55_57"), ylab = "PNC (ug/m3)", normalise = TRUE)
+#timeVariation(df, pollutant = c("acsm_org", "acsm_f57"), ylab = "ug/m3")
+timeVariation(df, pollutant = "mcpc_counts", col = "firebrick")
+timeVariation(df, pollutant = "acsm_org", col = "firebrick")
+timeVariation(df, pollutant = "mod_pm25", col = "firebrick")
+
+#scatterPlot(df, x = "mod_pm1", y = "acsm_org", method = "hexbin", col= "jet")
+
 ```
 
 ## Helper Function: Calculate summary statistics
