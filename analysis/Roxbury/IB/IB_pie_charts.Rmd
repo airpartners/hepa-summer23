@@ -39,3 +39,47 @@ path_to_data <- "cleaning/Roxbury/IB/"
 # Load Mod-PM data from RData file
 load(paste0(path_to_data, "cleaned_modpm.RData"))
 ```
+
+## Set Thresholds
+```{r}
+proportion_df <- main_df  %>% 
+    mutate(across(case, ~factor(., levels=c("before","after")))) %>%
+    group_by(case) %>%
+    # Categorize as low, medium, high
+    mutate(danger_pm25 = case_when(
+      between(pm25, 0, 5) ~ 'LOW',
+      between(pm25, 5, 12) ~ 'MEDIUM',
+      pm25 > 12 ~ 'HIGH')) %>%
+    # Calculate proportions
+    count(danger_pm25) %>%
+    mutate(prop = 100 * n / sum(n)) %>% 
+    mutate(across(danger_pm25, ~factor(., levels=c("LOW","MEDIUM", "HIGH"))))
+```
+
+## Plotting
+```{r}
+ggplot(proportion_df, aes(x="", y=prop, fill=danger_pm25)) +
+  geom_bar(stat="identity", width=1) +
+  scale_fill_manual(values = c("#56B4E9", "#009E73", "#D55E00")) +
+  facet_grid(cols = vars(case),
+             labeller = as_labeller(c("before" = "No Purifier", 
+                                      "after" = "With Purifier"))) +
+  labs(fill = "Pollutant Levels") + 
+  theme_minimal() +
+  theme(axis.text.x=element_blank(), axis.title.x = element_blank()) +
+  labs(title = "Impact of Using Air Purifiers",
+       subtitle = "Comparing pollutant exposure without and with purifier",
+       caption = "PM 2.5 levels categorized by EPA standards") -> plot_base
+  
+```
+
+```{r}
+ plot_base + xlab("") + coord_polar("y", start=0)
+```
+```{r}
+plot_base + ylab("Percentage of Indoor Air")
+```
+
+
+
+
