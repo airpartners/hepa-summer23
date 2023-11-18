@@ -35,21 +35,6 @@ improve_timestamps <- function(df) {
 ```
 
 ```{r}
-include_participant <- function(df, person, cd) {
-  df %>%
-    # Select current participant
-    filter(participant_id == person) %>%
-    # Add case column
-    mutate(case = case_when(
-      # Before purifier is switched on
-      # Note: 'cd' is the table 'current_dates' in function call
-      between(date, cd$dt_start, cd$dt_hepa) ~ 'before',
-      # After purifier is switched on
-      between(date, cd$dt_hepa, cd$dt_end) ~ 'after'))
-}
-```
-
-```{r}
 include_case <- function(df, person, cd) {
   df %>%
     # Select current participant
@@ -66,27 +51,23 @@ include_case <- function(df, person, cd) {
 
 ```{r}
 # Read summary table of times
-time_map <- read_excel("data/EastBoston/MF/MF_notes_summarized.xlsx") %>%
+time_map <- read_excel("data/Roxbury/IB/IB_notes_summarized.xlsx") %>%
   # Convert to appropriate variable types
   mutate(across(c(dt_start, dt_hepa, dt_end), 
                   ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
   mutate(across(c(dt_start, dt_hepa, dt_end), 
-                  ~force_tz(.x, tz = "America/New_York"))) %>%
-  mutate(sn_hobo = as.numeric(sn_hobo)) %>% 
-  mutate(sn_hobo = as.character(sn_hobo))
+                  ~force_tz(.x, tz = "America/New_York")))
 ```
-
 
 ```{r}
 # Set path to data
-path_to_data <- "data/EastBoston/MF/hobo/"
+path_to_data <- "data/Roxbury/IB/hobo/"
 
 # Set data category
-data_cat <- "MF_H"
+data_cat <- "IB_H"
 ```
 
 ```{r, warning=FALSE}
-
 # Initialize master dataframe for all data
 all_df <- data.frame()
 
@@ -94,51 +75,39 @@ all_df <- data.frame()
 for (file_name in list.files(path_to_data)) {
   # Read csv
   file_path <- paste0(path_to_data, file_name)
-  df <- read_csv(file_path, skip = 1, show_col_types = FALSE)
+  my_df <- read_csv(file_path, skip = 1, show_col_types = FALSE)
   
   # Remove unnecessary columns
-  df <- df[,2:8] %>% drop_na()
+  df <- my_df[,2:5] %>% drop_na()
   
   # Rename columns
-  colnames(df) <- c("date", "voltage", "current", "power", "energy", 
-                    "power_app", "power_fact")
+  colnames(df) <- c("date", "voltage", "current", "power")
+  
   
   # Convert timestamps to datetime
   df <- improve_timestamps(df)
   
+  
   # Extract serial number from file name
   name_split <- strsplit(file_name, "[_.]")[[1]] %>% head(-1)
-  serial_no <- name_split[3]
+  apartment <- name_split[3]
+  is_bedroom <- TRUE
+  
+  if(is.na(name_split[4])){
+    is_bedroom <- FALSE
+  }
   
   # Add serial number to dataframe
-  df <- mutate(df, sn_hobo = serial_no)
-  
+  df <- mutate(df, participant_id = apartment, is_br = is_bedroom)
+
   # Append to main dataframe
   all_df <- rbind(all_df, df)
-  
-  print(paste("Loaded HOBO logger", serial_no))
+
+  print(paste("Loaded HOBO logger", apartment))
 }
 ```
 ```{r}
-# Initialize master dataframe for all data
-clean_df <- data.frame()
-
-for (serial_no in unique(all_df$sn_hobo)) {
-  df <- all_df %>% filter(sn_hobo == serial_no)
-  parts <- time_map %>% filter(sn_hobo == serial_no)
-  
-  serial_df <- data.frame()
-  for (person in unique(parts$participant_id)) {
-    cd <- parts %>% filter(participant_id == person)
-    person_df <- df %>%
-      filter(between(date, cd$dt_start, cd$dt_end)) %>%
-      # Add case column
-      mutate(participant_id = person)
-    
-    serial_df <- rbind(serial_df, person_df)
-  }
-  clean_df <- rbind(clean_df, serial_df)
-}
+clean_df <- all_df %>% filter(participant_id != "403")
 ```
 
 ```{r}
@@ -150,8 +119,8 @@ case_df <- data.frame()
 for (person in participants) {
   # Filter indoor (dates match outdoor) and by current participant
   current_dates <- time_map %>% 
-    filter(environment == "outdoor") %>%
-    filter(participant_id == person)
+    filter(participant_id == person) %>%
+    head(1)
   # Filter by date for sham and hepa (see helper function)
   df <- include_case(clean_df, person, current_dates)
   # Append to overall dataframe
@@ -160,18 +129,17 @@ for (person in participants) {
 ```
 
 ```{r}
-# More cleaning to come
 main_df <- case_df %>%
-  select(-voltage, -current, -energy, -power_app, -power_fact) %>%
-  mutate(participant_id = as.character(participant_id)) %>%
+  drop_na() %>%
+  select(-voltage, -current) %>%
+  # mutate(participant_id = as.character(participant_id)) %>%
   mutate(power = case_when(
     case == "before" ~ 0,
     case == "after" ~ power))
-  
 ```
 
 ### Save Data
 The `main_df` dataframe is saved to `cleaned_modpm.RData`
 ```{r}
-save(main_df, file = paste0("cleaning/EastBoston/MF/", "cleaned_hobo.RData"))
+save(main_df, file = paste0("cleaning/Roxbury/IB/", "cleaned_hobo.RData"))
 ```
