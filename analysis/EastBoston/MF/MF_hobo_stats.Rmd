@@ -47,8 +47,9 @@ load(paste0(path_to_data, "cleaned_hobo.RData"))
 ## Find means
 ```{r}
 main_df %>%
+  filter(case == "after") %>%
   group_by(participant_id) %>%
-  summarise(prop_on = sum(power > 0)/n()) -> props_df
+  summarise(prop_on = sum(power > 10)/n()) -> props_df
 ```
 ## Save to file
 Summary statistics are saved in a CSV file.
