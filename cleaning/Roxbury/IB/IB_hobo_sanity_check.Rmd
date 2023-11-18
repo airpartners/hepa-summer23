@@ -1,0 +1,71 @@
+TODO: Change so that it plots before/after separately
+
+# Sanity Check HOBO Data
+
+## STOP
+
+**HAVE YOU RUN `IB_hobo_cleaning`?**
+*This file loads a dataframe created from running `IB_hobo_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to sanity check data produced from `IB_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `IB_modpm_cleaning`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Paths
+```{r}
+# Set path to data
+path_to_data <- "cleaning/Roxbury/IB/"
+```
+
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file; loads as main_df
+load(paste0(path_to_data, "cleaned_hobo.RData"))
+```
+
+Participant IDs
+```{r}
+# Get relevant participant IDs from IB_participants
+participants <- unique(main_df$participant_id)
+```
+
+## Plotting
+### Plotting functions
+Simplifies plotting of data
+```{r}
+plot_one <- function(plot_df, person, c, t) {
+  plot_df %>%
+    filter(case == c, participant_id == person) %>%
+    ggplot() +
+      geom_line(aes(x = date, y = .data[[t]])) +
+      ggtitle(paste(person, t, c)) +
+      ylim(0, 100)
+}
+```
+
+```{r}
+for (p in participants) {
+  print(plot_one(main_df, p, "before", "power"))
+  print(plot_one(main_df, p, "after", "power"))
+  # Print
+  print(paste("Plotted for", p))
+}
+```
