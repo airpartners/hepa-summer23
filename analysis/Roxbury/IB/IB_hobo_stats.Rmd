@@ -48,15 +48,15 @@ load(paste0(path_to_data, "cleaned_hobo.RData"))
 ```{r}
 participant_prop <- main_df %>%
   filter(case == "after") %>%
-  group_by(participant_id) %>%
+  group_by(participant_id, is_br) %>%
   summarise(prop_on = sum(power > 10)/n())
 
 overall_prop <- main_df %>%
   filter(case == "after") %>%
   summarise(prop_on = sum(power > 10)/n()) %>%
-  mutate(participant_id = "all")
+  mutate(participant_id = "all", is_br = NA)
 
-prop_df <- rbind(participant_prop, overall_prop)
+props_df <- rbind(participant_prop, overall_prop)
 ```
 ## Save to file
 Summary statistics are saved in a CSV file.
