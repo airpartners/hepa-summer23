@@ -52,15 +52,17 @@ proportion_df <- main_df  %>%
       pm25 > 12 ~ 'HIGH')) %>%
     # Calculate proportions
     count(danger_pm25) %>%
-    mutate(prop = 100 * n / sum(n)) %>% 
+    mutate(prop = 24 * n / sum(n)) %>% 
     mutate(across(danger_pm25, ~factor(., levels=c("LOW","MEDIUM", "HIGH"))))
 ```
 
 ## Plotting
 ```{r}
+my_caption <- expression(PM[2.5] ~levels ~categorized ~by ~EPA ~standards)
+
 ggplot(proportion_df, aes(x="", y=prop, fill=danger_pm25)) +
   geom_bar(stat="identity", width=1) +
-  scale_fill_manual(values = c("#56B4E9", "#009E73", "#D55E00")) +
+  scale_fill_manual(values = c("#009E73", "#F0E442", "#D55E00")) +
   facet_grid(cols = vars(case),
              labeller = as_labeller(c("before" = "No Purifier", 
                                       "after" = "With Purifier"))) +
@@ -68,8 +70,10 @@ ggplot(proportion_df, aes(x="", y=prop, fill=danger_pm25)) +
   theme_minimal() +
   theme(axis.text.x=element_blank(), axis.title.x = element_blank()) +
   labs(title = "Impact of Using Air Purifiers",
-       subtitle = "Comparing pollutant exposure without and with purifier",
-       caption = "PM 2.5 levels categorized by EPA standards") -> plot_base
+       subtitle = "Average time spent per day without and with purifier",
+       caption = my_caption)  + 
+  geom_text(aes(label = paste(round(prop), "hrs")),
+            position = position_stack(vjust = 0.5), size = 3)-> plot_base
   
 ```
 
