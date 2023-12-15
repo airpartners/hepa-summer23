@@ -26,8 +26,8 @@ data_cat <- "SC_RASCT"
 ```
 
 ```{r}
-# Only participant 1 for now
-participants <- c("1", "3", "4")
+# All participants
+participants <- c("1", "2", "3", "4")
 
 # Read relevant summary notes for time splitting
 time_map <- read_excel(paste0(path_to_data, "SC_notes_summarized.xlsx"))
@@ -173,8 +173,14 @@ for (person in participants) {
     
     # Remove suffixes ("_in" for indoor, "_out" for outdoor) for binding
     col_suffix <- if (env == "indoor") "_in" else "_out"
+    
+    if (is.null(df$stove_temp)) {
+      df$stove_temp = NA
+    }
+    
+    print(col_suffix)
     colnames(df) <- gsub(paste0(col_suffix, "$"), "", colnames(df))
-
+    
     # Append to main dataframe
     all_df <- rbind(all_df, df)
   }
@@ -252,7 +258,7 @@ Process Modulair data
 mod_df <- main_df %>% 
   # Select Modulair data columns
   select(date, environment, participant_id, case, mod_pm25, mod_pm10, mod_pm1,
-         mod_o3, mod_no2, mod_no, mod_co, mod_pm1num) %>%
+         mod_o3, mod_no2, mod_no, mod_co, mod_pm1num, stove_temp) %>%
   # Create new column with dates rounded to ten minutes
   mutate(date_round = round_date(date, "10 minutes")) %>%
   # Order by rounded dates (remove row-wise)
@@ -266,7 +272,7 @@ mod_df <- main_df %>%
   
   # Get indoor-outdoor ratio for each section for specified columns
   get_ratios(c("mod_pm25", "mod_pm10", "mod_pm1","mod_o3", 
-               "mod_no2", "mod_no", "mod_co", "mod_pm1num")) %>%
+               "mod_no2", "mod_no", "mod_co", "mod_pm1num", "stove_temp")) %>%
 
   # Drop section column
   select(-section)
