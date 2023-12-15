@@ -1,0 +1,94 @@
+# Mothers Out Front Pie Chart Creation (for Mod-PM)
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning`?**
+*This file loads a dataframe created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to create pie charts the amount of time chosen for "safe" levels of concentration for multiple participants in the Mothers Out Front pilot, for Mod-PM deployments by Olin. Currently, it excludes extraneous participant 11.
+
+Results can be found in `summary/EastBoston/MF/s_MF_M_quants.csv`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+### Filter out Participant 11 (anomalous)
+```{r}
+main_df <- main_df %>% filter(participant_id != "11")
+```
+
+## Set Thresholds
+```{r}
+proportion_df <- main_df  %>% 
+    mutate(across(case, ~factor(., levels=c("before","after")))) %>%
+    group_by(case) %>%
+    # Categorize as low, medium, high
+    mutate(danger_pm25 = case_when(
+      between(pm25, 0, 5) ~ 'LOW',
+      between(pm25, 5, 12) ~ 'MEDIUM',
+      pm25 > 12 ~ 'HIGH')) %>%
+    # Calculate proportions
+    count(danger_pm25) %>%
+    mutate(prop = 24 * n / sum(n)) %>% 
+    mutate(across(danger_pm25, ~factor(., levels=c("LOW","MEDIUM", "HIGH"))))
+```
+
+## Plotting
+```{r}
+my_caption <- expression(PM[2.5] ~levels ~categorized ~by ~EPA ~standards)
+
+ggplot(proportion_df, aes(x="", y=prop, fill=danger_pm25)) +
+  geom_bar(stat="identity", width=1) +
+  scale_fill_manual(values = c("#009E73", "#F0E442", "#D55E00")) +
+  facet_grid(cols = vars(case),
+             labeller = as_labeller(c("before" = "No Purifier", 
+                                      "after" = "With Purifier"))) +
+  labs(fill = "Pollutant Levels") + 
+  theme_minimal() +
+  theme(axis.text.x=element_blank(), axis.title.x = element_blank()) +
+  labs(title = "Impact of Using Air Purifiers",
+       subtitle = "Average time spent per day without and with purifier",
+       caption = my_caption)  + 
+  geom_text(aes(label = paste(round(prop, 2), "hrs")),
+            position = position_stack(vjust = 0.5), size = 3)-> plot_base
+  
+```
+
+```{r}
+ plot_base + xlab("") + coord_polar("y", start=0)
+```
+```{r}
+plot_base + ylab("Percentage of Indoor Air")
+```
+
+
+
+

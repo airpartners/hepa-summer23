@@ -130,5 +130,6 @@ summary_wide %>%
 Summary statistics are saved in a CSV file.
 ```{r}
 # Save summary statistic files to CSVs
-# write.csv(summary_normal, "summary/EastBoston/MF/s_MF_M_quants.csv")
+write.csv(summary_normal,
+          "summary/EastBoston/MF/s_MF_M_quants_alternative.csv")
 ```
