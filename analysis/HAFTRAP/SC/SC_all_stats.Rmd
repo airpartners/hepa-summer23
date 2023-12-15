@@ -19,7 +19,7 @@ library(openair)
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "/Users/shersey/Dropbox/Work/Data/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
@@ -49,7 +49,7 @@ env <- "indoor"
 cs <- c("off", "on")
 
 # choose participant(s)
-part <- c("1","3", "4")
+part <- c("1", "2", "3", "4")
 
 #filter by in vs out, on vs off vs all, and participants
 df <- filter(main_df, environment == env, participant_id == part, case == cs)

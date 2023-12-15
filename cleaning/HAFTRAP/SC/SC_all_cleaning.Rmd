@@ -288,7 +288,8 @@ main_df <- mod_df %>%
   full_join(acsm_df1, by = obs_cols) %>%
   full_join(acsm_df2, by = obs_cols) %>%
   full_join(td_df, by = obs_cols) %>%
-  full_join(cpc_df, by = obs_cols) 
+  full_join(cpc_df, by = obs_cols) %>%
+  filter(!is.na(case))
 
 save(main_df, file = 
        paste0("cleaning/HAFTRAP/SC/", "cleaned_everything.RData"))
