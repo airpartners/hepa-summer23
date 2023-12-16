@@ -78,6 +78,32 @@ get_corr <- function(df, case, env, col_1, col_2) {
 }
 ```
 
+### Making the correlation coefficient dataframe
+This function contains a loop to create all the correlation coefficients for a provided dataframe
+```{r}
+make_corr_df <- function(input_df, col_set) {
+  # Initialize empty dataframe
+  corr_df <- data.frame()
+  
+  # Loop through each case
+  for (c in c("off", "on")) {
+      # Loop through each environment
+      for (env in c("indoor", "outdoor")) {
+        # Loop through each pair of columns
+        for (i in 1:nrow(col_set)) {
+          df <- input_df %>% get_corr(c, env, 
+                                     col_set[i, 1], col_set[i, 2])
+          corr_df <- rbind(corr_df, df)
+      }
+      print(paste("Computed correlation coefficients for all", c, env)) 
+    }
+  }
+  
+  corr_df
+}
+```
+
+
 ## Load data
 
 Mod-PM
@@ -87,32 +113,40 @@ load(paste0(path_to_data, "cleaned_everything.RData"))
 ```
 
 
-
 ## Main Code Run
 ### Calculate correlation matrices
 Helps better understand the relationship between different variables in sham and true HEPA conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
 
 ```{r}
-# Create dataframe to hold correlation coefficients
-corr_df <- data.frame()
+# Create all column pairs
 strings <- main_df %>% select_if(is.numeric) %>% colnames()
 all_cols <- t(combn(strings, 2))
-
-# Loop through each case
-for (c in c("off", "on")) {
-    # Loop through each environment
-    for (env in c("indoor", "outdoor")) {
-      # Loop through each pair of columns
-      for (i in 1:nrow(all_cols)) {
-        df <- main_df %>% get_corr(c, env, 
-                                   all_cols[i, 1], all_cols[i, 2])
-        corr_df <- rbind(corr_df, df)
-    }
-    print(paste("Computed correlation coefficients for all", c, env)) 
-  }
-}
-
 ```
+
+
+```{r}
+# Calculate correlations by participant
+participant_df <- data.frame()
+for (person in participants){
+  main_df %>%
+    filter(participant_id == person) %>%
+    make_corr_df(all_cols) %>%
+    mutate(participant_id = person) -> df
+  
+  participant_df <- rbind(participant_df, df)
+}
+```
+
+```{r}
+# Calculate correlations overall
+all_df <- make_corr_df(main_df, all_cols) %>% mutate(participant_id = "all")
+```
+
+```{r}
+# Combine participant and overall correlations
+corr_df <- rbind(participant_df, all_df)
+```
+
 
 ## Save to file
 Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
