@@ -95,7 +95,7 @@ make_corr_df <- function(input_df, col_set) {
                                      col_set[i, 1], col_set[i, 2])
           corr_df <- rbind(corr_df, df)
       }
-      print(paste("Computed correlation coefficients for all", c, env)) 
+      print(paste("Computed correlation coefficients for", env, c)) 
     }
   }
   
@@ -128,18 +128,24 @@ all_cols <- t(combn(strings, 2))
 # Calculate correlations by participant
 participant_df <- data.frame()
 for (person in participants){
+  print(paste0("Computing for Participant ", person, ":"))
+  
   main_df %>%
     filter(participant_id == person) %>%
     make_corr_df(all_cols) %>%
     mutate(participant_id = person) -> df
   
   participant_df <- rbind(participant_df, df)
+  
+  print(paste("Completed computation for Participant", person))
 }
 ```
 
 ```{r}
 # Calculate correlations overall
+print("Computing for overall correlations")
 all_df <- make_corr_df(main_df, all_cols) %>% mutate(participant_id = "all")
+print("Completed computation of overall correlations")
 ```
 
 ```{r}

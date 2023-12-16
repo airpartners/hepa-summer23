@@ -175,7 +175,7 @@ for (person in participants) {
     col_suffix <- if (env == "indoor") "_in" else "_out"
     
     if (is.null(df$stove_temp)) {
-      df$stove_temp = NA
+      df <- mutate(df, stove_temp = NA)
     }
     
     print(col_suffix)
@@ -235,7 +235,8 @@ Split into separate dataframes, add ratios
 ```{r}
 # Make clean dataframe, calculate ratios for each data "group"
 # For SEMS data
-sems_df <- make_df(main_df, c("sems_sum50", "sems_sum100", "sems_sum1000"))
+sems_df <- make_df(main_df, c("sems_sum50", "sems_sum100", "sems_sum1000",
+                              "sems_vol_cc"))
 
 # For ACSM data for specific pollutants
 acsm_df1 <- make_df(main_df, c("acsm_chl", "acsm_nh4", "acsm_no3", "acsm_org", 
