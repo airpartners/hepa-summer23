@@ -16,7 +16,7 @@ library(scales)
 
 ```{r, setup, include=FALSE}
 # set working directory
-knitr::opts_knit$set(root.dir = "/Users/shersey/Dropbox/Work/Data/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
