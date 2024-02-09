@@ -1,11 +1,11 @@
-# HAFTRAP Data Cleaning and Summaries - multiple (for CPC)
+# SCOPE HAFTRAP Data Cleaning and Summaries - multiple
 
 ## STOP
 
 **HAVE YOU RUN `SC_all_cleaning`?**
 *This file loads dataframes created from running `SC_all_cleaning`. Make sure you run those files first (if you haven't already) before running this file.*
 
-This script calculates correlation coefficients for data collected from all sensors in the SCOPE HAFTRAP study
+This script calculates correlation coefficients for data collected from select sensors in the SCOPE HAFTRAP study
 
 Results can be found in `summary/HAFTRAP/SC/s_SC_RASTC_corr.csv`.
 
@@ -33,80 +33,13 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 }
 ```
 
-Participant IDs and corresponding time map tables
+Path to Data
 ```{r}
-# Get relevant participant IDs from OH_participants
-participants <- c("1", "2", "3","4")
-
 # Set path to data
 path_to_data <- "cleaning/HAFTRAP/SC/"
 ```
 
-
-## Helper Functions:
-### Calculating 10 minute averages
-When correlating data, we want to make sure that there has been enough time for air to mix, therefore we calculate 10-minute averages of the data.
-```{r}
-# Round over 10 minute averages
-round_10min <- function(df, vec) {
-  df %>%
-  # Create new column with rounded dates
-  mutate(date_round = round_date(date, "10 minutes")) %>%
-  # Group by the rounded datetime
-  group_by(case, environment, participant_id, date_round) %>%
-  # Calculate mean over ten minutes
-  summarize(across(all_of(vec), mean), .groups = "drop") %>%
-  # Rename data column
-  rename(date = date_round)
-}
-```
-
-### Calculating correlation coefficients
-Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
-```{r}
-# Function to calculate correlation matrices
-get_corr <- function(df, case, env, col_1, col_2) {
-  df %>%
-    filter(case == case, environment == env) %>%
-    select(col_1, col_2) %>% 
-    filter_all(all_vars(is.finite(.))) %>%
-    # Calculate correlations (suppress output message)
-    cor() -> cor_mat
-    
-  data.frame(coefficient = cor_mat[[2]], col1 = col_1, col2 = col_2,
-             case = case, environment = env)
-}
-```
-
-### Making the correlation coefficient dataframe
-This function contains a loop to create all the correlation coefficients for a provided dataframe
-```{r}
-make_corr_df <- function(input_df, col_set) {
-  # Initialize empty dataframe
-  corr_df <- data.frame()
-  
-  # Loop through each case
-  for (c in c("off", "on")) {
-      # Loop through each environment
-      for (env in c("indoor", "outdoor")) {
-        # Loop through each pair of columns
-        for (i in 1:nrow(col_set)) {
-          df <- input_df %>% get_corr(c, env, 
-                                     col_set[i, 1], col_set[i, 2])
-          corr_df <- rbind(corr_df, df)
-      }
-      print(paste("Computed correlation coefficients for", env, c)) 
-    }
-  }
-  
-  corr_df
-}
-```
-
-
 ## Load data
-
-Mod-PM
 ```{r}
 # Load Mod-PM data from RData file
 load(paste0(path_to_data, "cleaned_everything.RData"))
@@ -114,49 +47,83 @@ load(paste0(path_to_data, "cleaned_everything.RData"))
 
 
 ## Main Code Run
-### Calculate correlation matrices
-Helps better understand the relationship between different variables in sham and true HEPA conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
 
+### Select Options
+The below code chunk will be really the only one you need to change. Select the
+participants, cases, environments, and variables you want to calculated the
+correlation coefficients for. Don't forget to update the corresponding variable
+names!
 ```{r}
-# Create all column pairs
-strings <- main_df %>% select_if(is.numeric) %>% colnames()
-all_cols <- t(combn(strings, 2))
+# Select participant IDs from OH_participants
+participants <- c("1", "2", "3","4")
+
+# Select case to consider (purifier off, on, or both)
+cases <- c("off", "on")
+
+# Select environment to consider (indoor, outdoor, or both)
+environments <- c("indoor", "outdoor")
+
+# Select columns to calculate correlations between
+col_list <- c("mod_pm25", "mod_pm10", "mod_co", "mod_no", "sems_sum100", 
+              "acsm_org", "t200u_no", "t300_co", "mcpc_counts")
+
+# IMPORTANT: Update this accordingly if you change col_list
+col_list_names <- c("$PM[2.5]", "$PM[10]", "$CO[modulair]", "$NO[modulair]",
+                    "$SEMS[100]", "$Organic[ACSM]", "$NO[teledyne]", 
+                    "$CO[teledyne]", "$UFPs[cpc]")
 ```
 
-
+### Data processing
+Filter and select data according to above specifications
 ```{r}
-# Calculate correlations by participant
-participant_df <- data.frame()
-for (person in participants){
-  print(paste0("Computing for Participant ", person, ":"))
+# Filter columns by specifications
+filtered_df <- main_df %>%
+  filter(participant_id %in% participants, case %in% cases, 
+         environment %in% environments) %>%
   
-  main_df %>%
-    filter(participant_id == person) %>%
-    make_corr_df(all_cols) %>%
-    mutate(participant_id = person) -> df
-  
-  participant_df <- rbind(participant_df, df)
-  
-  print(paste("Completed computation for Participant", person))
-}
+  # Select only relevant columns
+  select(date, participant_id, case, environment, any_of(col_list))
 ```
 
+### Calculating 10 minute averages
+When correlating data, we want to make sure that there has been enough time for air to mix, therefore we calculate 10-minute averages of the data.
 ```{r}
-# Calculate correlations overall
-print("Computing for overall correlations")
-all_df <- make_corr_df(main_df, all_cols) %>% mutate(participant_id = "all")
-print("Completed computation of overall correlations")
+# Round by 10 minutes (for air mixing)
+rounded_df <- filtered_df %>% 
+  # Create new column with rounded dates
+  mutate(date_round = round_date(date, "10 minutes")) %>%
+  # Group by the rounded datetime
+  group_by(case, environment, participant_id, date_round) %>%
+  # Calculate mean over ten minutes
+  summarize_at(col_list, mean, na.rm = TRUE) %>%
+  # Drop groups
+  ungroup() %>%
+  # Rename data column
+  rename(date = date_round)
 ```
 
+### Finally, calculate the correlation matrix
 ```{r}
-# Combine participant and overall correlations
-corr_df <- rbind(participant_df, all_df)
+# Calculate correlation matrix
+corr_matrix <- rounded_df %>% 
+  select(any_of(col_list)) %>% 
+  cor(use = "complete.obs")
+
+print("Calculated correlation matrix for")
+print(paste("Participants:", paste(participants, collapse = ", ")))
+print(paste("Environments:", paste(environments, collapse = ", ")))
+print(paste("Cases (purifier):", paste(cases, collapse = ", ")))
 ```
-
-
-## Save to file
-Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
+### Plotting
+Plot the matrix - feel free to customize
 ```{r}
-# Save summary statistic files to CSVs
-write.csv(corr_df, "summary/HAFTRAP/SC/s_SC_RASTC_corr.csv")
+# Create copy of matrix for plotting
+plot_matrix <- corr_matrix
+
+# Rename the axis labels in the matrix for corrplot
+rownames(plot_matrix) <- col_list_names
+colnames(plot_matrix) <- col_list_names
+
+# Plot the matrix accordingly
+corrplot(plot_matrix, method = "number")
 ```
