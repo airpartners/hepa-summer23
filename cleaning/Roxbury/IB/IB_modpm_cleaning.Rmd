@@ -40,6 +40,14 @@ path_to_data <- "data/Roxbury/IB/modpm/"
 data_cat <- "IB_M"
 ```
 
+Data Thresholds
+```{r}
+# Max thresholds for filtering erroneous values
+pm10_threshold <- 1000
+pm25_threshold <- 100
+pm1_threshold <- 50
+```
+
 ## Helper Functions
 The following two functions are used to clean and process the data
 
@@ -120,6 +128,9 @@ clean_df <- all_df %>%
   select(date, environment, room, participant_id, pm1:pm10, bin0:bin2) %>%
   # Calculate number count of particles in PM1 size
   mutate(pm1num = bin0 + bin1 + bin2, .keep = "unused") %>%
+  
+  # Filter out erroneous values
+  filter(pm1 < pm1_threshold, pm25 < pm25_threshold, pm10 < pm10_threshold) %>%
   
   # Remove repeat readings
   distinct(participant_id, room, date, environment, .keep_all = TRUE)

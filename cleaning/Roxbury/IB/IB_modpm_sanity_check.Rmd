@@ -15,7 +15,7 @@ library(tidyverse)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 Check for working directory
@@ -24,11 +24,6 @@ Check for working directory
 if (!endsWith(getwd(), "hepa-summer23")) {
   stop("Incorrect working directory")
 }
-```
-Participant IDs
-```{r}
-# Get relevant participant IDs from IB_participants
-participants <- c("105", "203", "206", "207", "210", "303", "312", "404", "405", "409", "413", "502", "510", "513", "515", "606", "609", "611", "612", "613")
 ```
 
 Paths
@@ -42,6 +37,12 @@ path_to_data <- "cleaning/Roxbury/IB/"
 ```{r}
 # Load Mod-PM data from RData file; loads as main_df
 load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+Participant IDs
+```{r}
+# Get relevant participant IDs from IB_participants
+participants <- unique(main_df$participant_id)
 ```
 
 ## Plotting
@@ -77,25 +78,35 @@ while (!(person %in% participants)) {
   person <- readline("Error! Invalid ID, Re-enter: ")
 }
 
-# Plot stuff
-for (c in c("before","after")) {
-  # Filter data to appropriate subset
-  df <- main_df %>%
-    filter(participant_id == person, case == c, 
-           environment == "indoor")
+if (person == "all"){
+  plot_df <- main_df %>%
+    filter(participant_id == person, environment == "outdoor")
   
-  if (length(unique(df$room)) > 1) {
-    for (r in unique(df$room)) {
-      plot_df <- df %>% filter(room == r)
-      
-      specify <- c(person, c, "indoor", r)
-      plot_types(plot_df, specify, 10)
+  specify <- c(person, "outdoor")
+  plot_types(plot_df, specify, 10)
+  
+} else {
+  # Plot stuff
+  for (c in c("before","after")) {
+    for (env in c("indoor", "ratio")) {
+      # Filter data to appropriate subset
+    df <- main_df %>%
+      filter(participant_id == person, case == c, environment == env)
+    
+    if (length(unique(df$room)) > 1) {
+      for (r in unique(df$room)) {
+        plot_df <- df %>% filter(room == r)
+        
+        specify <- c(person, c, env, r)
+        plot_types(plot_df, specify, 10)
+      }
+    } else {
+        specify <- c(person, c, env)
+        plot_types(df, specify, 10)
     }
-  } else {
-      specify <- c(person, c, "indoor")
-      plot_types(df, specify, 10)
+    # Print
+    print(paste("Plotted for", person, c, env))
+    }
   }
-  # Print
-  print(paste("Plotted for", person, c, "indoor"))
 }
 ```
