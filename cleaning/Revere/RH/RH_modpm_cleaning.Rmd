@@ -1,0 +1,122 @@
+# Modulair-PM Data Cleaning
+This file cleans, and calculates the I/O ratio for Mod-PM data. Output is saved in a `cleaned_modpm.RData` file that is *untracked* by Github. *All files that depend on using Mod-PM data must be run after running this file.*
+
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(readxl)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+
+```{r}
+# Set path to data
+path_to_data <- "data/Revere/RH/modpm/"
+
+# Set data category
+data_cat <- "RH_M"
+```
+
+Data Thresholds
+```{r}
+# Max thresholds for filtering erroneous values
+pm10_threshold <- 1000
+pm25_threshold <- 100
+pm1_threshold <- 50
+```
+
+## Helper Functions
+The following two functions are used to clean and process the data
+
+### Calculating 10 minute averages
+When calculating the indoor/outdoor ratio, we want to calculate them over 10 minutes as opposed to every data point to account for the time it takes for the air to mix between indoor and outdoor. This function calculates that ten minute average.
+```{r}
+# Round over 10 minute averages
+round_10min <- function(df) {
+  df %>%
+  # Create new column with rounded dates
+  mutate(date_round = round_date(date, "10 minutes")) %>%
+  # Group by the rounded datetime
+  group_by(case, participant_id, date_round) %>%
+  # Calculate mean over ten minutes
+  summarize(across(c(pm1, pm25, pm10, pm1num), mean), .groups = "drop")
+}
+
+```
+
+## Main Code Run
+### Load all data. 
+Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
+```{r}
+# Initialize master dataframe for all data
+all_df <- data.frame()
+
+# Loop through each participant
+for (file_name in list.files(path_to_data)) {
+  # Read csv
+  file_path <- paste0(path_to_data, file_name)
+  df <- read_csv(file_path, show_col_types = FALSE)
+
+  # Split file name into different parts
+  name_split <- strsplit(file_name, "[_.]")[[1]] %>% head(-1)
+  room <- name_split[3]
+  subroom <- name_split[4]
+  
+  # Add the participant ID
+  df <- df %>%
+    select(date1min, HEPA_on, starts_with(c("bin0.", "bin1.", "bin2.", 
+                                            "pm1.", "pm25.", "pm10."))) %>%
+    mutate(participant_id = paste(room, subroom, sep = "_"))
+
+  # Append to main dataframe
+  all_df <- rbind(all_df, df)
+  
+  print(paste("Loaded room", room, subroom))
+}
+```
+
+```{r}
+main_df <- all_df %>% 
+  
+  # Calculate number count of particles in PM1 size
+  mutate(pm1num.indoor = bin0.indoor + bin1.indoor + bin2.indoor,
+         pm1num.outdoor = bin0.outdoor + bin1.outdoor + bin2.outdoor,
+         # Convert HEPA readings to on or off
+         case = case_when(HEPA_on == 0 ~ "off", HEPA_on == 1 ~ "on"), 
+         .keep = "unused") %>%
+  
+  # Calculate indoor-outdoor ratio
+  mutate(pm1.ratio = pm1.indoor / pm1.outdoor,
+         pm25.ratio = pm25.indoor / pm25.outdoor,
+         pm10.ratio = pm10.indoor / pm10.outdoor,
+         pm1num.ratio = pm1num.indoor / pm1num.outdoor) %>%
+  
+  # Gather dataframe to make environment a category
+  pivot_longer(cols = contains("."), 
+                names_to = c(".value", "environment"), 
+                names_sep = "\\.") %>%
+  
+  # Remove NAs, drop outdoor data, and rename date column to standardize
+  drop_na() %>%
+  filter(environment != "outdoor") %>%
+  rename(date = date1min)
+```
+
+### Save Data
+The `main_df` dataframe is saved to `cleaned_modpm.RData`
+```{r}
+save(main_df, file = paste0("cleaning/Revere/RH/", "cleaned_modpm.RData"))
+```
