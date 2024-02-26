@@ -2,12 +2,12 @@
 
 ## STOP
 
-**HAVE YOU RUN `IB_modpm_cleaning`?**
-*This file loads a dataframe created from running `IB_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+**HAVE YOU RUN `CM_modpm_cleaning`?**
+*This file loads a dataframe created from running `CM_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
 This script is used to calculated summary statistics for multiple participants in the Roxbury pilot, for Mod-PM deployments by Olin.
 
-Results can be found in `summary/Roxbury/IB/s_IB_M_quants.csv`.
+Results can be found in `summary/Roxbury/CM/s_CM_M_quants.csv`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -31,7 +31,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Set path to data
-path_to_data <- "cleaning/Roxbury/IB/"
+path_to_data <- "cleaning/Roxbury/CM/"
 ```
 
 ## Load data
@@ -74,7 +74,7 @@ main_df_long <- main_df %>%
 # Calculate summary statistics for each participant
 participant_summary <- main_df_long %>%
   # Group by participant ID, case, environment, and type
-  group_by(participant_id, case, environment, room, type) %>%
+  group_by(participant_id, case, environment, type) %>%
   # Calculate summary statistics
   my_summarise()
   
@@ -85,7 +85,7 @@ overall_summary <- main_df_long %>%
   # Calculate summary statistics
   my_summarise() %>%
   # Add participant ID column as 'all'
-  mutate(participant_id = "all", room = NA)
+  mutate(participant_id = "all")
 ```
 
 ```{r}
@@ -127,5 +127,5 @@ summary_wide %>%
 Summary statistics are saved in a CSV file.
 ```{r}
 # Save summary statistic files to CSVs
-write.csv(summary_normal, "summary/Roxbury/IB/s_IB_M_quants.csv")
+write.csv(summary_normal, "summary/Roxbury/CM/s_CM_M_quants.csv")
 ```

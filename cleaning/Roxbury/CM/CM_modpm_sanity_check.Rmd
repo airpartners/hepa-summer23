@@ -2,10 +2,10 @@
 
 ## STOP
 
-**HAVE YOU RUN `IB_modpm_cleaning`?**
-*This file loads a dataframe created from running `IB_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+**HAVE YOU RUN `CM_modpm_cleaning`?**
+*This file loads a dataframe created from running `CM_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This file is used to sanity check data produced from `IB_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `IB_modpm_cleaning`.
+This file is used to sanity check data produced from `CM_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `CM_modpm_cleaning`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -29,7 +29,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 Paths
 ```{r}
 # Set path to data
-path_to_data <- "cleaning/Roxbury/IB/"
+path_to_data <- "cleaning/Roxbury/CM/"
 ```
 
 
@@ -41,7 +41,7 @@ load(paste0(path_to_data, "cleaned_modpm.RData"))
 
 Participant IDs
 ```{r}
-# Get relevant participant IDs from IB_participants
+# Get relevant participant IDs from CM_participants
 participants <- unique(main_df$participant_id)
 ```
 
@@ -92,18 +92,8 @@ if (person == "all"){
       # Filter data to appropriate subset
     df <- main_df %>%
       filter(participant_id == person, case == c, environment == env)
-    
-    if (length(unique(df$room)) > 1) {
-      for (r in unique(df$room)) {
-        plot_df <- df %>% filter(room == r)
-        
-        specify <- c(person, c, env, r)
-        plot_types(plot_df, specify, 10)
-      }
-    } else {
-        specify <- c(person, c, env)
-        plot_types(df, specify, 10)
-    }
+      specify <- c(person, c, env)
+      plot_types(df, specify, 10)
     # Print
     print(paste("Plotted for", person, c, env))
     }

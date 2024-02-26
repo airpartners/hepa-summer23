@@ -11,7 +11,7 @@ library(readxl)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "/Users/shersey/Dropbox/Work/Data/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 
@@ -49,7 +49,9 @@ improve_timestamps <- function(df) {
     # Reformat timestamps to sensible format
     mutate(date = as.POSIXct(timestamp, tz = "America/New_York")) %>%
     # Round times to nearest minute
-    mutate(date = round_date(date, unit = "minute"))
+    mutate(date = round_date(date, unit = "minute")) %>%
+    # Drop timestamp column
+    select(-timestamp)
 }
 ```
 
@@ -61,10 +63,8 @@ sum_bins <- function(df) {
   df %>%
     # Sum particle counts
     mutate(pm1num = bin0 + bin1 + bin2) %>%
-    # Delete unnecessary columns
-    select(pm1:pm1num, sample_temp) %>%
-    select(-ends_with("_model_id")) %>%
-    rename("temp" = "sample_temp")
+    # Drop bin columns
+    select(-starts_with("bin"))
 }
 
 ```
@@ -111,10 +111,18 @@ for (person in participants) {
       # Read csv
       df <- read_csv(file_path, show_col_types = FALSE)
       
-      # Add the case and environment type (e.g. sham, indoor)
-      # And participant ID
-      df <- mutate(df, case = case, environment = env,
-              participant_id = person)
+      # Change column name of sample_temp for Mod-PM sensor to temp
+      # ncol excludes Modulair (where corresponding column already named temp)
+      if (ncol(df) == 55) {
+        df <- rename(df, "temp" = "sample_temp")
+      }
+      
+      df <- df %>%
+        # Select only relevant columns
+        select(timestamp, pm1, pm25, pm10, temp, bin0, bin1, bin2) %>% 
+        # Add the case and environment type (e.g. sham, indoor)
+        # And participant ID
+        mutate(case = case, environment = env, participant_id = person)
       
       # Append to main dataframe
       all_df <- rbind(all_df, df)
@@ -133,7 +141,7 @@ main_df <- all_df %>%
   # Reformat timestamps and round to nearest minute
   improve_timestamps() %>%
 
-  # Calculate particle counts and remove unnecessary columns
+  # Calculate particle counts
   sum_bins() %>%
   
   # Remove repeat readings
