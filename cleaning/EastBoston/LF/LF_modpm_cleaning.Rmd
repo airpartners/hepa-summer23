@@ -1,0 +1,148 @@
+# Modulair-PM Data Cleaning
+This file cleans for Mod-PM data. Output is saved in a `modpm.RData` file that is *untracked* by Github. *All files that depend on using Mod-PM data must be run after running this file.*
+
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(readxl)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "data/EastBoston/LF/modpm/"
+
+# Set data category
+data_cat <- "LF_M"
+```
+
+## Helper Functions
+The following two functions are used to clean and process the data
+
+### Reformatting timestamps
+Necessary since the timestamps from QuantAQ are in a weird format and need to be formatted to a format that works with the openair plotting package. An added column rounding the times to the nearest minute is calculated since two data-frames will be merged later in this script on the basis of time.
+
+```{r}
+# Function to reformat time-stamps to time object and round to nearest minute
+improve_timestamps <- function(df) {
+  df %>%
+    # Reformat timestamps to sensible format
+    mutate(date = as.POSIXct(timestamp, tz = "America/New_York")) %>%
+    # Round times to nearest minute
+    mutate(date = round_date(date, unit = "minute"))
+}
+```
+
+### Particle counts and removing unnecessary data
+Alongside particle masses, we are concerned with the counts of particles that fall under certain size bins. To approximate the counts under pm1, sum up bin 0 to 2. Discard all other data columns that are not relevant.
+```{r}
+# Function to calculate sums of particle counts, remove rest
+sum_bins <- function(df) {
+  df %>%
+    # Sum particle counts
+    mutate(pm1num.indoor = bin0.indoor + bin1.indoor + bin2.indoor) %>%
+    mutate(pn1num.outdoor = bin0.)
+    # Delete unnecessary columns
+    select(pm1:pm1num, sample_temp) %>%
+    select(-ends_with("_model_id")) %>%
+    rename("temp" = "sample_temp")
+}
+
+```
+
+### Calculating 10 minute averages
+When calculating the indoor/outdoor ratio, we want to calculate them over 10 minutes as opposed to every data point to account for the time it takes for the air to mix between indoor and outdoor. This function calculates that ten minute average.
+```{r}
+# Round over 10 minute averages
+round_10min <- function(df) {
+  df %>%
+    # Create new column with rounded dates
+    mutate(date_round = round_date(date1min, "10 minutes")) %>%
+    # Group by the rounded datetime
+    group_by(case, room) %>%
+    # Calculate mean over ten minutes
+    summarize(across(c(pm1.indoor, pm25.indoor, pm10.indoor, pm1num, temp), mean), .groups = "drop")
+}
+
+```
+
+### Filter by relevant times
+Each participant contains data for periods where both the sham and actual purifier was running. This function filters the relevant time periods and adds an added variable to track sham and HEPA (actual) readings.
+```{r}
+include_case <- function(df) {
+  df %>%
+    # Add case column
+    mutate(case = ifelse(
+      # Before purifier is switched on vs after
+      df$HEPA_on==0, 'before', 'after'))
+}
+```
+
+## Main Code Run
+### Load all data. 
+Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
+```{r}
+# Initialize master dataframe for all data
+all_df <- data.frame()
+
+# Loop through each participant
+for (file_name in list.files(path_to_data)) {
+  # Read csv
+  file_path <- paste0(path_to_data, file_name)
+  df <- read_csv(file_path, show_col_types = FALSE)
+
+  # Split file name into different parts
+  name_split <- strsplit(file_name, "[_.]")[[1]] %>% head(-1)
+  place <- name_split[3]
+  
+  # Add the room (if present, else NA)
+  df <- mutate(df, room = place)
+
+  # Append to main dataframe
+  all_df <- rbind(all_df, df)
+  
+  print(paste("Loaded participant", place))
+}
+
+```
+
+### Process all data to remove unnecessary columns and round time values 
+This helps in syncing data across different sensors later - functions here can be found in the 'Helper Functions' section. Because these datasets have already been cleaned, the only processing needed is to merge the datasets together and add a label column indicating whether or not data was collected before or after the purifier was installed.
+```{r}
+# List of rooms (by default all, feel free to set to custom)
+rooms <- unique(all_df$room)
+
+# Filter by time to find whether before or after HEPA purifier installation
+case_df <- data.frame()
+for (place in rooms) {
+  # Filter by date for sham and hepa (see helper function)
+  df <- include_case(all_df)
+  # Append to overall dataframe
+  case_df <- rbind(case_df, df)
+}
+```
+
+```{r}
+# Crucial filtering based on sanity checks (nothing for now)
+main_df <- case_df
+```
+
+
+### Save Data
+The `main_df` dataframe is saved to `cleaned_modpm.RData`
+```{r}
+save(main_df, file = paste0("cleaning/EastBoston/LF/", "cleaned_modpm.RData"))
+```
