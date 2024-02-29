@@ -1,0 +1,102 @@
+<!-- # Sanity Check Mod-PM Data -->
+
+## STOP
+
+**HAVE YOU RUN `SS_modpm_cleaning`?**
+*This file loads a dataframe created from running `SS_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to sanity check data produced from `SS_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `SS_modpm_cleaning`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Paths
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/SS/"
+```
+
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file; loads as main_df
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+Participant IDs
+```{r}
+# Get relevant participant IDs from SS_participants
+participants <- unique(main_df$participant_id)
+```
+
+## Plotting
+### Plotting functions
+Simplifies plotting of data
+```{r}
+plot_one <- function(plot_df, specify, t, y_check) {
+  ggplot(plot_df) +
+    geom_line(aes(x = date, y = .data[[t]])) +
+    geom_hline(aes(yintercept = y_check)) +
+    ggtitle(paste(c(specify, t), collapse = " "))
+}
+```
+
+```{r}
+plot_types <- function(input_df, sp, y_c) {
+  # Plot time-series of subset with an appropriate horizontal line
+  # PM 1
+  print(plot_one(input_df, sp, "pm1", y_c))
+  # PM 2.5
+  print(plot_one(input_df, sp, "pm25", y_c))
+  # PM 10
+  print(plot_one(input_df, sp, "pm10", y_c))
+}
+```
+
+
+```{r}
+# Input participant ID
+person <- readline("Enter participant ID: ")
+# Re-try if incorrect
+while (!(person %in% participants)) {
+  person <- readline("Error! Invalid ID, Re-enter: ")
+}
+
+if (person == "all"){
+  plot_df <- main_df %>%
+    filter(participant_id == person, environment == "outdoor")
+  
+  specify <- c(person, "outdoor")
+  plot_types(plot_df, specify, 10)
+  
+} else {
+  # Plot stuff
+  for (c in c("off","on")) {
+    for (env in c("indoor", "ratio")) {
+      # Filter data to appropriate subset
+    df <- main_df %>%
+      filter(participant_id == person, case == c, environment == env)
+      specify <- c(person, c, env)
+      plot_types(df, specify, 10)
+    # Print
+    print(paste("Plotted for", person, c, env))
+    }
+  }
+}
+```
