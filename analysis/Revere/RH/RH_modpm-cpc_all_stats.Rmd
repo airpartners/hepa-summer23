@@ -1,0 +1,147 @@
+# Revere Data Summarization - multiple (for Mod-PM)
+
+## STOP
+
+**HAVE YOU RUN `RH_modpm_cleaning` AND `RH_modpm-cpc_cleaning`?**
+*This file loads two dataframes created from running `RH_modpm_cleaning` and `RH_modpm-cpc_cleaning`. Make sure you run those files first (if you haven't already) before running this file.*
+
+This script is used to calculated summary statistics for multiple participants in the Revere pilot, for Mod-PM deployments by Olin.
+
+Results can be found in `summary/Revere/RH/s_RH_MC_quants.csv`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/Revere/RH/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+
+modpm_df <- main_df
+
+# Load Mod-PM + CPC data from RData file
+load(paste0(path_to_data, "cleaned_modpm-cpc.RData"))
+modpmcpc_df <- main_df
+```
+
+## Pre-processing
+```{r}
+# Add empty CPC column to modpm_df
+modpm_df$concent <- NA
+
+# Bind two dataframes
+main_df <- rbind(modpmcpc_df, modpm_df)
+```
+
+
+## Helper Function: Calculate summary statistics
+Provided a given grouped dataframe, calculate all relevant summary statistics
+```{r}
+my_summarise <- function(grouped_df) {
+  grouped_df %>%
+    summarise(mean = mean(reading),
+            median = median(reading), 
+            q5 = quantile(reading, probs = 0.05), 
+            q25 = quantile(reading, probs = 0.25),
+            q75 = quantile(reading, probs = 0.75),
+            q95 = quantile(reading, probs = 0.95),
+            sd = sd(reading),
+            .groups = 'drop')
+}
+```
+
+
+## Main Code Run
+### Gather, group, and summarize
+To calculate summary statistics of the data, the different measurements (PM1,  PM2.5, and PM10) are gathered into one variable 'reading'. The resulting long dataframe is cleaned for NaN values and grouped. Numerous summary statistics are calculated for each type for each, case, environment, and participant.
+
+```{r}
+# Calculate for indoor and ratio
+main_df_long <- main_df %>%
+  filter(environment != "outdoor") %>%
+  # Gather dataframe to create single variable for measurements
+  pivot_longer(c(pm1, pm25, pm10, concent), 
+               names_to = "type", values_to = "reading") %>%
+  # Drop NaN, inf values for summary calculation
+  filter(is.finite(reading))
+
+# Calculate summary statistics for each participant
+participant_summary <- main_df_long %>%
+  # Group by participant ID, case, environment, and type
+  group_by(participant_id, case, environment, type) %>%
+  # Calculate summary statistics
+  my_summarise()
+  
+# Calculate summary statistics over all the data
+overall_summary <- main_df_long %>%
+  # Group by case, environment, and type
+  group_by(case, environment, type) %>%
+  # Calculate summary statistics
+  my_summarise() %>%
+  # Add participant ID column as 'all'
+  mutate(participant_id = "all")
+```
+
+```{r}
+# Bind together participant and overall summary statistics
+summary <- rbind(participant_summary, overall_summary)
+```
+
+
+### Calculate percentage reduction in concentration from off to on HEPA installation
+Follows the same logic as calculating indoor-outdoor ratios. Spread to form 
+off/on columns that are used to calculate percent reduction in corresponding
+summary pollution concentrations. Then gather dataframe back to original shape.
+```{r}
+# Spread: Create separate off, on summary statistics columns
+summary_wide <- pivot_wider(summary, 
+                            names_from = case, values_from = mean:sd)
+
+# Calculate percentage reduction in all summary statistics
+summary_redu <- 100*(select(summary_wide, ends_with("off")) - 
+  select(summary_wide, ends_with("on"))) / 
+  select(summary_wide, ends_with("off"))
+
+# Rename computed columns to 'redu' for percentage reduction
+colnames(summary_redu) <- sub("off", "redu", colnames(summary_redu))
+
+# Reshape data and pipe into variable 'summary_normal'
+summary_wide %>%
+  # Merge back with joined data-frame
+  cbind(summary_redu) %>%
+  # Gather: Return to original shape by removing the 'sham/hepa/redu'
+  # suffixes by re-forming the case variable
+  pivot_longer(mean_off:sd_redu, 
+               names_to = c(".value", "case"), names_sep = "_") %>%
+  # Filter out all NaN and Inf values
+  filter_all(all_vars(!is.infinite(.))) -> summary_normal
+```
+
+## Save to file
+Summary statistics are saved in a CSV file.
+```{r}
+# Save summary statistic files to CSVs
+write.csv(summary_normal, "summary/Revere/RH/s_RH_MC_quants.csv")
+```

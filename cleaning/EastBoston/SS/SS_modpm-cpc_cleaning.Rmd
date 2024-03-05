@@ -1,5 +1,5 @@
 # Modulair-PM Data Cleaning
-This file cleans, and calculates the I/O ratio for Mod-PM data. Output is saved in a `cleaned_modpm.RData` file that is *untracked* by Github. *All files that depend on using Mod-PM data must be run after running this file.*
+This file cleans, and calculates the I/O ratio for Mod-PM and CPC data. Output is saved in a `cleaned_modpm-cpc.RData` file that is *untracked* by Github. *All files that depend on using Mod-PM and/or CPC data must be run after running this file.*
 
 
 ## Set up
@@ -23,10 +23,10 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Set path to data
-path_to_data <- "data/EastBoston/LF/modpm/"
+path_to_data <- "data/EastBoston/SS/modpm-cpc/"
 
 # Set data category
-data_cat <- "LF_M"
+data_cat <- "SS_MC"
 ```
 
 ## Main Code Run
@@ -50,8 +50,9 @@ for (file_name in list.files(path_to_data)) {
   df <- df %>%
     # Filter relevant columns
     select(date1min, HEPA_on, starts_with(c("bin0.", "bin1.", "bin2.",
-                                            "pm1.", "pm25.", "pm10.")),
-           pm1_ratio, pm25_ratio, pm10_ratio) %>%
+                                            "pm1.", "pm25.", "pm10.",
+                                            "concent_1.")),
+           pm1_ratio, pm25_ratio, pm10_ratio, concent_ratio) %>%
     
     # Add the participant ID
     mutate(participant_id = room)
@@ -78,8 +79,10 @@ curated_df <- all_df %>%
   
   mutate(pm1num_ratio = pm1num.indoor / pm1num.outdoor) %>%
   
-  # Rename date column to standard
-  rename(date = date1min) %>%
+  # Rename date column and CPC count column to standard
+  rename(date = date1min, 
+         concent.indoor = concent_1.indoor, 
+         concent.outdoor = concent_1.outdoor) %>%
   
   # Change ratio column names delimiter from _ to .
   rename_with( ~ gsub("_", ".", .x, fixed = TRUE), ends_with("ratio"))
@@ -94,14 +97,13 @@ main_df <- curated_df %>%
                names_to = c(".value", "environment"), 
                names_sep = "\\.") %>%
   
-  # Drop outdoor data and remove NAs
-  filter(environment != "outdoor") %>%
-  drop_na()
+  # Drop outdoor data
+  filter(environment != "outdoor")
 ```
 
 
 ### Save Data
-The `main_df` dataframe is saved to `cleaned_modpm.RData`
+The `main_df` dataframe is saved to `cleaned_modpm-cpc.RData`
 ```{r}
-save(main_df, file = paste0("cleaning/EastBoston/LF/", "cleaned_modpm.RData"))
+save(main_df, file = paste0("cleaning/EastBoston/SS/", "cleaned_modpm-cpc.RData"))
 ```

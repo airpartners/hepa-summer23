@@ -23,10 +23,10 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Set path to data
-path_to_data <- "data/EastBoston/LF/modpm/"
+path_to_data <- "data/Revere/CH/modpm/"
 
 # Set data category
-data_cat <- "LF_M"
+data_cat <- "CH_M"
 ```
 
 ## Main Code Run
@@ -103,5 +103,5 @@ main_df <- curated_df %>%
 ### Save Data
 The `main_df` dataframe is saved to `cleaned_modpm.RData`
 ```{r}
-save(main_df, file = paste0("cleaning/EastBoston/LF/", "cleaned_modpm.RData"))
+save(main_df, file = paste0("cleaning/Revere/CH/", "cleaned_modpm.RData"))
 ```
