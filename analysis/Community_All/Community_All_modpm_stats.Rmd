@@ -59,7 +59,8 @@ for (file_path in modpm_data) {
     # Select only relevant columns
     select(all_of(var_list)) %>%
     # Standardize case between off and on
-    mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off"),
+    mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off",
+                            .default = case),
            dep_id = dep_vec[[1]][2]) %>%
     # Add in the deployment classification
     mutate(dep_class = case_when(dep_vec[[1]][1] == "Roxbury" ~ "residential",
@@ -94,7 +95,8 @@ for (file_path in modpm_cpc_data) {
     # Select only relevant columns
     select(all_of(var_list)) %>%
     # Standardize case between off and on
-    mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off"),
+    mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off",
+                            .default = case),
            dep_id = dep_vec[[1]][2]) %>%
     # Add in the deployment classification
     mutate(dep_class = case_when(dep_vec[[1]][1] == "Roxbury" ~ "residential",
@@ -146,15 +148,30 @@ main_df_long <- all_df %>%
   # Drop NaN, inf values for summary calculation
   filter(is.finite(reading))
   
+# Calculate summary statistics for each participant
+class_summary <- main_df_long %>%
+  select(-room) %>%
+  drop_na() %>%
+  # Group by participant ID, case, environment, and type
+  group_by(dep_class, case, environment, type) %>%
+  # Calculate summary statistics
+  my_summarise()
+
 # Calculate summary statistics over all the data
-summary <- main_df_long %>%
+overall_summary <- main_df_long %>%
+  select(-room) %>%
   drop_na() %>%
   # Group by case, environment, and type
   group_by(case, environment, type) %>%
   # Calculate summary statistics
   my_summarise() %>%
   # Add participant ID column as 'all'
-  mutate(participant_id = "all")
+  mutate(dep_class = "all")
+```
+
+```{r}
+# Bind together participant and overall summary statistics
+summary <- rbind(class_summary, overall_summary)
 ```
 
 ### Calculate percentage reduction in concentration from off to on HEPA installation
