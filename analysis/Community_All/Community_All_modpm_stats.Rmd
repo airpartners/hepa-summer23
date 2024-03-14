@@ -51,7 +51,7 @@ for (file_path in modpm_data) {
   # Load Mod-PM data from RData file
   load(paste0(path_to_data, file_path, "cleaned_modpm.RData"))
   
-  deployment_id <- str_split(file_path, "/")
+  dep_vec <- str_split(file_path, "/")
   
   main_df <- main_df %>%
     # Make a column for room if not present
@@ -60,25 +60,58 @@ for (file_path in modpm_data) {
     select(all_of(var_list)) %>%
     # Standardize case between off and on
     mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off"),
-           dep_id = deployment_id[[1]][2])
+           dep_id = dep_vec[[1]][2]) %>%
+    # Add in the deployment classification
+    mutate(dep_class = case_when(dep_vec[[1]][1] == "Roxbury" ~ "residential",
+                                 dep_vec[[1]][2] == "MF" ~ "residential",
+                                 dep_vec[[1]][1] == "EastBoston" ~ "preschool",
+                                 dep_vec[[1]][2] == "CH" ~ "municipal",
+                                 dep_vec[[1]][2] == "RH" ~ "school"))
   
   modpm_df <- rbind(modpm_df, main_df)
 }
+```
 
+```{r}
+var_list <- c("date", "environment", "case", "participant_id", "room",  
+              "pm1", "pm25", "pm10",  "pm1num")
 
+modpm_cpc_df <- data.frame(matrix(ncol = length(var_list), nrow = 0))
 
-# # Load Mod-PM + CPC data from RData file
-# load(paste0(path_to_data, "cleaned_modpm-cpc.RData"))
-# modpmcpc_df <- main_df
+modpm_cpc_data <- c("Revere/RH/", "Revere/CH/", "EastBoston/LF/", "EastBoston/SS/")
+
+for (file_path in modpm_cpc_data) {
+  # Load Mod-PM data from RData file
+  load(paste0(path_to_data, file_path, "cleaned_modpm-cpc.RData"))
+  
+  dep_vec <- str_split(file_path, "/")
+  
+  
+  
+  main_df <- main_df %>%
+    # Make a column for room if not present
+    mutate(room = ifelse("room" %in% colnames(main_df), room, NA)) %>%
+    # Select only relevant columns
+    select(all_of(var_list)) %>%
+    # Standardize case between off and on
+    mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off"),
+           dep_id = dep_vec[[1]][2]) %>%
+    # Add in the deployment classification
+    mutate(dep_class = case_when(dep_vec[[1]][1] == "Roxbury" ~ "residential",
+                                 dep_vec[[1]][2] == "MF" ~ "residential",
+                                 dep_vec[[1]][1] == "EastBoston" ~ "preschool",
+                                 dep_vec[[1]][2] == "CH" ~ "municipal",
+                                 dep_vec[[1]][2] == "RH" ~ "school"))
+                                 
+  
+  modpm_cpc_df <- rbind(modpm_cpc_df, main_df)
+}
 ```
 
 ## Pre-processing
 ```{r}
-# Add empty CPC column to modpm_df
-modpm_df$concent <- NA
-
 # Bind two dataframes
-main_df <- rbind(modpmcpc_df, modpm_df)
+all_df <- rbind(modpm_cpc_df, modpm_df)
 ```
 
 
@@ -105,23 +138,17 @@ To calculate summary statistics of the data, the different measurements (PM1,  P
 
 ```{r}
 # Calculate for indoor and ratio
-main_df_long <- main_df %>%
+main_df_long <- all_df %>%
   filter(environment != "outdoor") %>%
   # Gather dataframe to create single variable for measurements
-  pivot_longer(c(pm1, pm25, pm10, concent), 
+  pivot_longer(c(pm1, pm25, pm10), 
                names_to = "type", values_to = "reading") %>%
   # Drop NaN, inf values for summary calculation
   filter(is.finite(reading))
-
-# Calculate summary statistics for each participant
-participant_summary <- main_df_long %>%
-  # Group by participant ID, case, environment, and type
-  group_by(participant_id, case, environment, type) %>%
-  # Calculate summary statistics
-  my_summarise()
   
 # Calculate summary statistics over all the data
-overall_summary <- main_df_long %>%
+summary <- main_df_long %>%
+  drop_na() %>%
   # Group by case, environment, and type
   group_by(case, environment, type) %>%
   # Calculate summary statistics
@@ -129,12 +156,6 @@ overall_summary <- main_df_long %>%
   # Add participant ID column as 'all'
   mutate(participant_id = "all")
 ```
-
-```{r}
-# Bind together participant and overall summary statistics
-summary <- rbind(participant_summary, overall_summary)
-```
-
 
 ### Calculate percentage reduction in concentration from off to on HEPA installation
 Follows the same logic as calculating indoor-outdoor ratios. Spread to form 
@@ -169,5 +190,5 @@ summary_wide %>%
 Summary statistics are saved in a CSV file.
 ```{r}
 # Save summary statistic files to CSVs
-write.csv(summary_normal, "summary/Revere/CH/s_CH_MC_quants.csv")
+write.csv(summary_normal, "summary/Community_All/s_All_M_quants.csv")
 ```
