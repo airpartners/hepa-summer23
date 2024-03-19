@@ -11,7 +11,7 @@ library(readxl)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "C:/Users/vkuchhal/Documents/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
 ```
 
 ```{r}
