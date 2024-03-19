@@ -1,0 +1,23 @@
+# Create bar plot
+This script uses summary statistic data to create a bar plot.
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# setwd("C:/Users/vkuchhal/Documents/hepa-summer23")
+summary_df <- read_csv("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/s_All_M_quants.csv")
+
+```
+
+```{r}
+stat_order <- c("q5", "q25", "median", "q75", "q95")
+summary_df %>% filter(environment == "indoor", type == "pm25", case == "redu") %>%
+  pivot_longer(cols = mean:sd, names_to = "stat") %>%
+  filter(dep_class != "all", stat %in% c("q5", "q25", "median", "q75", "q95", "mean")) %>%
+  mutate(stat = fct_relevel(stat, "q5", "q25", "median", "q75", "q95")) %>%
+  ggplot() + geom_col(aes(x = dep_class, y = value, fill = stat), position = "dodge") +
+  labs(x = "Deployment Class", y = "Percentage Reduction")
+```
+

@@ -1,13 +1,13 @@
-# Revere Correlation Calculations - multiple (for Mod-PM)
+# Revere Correlation Calculations
 
 ## STOP
 
-**HAVE YOU RUN `CH_modpm-cpc_cleaning`?**
-*This file loads the dataframe created from running `CH_modpm-cpc_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+**HAVE YOU RUN `RH_modpm-cpc_cleaning`?**
+*This file loads the dataframe created from running `RH_modpm-cpc_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
 This script is used to calculate correlation coefficients for multiple participants in the Revere pilot, for Mod-PM and CPC deployments by Olin.
 
-Results can be found in `summary/Revere/CH/s_CH_MC_corr.csv`.
+Results can be found in `summary/Revere/RH/s_RH_MC_corr.csv`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -32,7 +32,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # Set path to data
-path_to_data <- "cleaning/Revere/CH/"
+path_to_data <- "cleaning/Revere/RH/"
 ```
 
 ## Load data
@@ -107,5 +107,5 @@ for (c in c("off", "on")) {
 Correlation coefficients are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
 ```{r}
 # Save summary statistic files to CSVs
-write.csv(corr_df, "summary/Revere/CH/s_CH_MC_corr.csv")
+write.csv(corr_df, "summary/Revere/RH/s_RH_MC_corr.csv")
 ```
