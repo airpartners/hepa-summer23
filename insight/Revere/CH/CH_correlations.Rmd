@@ -1,0 +1,251 @@
+# What are the relationships?
+In the `analysis` stage, correlation coefficients were computed for every variable for each case for every participant. This notebook explores what we can learn about the relationship (and lack thereof) between different key variables
+
+```{r}
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Revere/CH/"
+```
+
+## Summarizing participants
+Currently, we have individual correlation coefficients for each participant. Using the merged dataframe from `CH_modpm_cpc_corrs`, we can calculate overall coefficients.
+
+```{r}
+# Read overall merged CPC + Mod-PM data
+load(paste0("cleaning/Revere/CH/", "cleaned_modpm-cpc.RData"))
+
+# Read correlation coefficient data
+corr_df <- read.csv(paste0(path_to_data, "s_CH_MC_corr.csv"))
+```
+
+## Indoor CPC vs. Mod-PM
+```{r}
+# Compare concent indoor to Mod-PM indoor readings
+corr_df %>%
+  filter(environment == "indoor", participant_id == "all") %>%
+  arrange(case)
+```
+You can see that the correlation between CPC and Mod-PM is slightly higher for off than for on when looking at overall indoor data. Let's investigate this further with scatterplots
+
+## Plot CPC vs. Mod-PM for Indoor
+### Constants
+Used to map variable to appropriate meaning while plotting
+```{r}
+# List mapping variable to appropriate meaning
+title_map <- list(pm1 = "PM 1", pm25 = "PM 2.5", pm10 = "PM 10", 
+                  pm1num = "PM 1 Count", concent = "UFP")
+
+# List mapping variable to appropriate meaning
+axes_map <- list(pm1 = "PM 1 Concentration", pm25 = "PM 2.5 Concentration",
+               pm10 = "PM 10 Concentration", pm1num = "PM 1 Particle Count",
+               concent = "CPC Particle Count")
+```
+
+### Plotting functions:
+#### Single Line of Best Fit Scatterplot
+The following function is a general function that takes any two variables in the provided dataframe, filters for specified case and environment, and scatterplots them with their R-squared value
+```{r}
+one_line <- function(df, constraint, var_x, var_y, case_str, env_str) {
+  # Filter by specified case and environment
+  plot_df <- filter(df, case == case_str, environment == env_str)
+  
+  # Filter by specified constraint (no filtering if overall)
+  if (constraint == "Overall") {  } else{
+    plot_df <- filter(plot_df, participant_id == constraint)
+  }
+  
+  # Get r-squared value
+  r_val <- summary(lm(plot_df[[var_y]] ~ plot_df[[var_x]]))$r.squared
+  
+  # Scatterplot provided x vs. provided y with line of best fit
+  ggplot(plot_df, aes(x = .data[[var_x]], y = .data[[var_y]])) +
+    # Scatterplot
+    geom_point(alpha = 0.1) +
+    # Line of best fit
+    geom_smooth(method=lm, se=FALSE) +
+    
+    # Paste in R-square value
+    annotate("text", x = 0.8*max(plot_df[[var_x]]), 
+             y = 0.8*max(plot_df[[var_y]]), 
+             label = bquote(R^2 == .(round(r_val[[1]], 3)))) +
+    
+    # Add axes names, title
+    labs(title = paste(title_map[[var_y]], "vs.", title_map[[var_x]],
+                       "in", constraint, str_to_title(case_str), "Period"), 
+         x = axes_map[[var_x]], y = axes_map[[var_y]]) -> my_plot
+    
+  # Save plot
+  ggsave(filename = paste("artifacts/Revere/CH/scatterplot/CH", constraint,
+                           var_x, var_y, case_str, env_str, "one.png", 
+                          sep = "_"), plot = my_plot)
+  # Display plot
+  my_plot
+}
+```
+
+#### Two lines of best fit Scatterplot (CPC vs. Mod-PM only)
+The following function plots a provided Mod-PM reading against CPC particle count at a provided level of constraint. The provided data is filtered and split between two clusters. Two lines of best fit are calculated for each of the clusters.
+
+Note that (by nature of this analysis) this function only only makes sense to be used between CPC particle count and Mod-PM readings - the legend labels reflect that. However, those are the only things that would need to be modified (as well as the cluster splitting equation) in case this function should be used beyond this analysis.
+```{r}
+# List mapping variable to constant for clustering in two_line
+cluster_val <- list(pm1 = 0.002, pm25 = 0.002, pm10 = 0.002, pm1num = 0.002)
+
+two_line <- function(df, constraint, var_x, var_y, case_str, env_str) {
+  # Grouped column name
+  var_grouped <- paste0(var_y, "_grouped")
+  
+  # Filter by specified case and environment
+  plot_df <- filter(df, case == case_str, environment == env_str) %>%
+    # Add column for splitting
+    mutate(!!var_grouped := as.factor(
+      ifelse(.data[[var_y]] < cluster_val[[var_y]] * .data[[var_x]], 
+             "Mod-PM Missed", "Mod-PM + CPC Detected")))
+  
+  # Filter by specified constraint (no filtering if overall)
+  if (constraint == "Overall") {  } else{
+    plot_df <- filter(plot_df, participant_id == constraint)
+  }
+  
+  # Set model
+  my_model <- paste(var_y, "~", var_x)
+  
+  # Calculate r-squared, proportion of points
+  props <- plot_df %>% 
+    # For each group
+    group_by(across(last_col())) %>% 
+    # Calculate proportion of points, r-squared
+    summarize(proportion = 100 * n() / nrow(plot_df),
+              rsq = summary(lm(eval(parse(text = my_model))))$r.squared) %>%
+    # Format appropriately for annotation
+    mutate(proportion = paste0("(", round(proportion, 1), "%)"), 
+           rsq = round(rsq, 3))
+  
+  # Recode values to include proportion in factor, pipe into plotting
+  plot_df %>%
+    mutate((!!var_grouped) := 
+             recode(.data[[var_grouped]], 
+                    "Mod-PM Missed" = 
+                      paste("Mod-PM Missed", props$proportion[2]),
+                    "Mod-PM + CPC Detected" = 
+                      paste("Mod-PM + CPC Detected", props$proportion[1]))) %>%
+  
+  # Scatterplot with two lines of best fit for separate clusters
+  ggplot(aes(x = .data[[var_x]], y = .data[[var_y]], 
+             color = .data[[var_grouped]])) +
+    # Scatter-plot
+    geom_point(alpha = 0.1) +
+    # Lines of best fit
+    geom_smooth(method=lm, se=FALSE) +
+    # Paste in R-square value for Mod-PM + CPC Detected
+    annotate("text", x = 0.5*max(plot_df[[var_x]]), 
+             y = 0.8*max(plot_df[[var_y]]), 
+               label = bquote(R^2 == .(props$rsq[1]))) +
+    # Paste in R-square value for Mod-PM Missed
+    annotate("text", x = 0.8*max(plot_df[[var_x]]), 
+             y = 0.2*max(plot_df[[var_y]]), 
+               label = bquote(R^2 == .(props$rsq[2]))) +
+    # Add axes labels, title
+    labs(title = paste("Split", title_map[[var_y]], "vs.", title_map[[var_x]],
+                       "in", constraint, str_to_title(case_str), "Period"), 
+         x = axes_map[[var_x]], y = axes_map[[var_y]], 
+         color = "Group") -> my_plot
+    
+  # Save plot
+  ggsave(filename = paste("artifacts/Revere/CH/scatterplot/CH", constraint,
+                           var_x, var_y, case_str, env_str, "two.png", 
+                          sep = "_"), plot = my_plot)
+  # Display plot
+  my_plot
+}
+```
+
+#### Time-series plot to compare two variables
+Plots two time-series overlaying each other to compare two different measurements for a particular participant in a specified case. Usually used to compare CPC (UFP Particle Count) to a Mod-PM reading. If using for a different set of variables, change the scaling constant (sc) appropriately (e.g.- sc is ~1 for comparison between Mod-PM variables).
+```{r}
+series_compare <- function(df, person, var_a, var_b, case_str, env_str, sc){
+  # Filter dataframe
+  df %>% 
+    filter(participant_id == person, case == case_str, 
+                     environment == env_str) %>%
+  # Plot time-series of UFP with PM 2.5
+  ggplot(aes(x = date)) + 
+    # Create second (right) y-axis with 200 times the scale of first
+    scale_y_continuous(sec.axis = sec_axis(~.*sc, name = axes_map[[var_a]])) +
+    # Plot CPC reading against right axis
+    geom_line(aes(y = .data[[var_a]]/sc, color = title_map[[var_a]])) +
+    # Plot PM 2.5 reading against left axis
+    geom_line(aes(y = .data[[var_b]], color = title_map[[var_b]])) +
+    
+    # Set colors
+    scale_color_manual(name = "Particles", 
+                       values = setNames(c('#56B4E9', '#E69F00'),
+                                         c(title_map[[var_a]],
+                                           title_map[[var_b]]))) +
+    
+    # Set axes labels, title
+    labs(title = paste("CPC vs. Mod-PM Readings for Participant", person), 
+         x = "Date", y = axes_map[[var_b]]) -> my_plot
+    
+  # Save plot
+  ggsave(filename = paste("artifacts/Revere/CH/scatterplot/CH", person,
+                           var_a, var_b, case_str, env_str, "timeseries.png",
+                          sep = "_"), plot = my_plot)
+  # Display plot
+  my_plot
+}
+```
+
+
+
+
+CPC Particle Count Indoor vs. PM 2.5 Concentration Indoor (off)
+```{r}
+for (case in c("off", "on")) {
+  for (pm_type in c("pm1", "pm25", "pm10", "pm1num")) {
+    # Plot scatterplot with line of best fit
+    print(one_line(main_df, "waterdept", "concent", pm_type, case, "indoor"))
+    print(paste("Plotted", pm_type, case))
+  }
+}
+```
+
+```{r}
+for (case in c("off", "on")) {
+  for (pm_type in c("pm1", "pm25", "pm10", "pm1num")) {
+    # Plot scatterplot with line of best fit
+    print(two_line(main_df, "Overall", "concent", pm_type, case, "indoor"))
+    print(paste("Plotted", pm_type, case))
+  }
+}
+```
+
+
+### Zoom into single participant
+Looking at the same data but for a single participant so that a time-series comparison can also be plotted
+```{r}
+# Looking into PM 2.5 for Participant 42281
+one_line(main_df, "42281", "concent", "pm25", "off", "indoor")
+two_line(main_df, "42281", "concent", "pm25", "off", "indoor")
+```
+
+Plotting a time-series for that participant in that situation provides us with additional context on where the readings agreed and where they did not (see helper function series_compare)
+```{r}
+series_compare(main_df, "42281", "concent", "pm25", "off", "indoor", 200)
+```
+

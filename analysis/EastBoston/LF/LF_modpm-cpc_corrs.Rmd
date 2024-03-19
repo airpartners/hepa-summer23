@@ -1,0 +1,111 @@
+# East Boston Data Correlation Calculations
+
+## STOP
+
+**HAVE YOU RUN `LF_modpm-cpc_cleaning`?**
+*This file loads the dataframe created from running `LF_modpm-cpc_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to calculate correlation coefficients for multiple participants in the East Boston pilot, for Mod-PM and CPC deployments by Olin.
+
+Results can be found in `summary/EastBoston/LF/s_LF_MC_corr.csv`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(corrr)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/LF/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM + CPC data from RData file
+load(paste0(path_to_data, "cleaned_modpm-cpc.RData"))
+```
+
+
+### Calculating correlation coefficients
+Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
+```{r}
+# Function to calculate correlation matrices
+get_corr <- function(df, case, person, environment) {
+  df %>%
+    # Select all columns except date
+    select_if(is.numeric) %>%
+    # Remove NaN values
+    drop_na() %>%
+    # Calculate correlations (suppress output message)
+    correlate(quiet = TRUE) %>%
+    # Reshape into paired-list format
+    stretch(remove.dups = TRUE) %>%
+    # Add the case and participant ID
+    mutate(case = case, participant_id = person, environment = environment) %>%
+    # Drop NaNs
+    drop_na()
+}
+```
+
+### Calculate correlation matrices
+Helps better understand the relationship between different variables in sham and true HEPA conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
+```{r}
+# Create dataframe to hold correlation coefficients
+corr_df <- data.frame()
+
+# List of participants with both Mod-PM and CPC
+participants <- unique(main_df$participant_id)
+
+# Loop through each case
+for (c in c("off", "on")) {
+  # Loop through each environment
+  for (env in c("indoor")) {
+    # Loop through each participant
+    for (participant in participants) {
+      # Use wide dataframe where indoor/outdoor are separate columns
+      main_df %>%
+      # Filter for case
+      filter(case == c, environment == env, participant_id == participant) %>%
+      # Get correlation coefficients (look at helper function)
+      get_corr(case = c, environment = env, person = participant) -> df
+      
+      # Append to main dataframe
+      corr_df <- rbind(corr_df, df)
+      print(paste("Computed correlation coefficients for",participant, c, env))
+    }
+    # Repeat for overall correlation coefficient
+    main_df %>%
+    # Filter for case
+    filter(case == c, environment == env) %>%
+    # Get correlation coefficients (look at helper function)
+    get_corr(case = c, environment = env, person = "all") -> df
+    
+    # Append to main dataframe
+    corr_df <- rbind(corr_df, df)
+    print(paste("Computed correlation coefficients for all", c, env))
+  }
+  
+}
+```
+## Save to file
+Summary statistics are saved in a series of csv files. The naming convention of these files is specified by in `data_guide.md`
+```{r}
+# Save summary statistic files to CSVs
+write.csv(corr_df, "summary/EastBoston/LF/s_LF_MC_corr.csv")
+```
