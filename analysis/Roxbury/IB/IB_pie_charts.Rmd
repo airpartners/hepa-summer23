@@ -83,7 +83,27 @@ ggplot(proportion_df, aes(x="", y=prop, fill=danger_pm25)) +
 ```{r}
 plot_base + ylab("Percentage of Indoor Air")
 ```
+Below transforms the code so that the x values of the bar chart are the
+pollutant levels and the y values are percentages, with two bars dodged for each
+category representing before and after.
 
+```{r}
+res_df <- dcast(proportion_df, danger_pm25 ~ case)
+
+res_df %>%
+  pivot_longer(-danger_pm25, names_to = "variable", values_to = "res") %>%
+  ggplot(aes(x = danger_pm25, y = res, fill = factor(variable, levels = c("before", "after")))) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) + 
+  xlab("Pollutant Level") +
+  ylab("Time (Hours)") +
+  scale_x_discrete(labels = c("CLEAN", "LOW", "MEDIUM", "HIGH")) +
+  scale_fill_discrete(name = "HEPA Installation?",
+                      labels = c("no purifier", "with purifier")) +
+  theme_minimal() +
+  labs(title = "Impact of Using Air Purifiers",
+       subtitle = "Average time spent per day without and with purifier",
+       caption = my_caption)
+```
 
 
 
