@@ -116,6 +116,11 @@ for (file_path in modpm_cpc_data) {
 all_df <- rbind(modpm_cpc_df, modpm_df)
 ```
 
+```{r}
+# Save dataframe in summary folder
+save(all_df, file = "C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/all.RData")
+```
+
 
 ## Helper Function: Calculate summary statistics
 Provided a given grouped dataframe, calculate all relevant summary statistics
