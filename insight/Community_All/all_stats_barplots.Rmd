@@ -30,6 +30,7 @@ all_df %>%
   filter(environment == "indoor") %>%
   ggplot() +
   geom_boxplot(aes(x = dep_class, y = pm25, fill = case), outlier.shape = NA) +
-  scale_y_continuous(limits = quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE))
+  scale_y_continuous(limits = quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE),
+                     trans = "log10")
 ```
 
