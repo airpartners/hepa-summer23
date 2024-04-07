@@ -20,17 +20,4 @@ summary_df %>% filter(environment == "indoor", type == "pm25", case == "redu") %
   ggplot() + geom_col(aes(x = dep_class, y = value, fill = stat), position = "dodge") +
   labs(x = "Deployment Class", y = "Percentage Reduction")
 ```
-```{r}
-load("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/all.RData")
-```
-
-
-```{r}
-all_df %>% 
-  filter(environment == "indoor") %>%
-  ggplot() +
-  geom_boxplot(aes(x = dep_class, y = pm25, fill = case), outlier.shape = NA) +
-  scale_y_continuous(limits = quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE),
-                     trans = "log10")
-```
 

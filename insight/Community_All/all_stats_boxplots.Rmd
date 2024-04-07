@@ -1,0 +1,20 @@
+# Create bar plot
+This script uses summary statistic data to create a bar plot.
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+load("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/all.RData")
+```
+
+
+```{r}
+all_df %>% 
+  filter(environment == "indoor") %>%
+  ggplot() +
+  geom_boxplot(aes(x = dep_class, y = pm25, fill = case), outlier.shape = NA) +
+  scale_y_continuous(limits = quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE),
+                     trans = "log10")
+```
