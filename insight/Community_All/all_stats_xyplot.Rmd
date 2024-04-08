@@ -1,0 +1,31 @@
+# Create bar plot
+This script uses summary statistic data to create a bar plot.
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# setwd("C:/Users/vkuchhal/Documents/hepa-summer23")
+summary_df <- read_csv("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/s_All_M_quants.csv")
+
+```
+```{r}
+summary_df %>%
+  filter(participant_id != "all", case %in% c("on", "off"), type == "pm25",
+         environment == "indoor") %>%
+  select(participant_id, dep_class, case, mean, median, q5, q25, q75, q95) %>%
+  pivot_wider(names_from = case, 
+              values_from = c(mean, median, q5, q25, q75, q95)) %>%
+  ggplot() +
+    geom_point(aes(x = mean_on, y = mean_off, color = dep_class)) +
+    geom_abline(slope = 1, intercept = 0, linetype = 2) +
+    geom_abline(slope = 2, intercept = 0, linetype = 3) +
+    geom_label(aes(x = 15, y = 12, label = "Purifier working baseline")) +
+    geom_label(aes(x = 10, y = 16, label = "Purifier at 50% efficacy")) +
+    labs(x = "Mean PM2.5 when purifier ON", y = "Mean PM2.5 when purifier OFF",
+         color = "Deployment Class", title= "PM2.5 Level Comparison",
+         caption = "The points above y = x are deployments where purifier 
+         reduces levels. More the relative height, higher the reduction")
+
+```

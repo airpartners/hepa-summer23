@@ -13,7 +13,8 @@ summary_df <- read_csv("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Commun
 
 ```{r}
 stat_order <- c("q5", "q25", "median", "q75", "q95")
-summary_df %>% filter(environment == "indoor", type == "pm25", case == "redu") %>%
+summary_df %>% filter(environment == "indoor", type == "pm25", case == "redu",
+                      participant_id == "all") %>%
   pivot_longer(cols = mean:sd, names_to = "stat") %>%
   filter(dep_class != "all", stat %in% c("q5", "q25", "median", "q75", "q95", "mean")) %>%
   mutate(stat = fct_relevel(stat, "q5", "q25", "median", "q75", "q95")) %>%

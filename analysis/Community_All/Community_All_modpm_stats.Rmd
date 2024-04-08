@@ -153,14 +153,26 @@ main_df_long <- all_df %>%
   # Drop NaN, inf values for summary calculation
   filter(is.finite(reading))
   
+
 # Calculate summary statistics for each participant
+participant_summary <- main_df_long %>%
+  select(-room) %>%
+  drop_na() %>%
+  # Group by participant ID, case, environment, and type
+  group_by(participant_id, dep_class, case, environment, type) %>%
+  # Calculate summary statistics
+  my_summarise()
+
+# Calculate summary statistics for each deployment class
 class_summary <- main_df_long %>%
   select(-room) %>%
   drop_na() %>%
   # Group by participant ID, case, environment, and type
   group_by(dep_class, case, environment, type) %>%
   # Calculate summary statistics
-  my_summarise()
+  my_summarise() %>%
+  # Add participant ID column as 'all'
+  mutate(participant_id = "all")
 
 # Calculate summary statistics over all the data
 overall_summary <- main_df_long %>%
@@ -171,12 +183,12 @@ overall_summary <- main_df_long %>%
   # Calculate summary statistics
   my_summarise() %>%
   # Add participant ID column as 'all'
-  mutate(dep_class = "all")
+  mutate(dep_class = "all", participant_id = "all")
 ```
 
 ```{r}
 # Bind together participant and overall summary statistics
-summary <- rbind(class_summary, overall_summary)
+summary <- rbind(participant_summary, class_summary, overall_summary)
 ```
 
 ### Calculate percentage reduction in concentration from off to on HEPA installation
