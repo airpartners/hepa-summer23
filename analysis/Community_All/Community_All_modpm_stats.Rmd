@@ -40,7 +40,7 @@ path_to_data <- "cleaning/"
 ## Load data
 ```{r}
 var_list <- c("date", "environment", "case", "participant_id", "room",  
-              "pm1", "pm25", "pm10",  "pm1num")
+              "pm1", "pm25", "pm10",  "pm1num", "area", "place_id")
 
 modpm_df <- data.frame(matrix(ncol = length(var_list), nrow = 0))
 
@@ -51,32 +51,23 @@ for (file_path in modpm_data) {
   # Load Mod-PM data from RData file
   load(paste0(path_to_data, file_path, "cleaned_modpm.RData"))
   
-  dep_vec <- str_split(file_path, "/")
+  loc <- strsplit(file_path, "/")[[1]]
   
   main_df <- main_df %>%
-    # Make a column for room if not present
-    mutate(room = ifelse("room" %in% colnames(main_df), room, NA)) %>%
+    # Make a column for room if not present, make columns for deployments
+    mutate(room = ifelse("room" %in% colnames(main_df), room, NA),
+           area = loc[1], place_id = loc[2]) %>%
     # Select only relevant columns
     select(all_of(var_list)) %>%
     # Standardize case between off and on
     mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off",
-                            .default = case),
-           dep_id = dep_vec[[1]][2]) %>%
-    # Add in the deployment classification
-    mutate(dep_class = case_when(dep_vec[[1]][1] == "Roxbury" ~ "residential",
-                                 dep_vec[[1]][2] == "MF" ~ "residential",
-                                 dep_vec[[1]][1] == "EastBoston" ~ "preschool",
-                                 dep_vec[[1]][2] == "CH" ~ "municipal",
-                                 dep_vec[[1]][2] == "RH" ~ "school"))
+                            .default = case))
   
   modpm_df <- rbind(modpm_df, main_df)
 }
 ```
 
 ```{r}
-var_list <- c("date", "environment", "case", "participant_id", "room",  
-              "pm1", "pm25", "pm10",  "pm1num")
-
 modpm_cpc_df <- data.frame(matrix(ncol = length(var_list), nrow = 0))
 
 modpm_cpc_data <- c("Revere/RH/", "Revere/CH/", "EastBoston/LF/", "EastBoston/SS/")
@@ -85,27 +76,18 @@ for (file_path in modpm_cpc_data) {
   # Load Mod-PM data from RData file
   load(paste0(path_to_data, file_path, "cleaned_modpm-cpc.RData"))
   
-  dep_vec <- str_split(file_path, "/")
-  
-  
+  loc <- strsplit(file_path, "/")[[1]]
   
   main_df <- main_df %>%
     # Make a column for room if not present
-    mutate(room = ifelse("room" %in% colnames(main_df), room, NA)) %>%
+    mutate(room = ifelse("room" %in% colnames(main_df), room, NA),
+           area = loc[1], place_id = loc[2]) %>%
     # Select only relevant columns
     select(all_of(var_list)) %>%
     # Standardize case between off and on
     mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off",
-                            .default = case),
-           dep_id = dep_vec[[1]][2]) %>%
-    # Add in the deployment classification
-    mutate(dep_class = case_when(dep_vec[[1]][1] == "Roxbury" ~ "residential",
-                                 dep_vec[[1]][2] == "MF" ~ "residential",
-                                 dep_vec[[1]][1] == "EastBoston" ~ "preschool",
-                                 dep_vec[[1]][2] == "CH" ~ "municipal",
-                                 dep_vec[[1]][2] == "RH" ~ "school"))
+                            .default = case))
                                  
-  
   modpm_cpc_df <- rbind(modpm_cpc_df, main_df)
 }
 ```
@@ -113,8 +95,30 @@ for (file_path in modpm_cpc_data) {
 ## Pre-processing
 ```{r}
 # Bind two dataframes
-all_df <- rbind(modpm_cpc_df, modpm_df)
+binded_df <- rbind(modpm_cpc_df, modpm_df)
 ```
+
+```{r}
+all_df <- binded_df %>%
+  # Classify all the deployments
+  mutate(room_type = case_when(
+    # All residential deployments
+    area == "Roxbury" ~ "residential",
+    place_id == "MF" & participant_id %in% c("2", "7", "9", "14") ~ "residential",
+    
+    # All classroom deployments
+    area == "Revere" & str_detect(participant_id, "class") ~ "classroom",
+    
+    # All office deployments
+    area == "Revere" & !str_detect(participant_id, "class") ~ "office",
+    place_id %in% c("LF", "SS") & participant_id == "admin" ~ "office",
+    
+    # All daycare deployments
+    place_id %in% c("LF", "SS") & participant_id != "admin" ~ "daycare",
+    place_id == "MF"  & participant_id %in% c("3", "6", "8", "15") ~ "daycare",
+    ))
+```
+
 
 ```{r}
 # Save dataframe in summary folder
@@ -159,20 +163,20 @@ participant_summary <- main_df_long %>%
   select(-room) %>%
   drop_na() %>%
   # Group by participant ID, case, environment, and type
-  group_by(participant_id, dep_class, case, environment, type) %>%
+  group_by(participant_id, room_type, area, place_id, case, environment, type) %>%
   # Calculate summary statistics
   my_summarise()
 
-# Calculate summary statistics for each deployment class
+# Calculate summary statistics for each room type
 class_summary <- main_df_long %>%
   select(-room) %>%
   drop_na() %>%
   # Group by participant ID, case, environment, and type
-  group_by(dep_class, case, environment, type) %>%
+  group_by(room_type, case, environment, type) %>%
   # Calculate summary statistics
   my_summarise() %>%
   # Add participant ID column as 'all'
-  mutate(participant_id = "all")
+  mutate(participant_id = "all", area = "all", place_id = "all")
 
 # Calculate summary statistics over all the data
 overall_summary <- main_df_long %>%
@@ -183,7 +187,7 @@ overall_summary <- main_df_long %>%
   # Calculate summary statistics
   my_summarise() %>%
   # Add participant ID column as 'all'
-  mutate(dep_class = "all", participant_id = "all")
+  mutate(room_type = "all", participant_id = "all", area = "all", place_id = "all")
 ```
 
 ```{r}
