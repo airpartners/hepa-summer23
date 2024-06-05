@@ -48,14 +48,13 @@ proportion_df <- main_df  %>%
     group_by(case) %>%
     # Categorize as low, medium, high
     mutate(danger_pm25 = case_when(
-      between(pm25, 0, 2) ~ 'CLEAN',
-      between(pm25, 2, 5) ~ 'LOW',
-      between(pm25, 5, 12) ~ 'MEDIUM',
-      pm25 > 12 ~ 'HIGH')) %>%
+      between(pm25, 0, 9) ~ 'LOW',
+      between(pm25, 9, 15) ~ 'MEDIUM',
+      pm25 > 15 ~ 'HIGH')) %>%
     # Calculate proportions
     count(danger_pm25) %>%
     mutate(prop = 24 * n / sum(n)) %>% 
-    mutate(across(danger_pm25, ~factor(., levels=c("CLEAN", "LOW","MEDIUM", "HIGH"))))
+    mutate(across(danger_pm25, ~factor(., levels=c("LOW","MEDIUM", "HIGH"))))
 ```
 
 ## Plotting
