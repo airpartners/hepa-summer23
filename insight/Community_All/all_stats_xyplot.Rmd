@@ -14,11 +14,11 @@ summary_df <- read_csv("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Commun
 summary_df %>%
   filter(participant_id != "all", case %in% c("on", "off"), type == "pm25",
          environment == "indoor") %>%
-  select(participant_id, dep_class, case, mean, median, q5, q25, q75, q95) %>%
+  select(place_id, participant_id, room_type, case, mean, median, q5, q25, q75, q95) %>%
   pivot_wider(names_from = case, 
               values_from = c(mean, median, q5, q25, q75, q95)) %>%
   ggplot() +
-    geom_point(aes(x = mean_on, y = mean_off, color = dep_class)) +
+    geom_point(aes(x = mean_on, y = mean_off, color = room_type)) +
     geom_abline(slope = 1, intercept = 0, linetype = 2) +
     geom_abline(slope = 2, intercept = 0, linetype = 3) +
     geom_label(aes(x = 15, y = 12, label = "Purifier working baseline")) +

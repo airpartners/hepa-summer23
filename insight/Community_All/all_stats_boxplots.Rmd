@@ -14,7 +14,10 @@ load("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/all.RData"
 all_df %>% 
   filter(environment == "indoor") %>%
   ggplot() +
-  geom_boxplot(aes(x = dep_class, y = pm25, fill = case), outlier.shape = NA) +
+  geom_boxplot(aes(x = room_type, y = pm25, fill = case), outlier.shape = NA) +
   scale_y_continuous(limits = quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE),
-                     trans = "log10")
+                     trans = "log10") +
+  labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
+  scale_fill_discrete(labels = c("Off", "On"))
+  
 ```
