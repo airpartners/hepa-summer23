@@ -239,15 +239,15 @@ First, we separate the data based on whether the HEPA purifier was there or not.
 Then, we detect the plumes through peak detection.
 ```{r}
 # Get data subset
-my_df_subset <- my_df[my_df$participant_id=="engineering" & my_df$environment=="indoor",]
+my_df_subset <- my_df[my_df$participant_id=="clerk" & my_df$environment=="indoor",]
 
 # Separate my_df by before vs. after
 my_df_before <- my_df_subset[my_df_subset$case=='off',]
 my_df_after  <- my_df_subset[my_df_subset$case=='on',]
 
 # Smooth curves
-my_df_before_smoothed <- lowess(my_df_before$pm25, f=0.005)
-my_df_after_smoothed <- lowess(my_df_after$pm25, f=0.005)
+my_df_before_smoothed <- lowess(my_df_before$pm25, f=0.001)
+my_df_after_smoothed <- lowess(my_df_after$pm25, f=0.001)
 
 # Get peaks from before and after
 peaks_b <- findpeaks(my_df_before_smoothed$y,
@@ -293,13 +293,13 @@ TODO: fix
 # (sanity check)
 plot(my_df_before_smoothed$y,
   type = "l",
-  main = "Indoor/Outdoor Ratio",
+  main = "Indoor Concentrations",
   xlab = "Time (indices)",
-  ylab = "Ratio of indoor/outdoor concentrations",
+  ylab = "PM Concentrations (ug/m3)",
   col = "navy")
   grid()
 points(peaks_b[, 2], peaks_b[, 1], pch = 20, col = "maroon")
-# points(peaks_b[, 3], my_df_before$pm25[peaks_b[, 3]], pch = 20, col = "yellow")
+points(peaks_b[, 3], my_df_before_smoothed$pm25[peaks_b[, 3]], pch = 20, col = "yellow")
 points(peaks_b[, 4], my_df_before_smoothed$y[peaks_b[, 4]], pch = 20, col = "green")
 ```
 ```{r}
@@ -442,8 +442,8 @@ plume_redus <- function(data, id, pm, env) {
   my_df_before <- sub_data[sub_data$case=='off',]
   my_df_after  <- sub_data[sub_data$case=='on',]
   # # Smooth the curve
-  # my_df_before_smoothed <- lowess(my_df_before[[pm]], f=0.005)
-  # my_df_after_smoothed <- lowess(my_df_before[[pm]], f=0.005)
+  my_df_before_smoothed <- lowess(my_df_before[[pm]], f=0.001)
+  my_df_after_smoothed <- lowess(my_df_before[[pm]], f=0.001)
   
   
   # Calculate average baseline parameter and mean parameters, which will be used
@@ -458,14 +458,14 @@ plume_redus <- function(data, id, pm, env) {
 
   # Get peaks from before and after
   # peaks_b <- findpeaks(my_df_before_smoothed$y,
-  peaks_b <- findpeaks(my_df_before[[pm]],
+  peaks_b <- findpeaks(my_df_before_smoothed$y,
                        nups = 1,
                        ndowns = 2,
                        minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='off', 'mean']),
                        minpeakdistance = 200,
                        threshold = 0)
   # peaks_a <- findpeaks(my_df_after_smoothed$y,
-  peaks_a <- findpeaks(my_df_after[[pm]],
+  peaks_a <- findpeaks(my_df_after_smoothed$y,
                        nups = 1,
                        ndowns = 2,
                        minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='on', 'mean']),
@@ -474,17 +474,17 @@ plume_redus <- function(data, id, pm, env) {
 
   # Get valleys before and after to isolate each plume
   # peaks_b <- get_local_valleys(my_df_before_smoothed$y,
-  peaks_b <- get_local_valleys(my_df_before[[pm]],
+  peaks_b <- get_local_valleys(my_df_before_smoothed$y,
                                peaks = peaks_b,
                                min_threshold = as.numeric(pm_baseline[pm_baseline$case=='off', 'mean']))
   # peaks_a <- get_local_valleys(my_df_after_smoothed$y,
-  peaks_a <- get_local_valleys(my_df_after[[pm]],
+  peaks_a <- get_local_valleys(my_df_after_smoothed$y,
                                peaks = peaks_a,
                                min_threshold = as.numeric(pm_baseline[pm_baseline$case=='on', 'mean']))
   
   # perform decay analysis for before and after
-  decays_before <- curve_fitting(my_df_before[[pm]], peaks = peaks_b)
-  decays_after  <- curve_fitting(my_df_after[[pm]], peaks = peaks_a)
+  decays_before <- curve_fitting(my_df_before_smoothed$y, peaks = peaks_b)
+  decays_after  <- curve_fitting(my_df_after_smoothed$y, peaks = peaks_a)
   
   # Merge decay tables, adding a column indicating whether HEPA installed or not
   decays_before$hepa <- FALSE
@@ -576,6 +576,16 @@ for (id in unique(my_df$participant_id)) {
 }
 plume_reduc.data
 ```
+
+**IMPORTANT NOTE**: As can be seen in the output table, most instances show that
+the air purifier is having a negative effect on the air quality. This result is
+misleading, since the plumes in this data have a maximum height of around 15-20
+ug/m3 for each particulate matter. These are small plumes compared to other
+plumes detected in other datasets. Because the air quality does not deviate far
+from the baseline, I would be hesitant in using this analysis for this specific
+dataset.
+
+
 ## Save to file
 Plume characteristics and statistics are saved in a CSV file.
 
