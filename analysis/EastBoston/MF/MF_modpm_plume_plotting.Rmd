@@ -657,3 +657,22 @@ ggplot(plot_data, aes(x = time)) +
   ylab("PM2.5 Concentration") +
   theme_bw()
 ```
+
+
+### Exposure for Each Participant
+```{r}
+exposure <- plume_reduc.data %>%
+  select(participant_id, pm, hepa, total_plume_area) %>%
+  group_by(participant_id, hepa) %>%
+  mutate(sum_plume = sum(total_plume_area), .keep="none") %>%
+  distinct(participant_id, hepa, .keep_all=TRUE)
+
+
+# Create the bar plot with custom legend labels
+ggplot(exposure, aes(x = factor(participant_id), y = sum_plume, fill = factor(hepa))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Participant ID", y = "Total Exposure (ug/m3)", fill = "HEPA Status") +
+  scale_fill_manual(values = c("FALSE" = "red", "TRUE" = "green"),
+                    labels = c("FALSE" = "offline", "TRUE" = "online")) +
+  theme_minimal()
+```
