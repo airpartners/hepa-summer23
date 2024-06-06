@@ -1,7 +1,7 @@
 # hepa-summer23
-Repository for analysis of data from HEPA pilots in the summer of 2023. Supersedes all previous HEPA analysis repositories.
+Repository for analysis of data from HEPA pilots, beginning in June 2023, last updated June 2024. Supersedes all previous HEPA analysis repositories.
 
-Primary authors of this project are [VedaantKuchhal](https://github.com/VedaantKuchhal) and [sanjatti](https://github.com/sanjatti).
+Primary authors of this project are [VedaantKuchhal](https://github.com/VedaantKuchhal),  [sanjatti](https://github.com/sanjatti), [ndhulipala1](https://github.com/ndhulipala1), and [giauyentran](https://github.com/giauyentran).
 
 All of the information relevant to this project is documented in a set of documents called Data Guides. The [main data guide](https://github.com/airpartners/hepa-summer23/blob/main/data_guide.md) can be found as `data_guide.md` and it outlines the entire project and therefore the contents of `cleaning`, `analysis`, `summary`, and `insight` (as well as `data` and `artifacts` - two untracked folders that will be added in the process of running this pipeline).
 

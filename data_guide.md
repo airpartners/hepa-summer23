@@ -37,7 +37,9 @@ As you can see, the location folders follow the same structure outlined in the [
 
 To keep things nice and standardized, there are common conventions and organization structures for each component of the pipeline, even between different locations. 
 
-Each location has its own data guide with the specifics for the files and instructions for running the pipeline for that particular location. The location-specific data guides are linked at the end of this file. *Please read this data guide first as it provides an important overview of each of the six components.*
+Each location has its own data guide with the specifics for the files and instructions for running the pipeline for that particular location. The location-specific data guides are linked at the end of this file. **Please read this data guide first as it provides an important overview of each of the six components.**
+
+*Note: there is one (just one) exception to this rule - for a research paper being written in the summer of 2024 (informally called "Community HEPA paper"), there is a separate `Community_All` folder in each of the `analysis`, `summary`, and `insights` section. These work with the combined cleaned data from the `Roxbury`, `Revere`, and `EastBoston` study regions. There will be a separate data guide for this.*
 
 ## Raw Data (`data`)
 **This component has by far the most files, and it is the largest and most important of the six components to read to understand how files are organized and new files can be added.**
@@ -77,7 +79,7 @@ The sensors deployed in various phases of this project are each coded by a singl
 In case the data is merged between different sensors, all relevant sensor codes are used (e.g.- `MC` for a file that contains Mod-PM + CPC data).
 
 #### Field Notes
-In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location, coded as `LocationCode_notes`. Some might have an additional 'reformatted' version that is a distilled, code-parseable format code in `analysis` to filter data.
+In addition to the sensor data, field notes documented by people in charge of sensor installation and air purifier deployment provide critical contextual information, such as the date the various sensors were active for and the date the air purifier was installed. Field notes should be a single file per location, coded as `LocationCode_notes`. Some might have an additional 'summarized' version that is a distilled, code-parseable format code in `analysis` to filter data.
 
 #### Sample Explanations
 
