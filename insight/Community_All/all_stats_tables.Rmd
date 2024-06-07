@@ -42,7 +42,7 @@ id_to_name <- c("CM" = "Cardinal Medeiros (Roxbury)", "RI" = "Independent Homes 
 ```{r}
 # For indoor data
 summary_all %>%
-  filter(environment == "indoor", case == "redu", participant_id != "all") %>%
+  filter(environment == "indoor", case == "redu") %>%
   arrange(area, place_id, room_type) %>%
   mutate(place_names = id_to_name[place_id], 
          id = group_indices(., participant_id, place_id)) %>%
@@ -51,9 +51,9 @@ summary_all %>%
   write.csv("artifacts/Community_All/indoor_reduction.csv", row.names = FALSE)
 ```
 ```{r}
-# For indoor data
+# For ratio data
 summary_all %>%
-  filter(environment == "ratio", case == "redu", participant_id != "all") %>%
+  filter(environment == "ratio", case == "redu") %>%
   arrange(area, place_id, room_type) %>%
   mutate(place_names = id_to_name[place_id], 
          id = group_indices(., participant_id, place_id)) %>%

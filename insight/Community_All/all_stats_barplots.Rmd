@@ -12,15 +12,27 @@ summary_df <- read_csv("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Commun
 ```
 
 ```{r}
+var_type <- "pm1"
 stat_order <- c("q5", "q25", "median", "q75", "q95")
-summary_df %>% filter(environment == "indoor", type == "pm25", case == "redu",
+summary_df %>% filter(environment == "indoor", type == var_type, case == "redu",
                       participant_id == "all") %>%
   pivot_longer(cols = mean:sd, names_to = "stat") %>%
   filter(room_type != "all", stat %in% c("q5", "q25", "median", "q75", "q95", "mean")) %>%
   mutate(stat = fct_relevel(stat, "q5", "q25", "median", "q75", "q95")) %>%
   ggplot() + geom_col(aes(x = room_type, y = value, fill = stat), position = "dodge") +
-  labs(x = "Deployment Class", y = "Percentage Reduction", fill = "Summary Statistic") +
+  labs(x = "Deployment Class", y = paste("Percentage Reduction", var_type), fill = "Summary Statistic") +
   scale_fill_discrete(labels = c("5th Percentile", "25th Percentile", "Median", 
                                  "75th Percentile", "95th Percentile", "Mean"))
+```
+```{r}
+var_type <- "pm25"
+stat_order <- c("q5", "q25", "median", "q75", "q95")
+summary_df %>% 
+  filter(environment == "ratio", type == var_type, participant_id == "all", 
+         room_type != "all", case %in% c("off", "on")) %>%
+  ggplot() + 
+  geom_col(aes(x = room_type, y = mean, fill = case), position = "dodge") +
+  labs(x = "Deployment Class", y = paste("Mean", var_type, "Comparison"), 
+       fill = "Purifier State")
 ```
 
