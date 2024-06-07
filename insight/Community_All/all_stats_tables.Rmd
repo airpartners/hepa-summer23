@@ -1,0 +1,64 @@
+# Table formatting All Deployments
+
+## STOP
+
+This script formats the summarized data for all deployments in the Community HEPA paper. **Have you run `Community_All_modpm_stats.Rmd` ?**
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(huxtable)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+## Load Data
+```{r}
+filepath <- paste0(path_to_data, "s_All_M_quants.csv")
+summary_all <- read_csv(filepath, show_col_types = FALSE) %>% select(-c(1))
+
+# Mapping
+id_to_name <- c("CM" = "Cardinal Medeiros (Roxbury)", "RI" = "Independent Homes (Roxbury)", "IB" = "Indigo Block (Roxbury)", "CH" = "Revere City Hall", "RH" = "Revere High School", "MF" = "Mothers Out Front (East Boston)", "LF" = "Little Folks (East Boston)","SS" = "Shining Star (East Boston)")
+```
+## Modify Data
+```{r}
+# For indoor data
+summary_all %>%
+  filter(environment == "indoor", case == "redu", participant_id != "all") %>%
+  arrange(area, place_id, room_type) %>%
+  mutate(place_names = id_to_name[place_id], 
+         id = group_indices(., participant_id, place_id)) %>%
+  select(id, place_names, room_type, type, mean, median, q5, q25, q75, q95) %>%
+  mutate(across(mean:q95, \(x) round(x, 1))) %>%
+  write.csv("artifacts/Community_All/indoor_reduction.csv", row.names = FALSE)
+```
+```{r}
+# For indoor data
+summary_all %>%
+  filter(environment == "ratio", case == "redu", participant_id != "all") %>%
+  arrange(area, place_id, room_type) %>%
+  mutate(place_names = id_to_name[place_id], 
+         id = group_indices(., participant_id, place_id)) %>%
+  select(id, place_names, room_type, type, mean, median, q5, q25, q75, q95) %>%
+  mutate(across(mean:q95, \(x) round(x, 1))) %>%
+  write.csv("artifacts/Community_All/io-ratio_reduction.csv", row.names = FALSE)
+```
+
