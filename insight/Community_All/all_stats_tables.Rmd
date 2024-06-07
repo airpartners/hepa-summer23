@@ -61,4 +61,20 @@ summary_all %>%
   mutate(across(mean:q95, \(x) round(x, 1))) %>%
   write.csv("artifacts/Community_All/io-ratio_reduction.csv", row.names = FALSE)
 ```
+```{r}
+# For indoor data
+summary_all %>%
+  filter(environment == "indoor", case == "redu", participant_id != "all",
+         type == "pm25") %>%
+  count(room_type)
+```
+
+```{r}
+# For indoor data
+summary_all %>%
+  filter(environment == "indoor", case == "redu", participant_id != "all",
+         type == "pm25") %>%
+  mutate(place_names = id_to_name[place_id]) %>%
+  count(room_type, place_names)
+```
 
