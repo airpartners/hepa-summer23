@@ -1,0 +1,72 @@
+# Correlations - further digging
+This script digs deeper into the correlation coefficients between measurements taken by the Mod-PM and CPC sensors.
+
+```{r}
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+## Summarizing participants
+Currently, we have individual correlation coefficients for each participant. Using the merged dataframe from `OH_modpm_cpc_corrs`, we can calculate overall coefficients.
+
+```{r}
+# Read overall merged CPC + Mod-PM data
+load(paste0(path_to_data, "mod_cpc.RData"))
+
+# Read correlation coefficient data
+corr_df <- read.csv(paste0(path_to_data, "s_AllwCPC_MC_corrs.csv"))
+```
+
+## Comparing coefficients
+Trying to understand which Mod-PM variables are most closely related with CPC, and in which deployments.
+```{r}
+corr_df %>%
+  filter(x == "concent" | y == "concent") %>%
+  mutate(mod_pm_var = ifelse(x == "concent", y, x)) %>%
+  ggplot(aes(x = r, y = mod_pm_var, colour = mod_pm_var, label = participant_id)) +
+    geom_jitter(height = 0.2) +
+    xlim(0, 1) +
+    theme_classic()
+```
+
+
+
+```{r}
+corr_df %>%
+  filter(x == "concent" | y == "concent") %>%
+  mutate(mod_pm_var = ifelse(x == "concent", y, x)) %>%
+  ggplot(aes(x = r, y = mod_pm_var, colour = place_id, label = participant_id)) +
+    geom_jitter(height = 0.2) +
+    xlim(0, 1) +
+    theme_classic()
+```
+```{r}
+corr_df %>%
+  filter(x == "concent" | y == "concent") %>%
+  mutate(mod_pm_var = ifelse(x == "concent", y, x)) %>%
+  ggplot(aes(x = r, y = mod_pm_var, colour = case, label = participant_id)) +
+    geom_jitter(height = 0.2) +
+    xlim(0, 1) +
+    theme_classic()
+```
+
+```{r}
+
+```
+
