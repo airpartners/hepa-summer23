@@ -1,0 +1,146 @@
+# All Deployments Data Summarization
+
+## STOP
+
+This script combines the data from ALL deployments that contain CPC data in this repository (except for HAFTRAP). Have you run ALL the relevant cleaning scripts? These are:
+
+1. Revere - `RH_modpm-cpc_cleaning.Rmd`, `CH_modpm-cpc_cleaning.Rmd`
+2. East Boston - `LF_modpm-cpc_cleaning.Rmd`, `SS_modpm-cpc_cleaning.Rmd`
+
+*This file loads two dataframes created from running ALL the above scripts. Make sure you run those files first (if you haven't already) before running this file.*
+
+Results can be found in `summary/Community_All/s_AllwCPC_MC_corrs.csv`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/"
+```
+
+## Load data
+```{r}
+var_list <- c("date", "environment", "case", "participant_id", "room",  
+              "pm1", "pm25", "pm10",  "pm1num", "concent", "area", "place_id")
+
+modcpc_df <- data.frame(matrix(ncol = length(var_list), nrow = 0))
+
+modcpc_data <- c("Revere/RH/", "Revere/CH/", "EastBoston/LF/", "EastBoston/SS/")
+
+for (file_path in modcpc_data) {
+  # Load Mod-PM data from RData file
+  load(paste0(path_to_data, file_path, "cleaned_modpm-cpc.RData"))
+  
+  loc <- strsplit(file_path, "/")[[1]]
+  
+  main_df <- main_df %>%
+    # Make a column for room if not present, make columns for deployments
+    mutate(room = ifelse("room" %in% colnames(main_df), room, NA),
+           area = loc[1], place_id = loc[2]) %>%
+    # Select only relevant columns
+    select(all_of(var_list)) %>%
+    # Standardize case between off and on
+    mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off",
+                            .default = case))
+  
+  modcpc_df <- rbind(modcpc_df, main_df)
+}
+```
+
+
+```{r}
+# Save dataframe in summary folder
+save(modcpc_df, file = "C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/mod_cpc.RData")
+```
+
+### Calculating correlation coefficients
+Correlation coefficients tell us a lot about relationships between variables. This function calculates the correlation matrix for a particular case for a single participant and reshapes it into a paired-list format
+```{r}
+# Function to calculate correlation matrices
+get_corr <- function(df, case, person, environment) {
+  current_place <- unique(select(df, place_id))
+  if (person == "all") {
+    current_place <- "all"
+  }
+
+  df %>%
+    # Select all columns except date
+    select_if(is.numeric) %>%
+    # Remove NaN values
+    drop_na() %>%
+    # Calculate correlations (suppress output message)
+    correlate(quiet = TRUE) %>%
+    # Reshape into paired-list format
+    stretch(remove.dups = TRUE) %>%
+    # Add the case and participant ID
+    mutate(case = case, participant_id = person, environment = environment, 
+           place_id = paste(current_place)) %>%
+    # Drop NaNs
+    drop_na()
+}
+```
+
+### Calculate correlation matrices
+Helps better understand the relationship between different variables in HEPA purifier off and on conditions for each participant. Matrices are reshaped into longer pair format for stacking all the data into single dataframe. (Warning: this code takes a while to run.)
+```{r}
+# Create dataframe to hold correlation coefficients
+corr_df <- data.frame()
+
+# List of participants with both Mod-PM and CPC
+participants <- unique(modcpc_df$participant_id)
+
+# Loop through each case
+for (c in c("off", "on")) {
+  # Loop through each environment
+  for (env in c("indoor")) {
+    # Loop through each participant
+    for (participant in participants) {
+      # Use wide dataframe where indoor/outdoor are separate columns
+      modcpc_df %>%
+        # Filter for case
+        filter(case == c, environment == env, participant_id == participant) %>%
+        # Get correlation coefficients (look at helper function)
+        get_corr(case = c, environment = env, person = participant) -> df
+      
+      # Append to main dataframe
+      corr_df <- rbind(corr_df, df)
+      print(paste("Computed correlation coefficients for",participant, c, env))
+    }
+    # Repeat for overall correlation coefficient
+    modcpc_df %>%
+      # Filter for case
+      filter(case == c, environment == env) %>%
+      # Get correlation coefficients (look at helper function)
+      get_corr(case = c, environment = env, person = "all") -> df
+    
+    # Append to main dataframe
+    corr_df <- rbind(corr_df, df)
+    print(paste("Computed correlation coefficients for all", c, env))
+  }
+}
+```
+
+## Save to file
+Summary statistics are saved in a CSV file.
+```{r}
+# Save summary statistic files to CSVs
+write.csv(corr_df, "summary/Community_All/s_AllwCPC_MC_corrs.csv")
+```
