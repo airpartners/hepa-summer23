@@ -62,7 +62,7 @@ my_df <- main_df %>%
   # Classify as weekday or weekend
   mutate(is_wknd = wkdy %in% c(1, 7)) %>%
   # Extract time of the day from datetime
-  mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S"))
+  mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S")) %>%
 my_df
 ```
 
@@ -154,7 +154,7 @@ get_local_valleys <- function(data, peaks, min_threshold) {
   peaks_df <- as.data.frame(peaks)
   
   # Sorting peaks_df by peak in descending order
-  peaks_df <- peaks_df[order(-peaks_df$peak),]
+  peaks_df <- peaks_df[order(-peaks_df$peak_hgt),]
   
   # Drop duplicate valleys, keeping highest peak for each duplicate
   result_peaks <- peaks_df[!duplicated(peaks_df[, c("valley_b", "valley_a")]),]
@@ -197,7 +197,7 @@ curve_fitting <- function(data, peaks) {
     st <- list(a = exp(coef(fm_lm)[1]), b = coef(fm_lm)[2])
     fit <- try(nls(y ~ f(t, a, b), data = df, start = st, control = nlc))
     # If try block fails, break out of loop and don't return anything
-    if (sapply(fit, class) == "character") {
+    if (sapply(fit[1], class) == "character") {
       break
     }
     # Get parameters of the fit
@@ -434,7 +434,7 @@ function, creating reduction statistics, and performing that function on
 the dataset as it is grouped by participation, room, and PM.
 
 ```{r}
-plume_redus <- function(data, id, pm, env) {
+get_plumes <- function(data, id, pm, env) {
   sub_data <- data[data$participant_id == id & data$environment == env,]
   # Drop NA data
   sub_data <- sub_data[!is.na(sub_data[pm]),]
@@ -491,40 +491,72 @@ plume_redus <- function(data, id, pm, env) {
   decays_after$hepa <- TRUE
   all_decays <- merge(decays_before, decays_after, all = TRUE)
   
-  # Get index of when HEPA was installed
-  hepa_install_idx <- match(TRUE, all_decays$hepa)
+  # Add columns of all_decays
+  all_decays <- all_decays %>%
+    mutate(peak_width = valley_idx_a - valley_idx_b) %>%
+    mutate(deployment = "CH") %>%
+    mutate(room = "office") %>%
+    mutate(participant_id = id) %>%
+    mutate(environment = "indoor")
   
-  # Create summary of decay values for before and after
-  all_decays["hepa_installed"] <- all_decays["peak_idx"] >= hepa_install_idx
-  all_decays["peak_width"] <- all_decays["valley_idx_a"] - all_decays["valley_idx_b"]
-  
+  return(data.frame(all_decays[,c(10, 11, 12, 13, 1:9)]))
+}
+```
+
+```{r}
+plume_redus <- function(plumes, id, pm, env) {
   decay_sum <-
-    all_decays %>%
+    plumes %>%
       group_by(hepa) %>%
       summarize(
         # kval
         k_val_mean = mean(k_val, na.rm = TRUE),
         k_val_median = median(k_val, na.rm = TRUE),
-        # k_val_min = min(k_val, na.rm = TRUE),
-        # k_val_max = max(k_val, na.rm = TRUE),
+        k_val_min = min(k_val, na.rm = TRUE),
+        k_val_max = max(k_val, na.rm = TRUE),
         # peak heights
         peak_hgt_mean = mean(peak_hgt, na.rm = TRUE),
         peak_hgt_median = median(peak_hgt, na.rm = TRUE),
-        # peak_wdh_min = min(peak_width, na.rm = TRUE),
-        # peak_wdh_max = max(peak_width, na.rm = TRUE),
-        # # peak widths
+        peak_hgt_min = min(peak_hgt, na.rm = TRUE),
+        peak_hgt_max = max(peak_hgt, na.rm = TRUE),
+        # total peak widths
         peak_wdh_mean = mean(peak_width, na.rm = TRUE),
         peak_wdh_median = median(peak_width, na.rm = TRUE),
-        # peak_wdh_min = min(peak_width, na.rm = TRUE),
-        # peak_wdh_max = max(peak_width, na.rm = TRUE),
+        peak_wdh_min = min(peak_width, na.rm = TRUE),
+        peak_wdh_max = max(peak_width, na.rm = TRUE),
         # cumulative PM
         total_plume_area = sum(cumm_pm, na.rm = TRUE),
+        # number of plumes
+        n = n()
       )
-  return(decay_sum)
+  
+  # Add identifying columns
+  decay_sum <- decay_sum %>%
+    mutate(participant_id = id) %>%
+    mutate(environment = "indoor")
+  
+  return(data.frame(decay_sum[,c(16, 17, 1:15)]))
 }
 ```
 
 ```{r}
+# Create new DataFrame for storing plumes
+plumes.data <- data.frame(
+  "deployment" = numeric(0),
+  "room" = numeric(0),
+  "participant_id" = numeric(0),
+  "environment" = numeric(0),
+  "peak_idx" = numeric(0),
+  "valley_idx_b" = numeric(0),
+  "valley_idx_a" = numeric(0),
+  "peak_hgt" = numeric(0),
+  "k_val" = numeric(0),
+  "conv_tool" = numeric(0),
+  "cumm_pm" = numeric(0),
+  "hepa" = numeric(0),
+  "hepa_installed" = numeric(0),
+  "peak_width" = numeric(0)
+)
 # Create empty DataFrame for storing k values
 plume_reduc.data <- data.frame(
   "participant_id" = numeric(0),
@@ -550,27 +582,11 @@ for (id in unique(my_df$participant_id)) {
   for (pm in c("pm1", "pm25", "pm10")) {
     for (env in c("indoor")) {
       print(paste("Calculating PM", pm, "for participant", id, "in environment", env))
-      res <- plume_redus(my_df, id, pm, env)
-      plume_reduc.newdata <- data.frame(
-        "participant_id" = id,
-        "environment" = env,
-        "hepa" = res$hepa,
-        "pm" = pm,
-        "k_val_mean" = res$k_val_mean,
-        "k_val_median" = res$k_val_median,
-        # "k_val_min" = res$k_val_min,
-        # "k_val_max" = res$k_val_max,
-        "peak_hgt_mean" = res$peak_hgt_mean,
-        "peak_hgt_median" = res$peak_hgt_median,
-        # "peak_hgt_min" = res$peak_hgt_min,
-        # "peak_hgt_max" = res$peak_hgt_max,
-        "peak_wdh_mean" = res$peak_wdh_mean,
-        "peak_wdh_median" = res$peak_wdh_median,
-        # "peak_wdh_min" = res$peak_wdh_min,
-        # "peak_wdh_max" = res$peak_wdh_max,
-        "total_plume_area" = res$total_plume_area
-      )
-      plume_reduc.data <- rbind(plume_reduc.data, plume_reduc.newdata)
+      new_plumes <- get_plumes(my_df, id, pm, env)
+      new_reducs <- plume_redus(new_plumes, id, pm, env)
+      # Rbind them with previous data
+      plumes.data <- rbind(plumes.data, new_plumes)
+      plume_reduc.data <- rbind(plume_reduc.data, new_reducs)
     }
   }
 }
@@ -591,5 +607,6 @@ Plume characteristics and statistics are saved in a CSV file.
 
 ```{r}
 # Save plume statistic files to CSVs
-write.csv(plume_reduc.data, "summary/Revere/CH/s_CH_M_plumes.csv")
+write.csv(plumes.data, "summary/Revere/CH/s_CH_M_allplumes.csv")
+write.csv(plume_reduc.data, "summary/Revere/CH/s_CH_M_plumestats.csv")
 ```
