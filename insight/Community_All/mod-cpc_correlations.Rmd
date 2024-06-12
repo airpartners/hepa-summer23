@@ -67,6 +67,44 @@ corr_df %>%
 ```
 
 ```{r}
+corr_df %>%
+  filter(x == "pm25" | y == "pm25") %>%
+  mutate(mod_pm_var = ifelse(x == "pm25", y, x)) %>%
+  ggplot(aes(x = r, y = mod_pm_var, colour = place_id, label = participant_id)) +
+    geom_jitter(height = 0.2) +
+    xlim(0, 1) +
+    theme_classic()
+```
+## Scatterplotting
+Looking at the correlations through scatterplots of all Mod-PM variables vs. CPC count
+```{r}
+only_cpc_corr <- corr_df %>%
+  filter(x == "concent" | y == "concent") %>%
+  mutate(mod_pm_var = ifelse(x == "concent", y, x))
 
+for (purifier_case in c("off", "on")){
+  for (participant in unique(modcpc_df$participant_id)){
+    for (var in c("pm1", "pm1num", "pm25", "pm10")) {
+      modcpc_df %>% 
+        filter(case == purifier_case, participant_id == participant, 
+               environment == "indoor") %>% 
+        ggplot(aes(x = .data[[var]], y = concent)) +
+          geom_point(alpha = 0.1) -> my_plot
+      
+      print(my_plot)
+      print(paste("Plotted", var, participant, purifier_case))
+        
+    }
+  }
+  for (var in c("pm1", "pm1num", "pm25", "pm10")) {
+    modcpc_df %>% 
+          filter(case == purifier_case, environment == "indoor") %>% 
+          ggplot(aes(x = .data[[var]], y = concent)) +
+            geom_point(alpha = 0.01) -> my_plot
+        
+        print(my_plot)
+        print(paste("Plotted", var, "all", purifier_case))
+  }
+}
 ```
 
