@@ -9,7 +9,6 @@ Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
-library(huxtable)
 ```
 
 Set working directory
@@ -46,7 +45,7 @@ summary_all %>%
   arrange(area, place_id, room_type) %>%
   mutate(place_names = id_to_name[place_id], 
          id = group_indices(., participant_id, place_id)) %>%
-  select(id, place_names, room_type, type, mean, median, q5, q25, q75, q95) %>%
+  select(id, place_names, room_type, participant_id, type, mean, median, q5, q25, q75, q95) %>%
   mutate(across(mean:q95, \(x) round(x, 1))) %>%
   write.csv("artifacts/Community_All/indoor_reduction.csv", row.names = FALSE)
 ```
@@ -57,7 +56,7 @@ summary_all %>%
   arrange(area, place_id, room_type) %>%
   mutate(place_names = id_to_name[place_id], 
          id = group_indices(., participant_id, place_id)) %>%
-  select(id, place_names, room_type, type, mean, median, q5, q25, q75, q95) %>%
+  select(id, place_names, room_type, participant_id, type, mean, median, q5, q25, q75, q95) %>%
   mutate(across(mean:q95, \(x) round(x, 1))) %>%
   write.csv("artifacts/Community_All/io-ratio_reduction.csv", row.names = FALSE)
 ```
