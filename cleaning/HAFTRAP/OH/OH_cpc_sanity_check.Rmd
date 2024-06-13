@@ -11,12 +11,13 @@ This file is used to sanity check data produced from `OH_cpc_cleaning`. Time-ser
 Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
-library(ggplot2)
+library(tidyverse)
+library(readxl)
 ```
 
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "/Users/shersey/Dropbox/Work/Data/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 Check for working directory
