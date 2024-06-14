@@ -1,7 +1,6 @@
-# Modulair-PM Data Cleaning
-This file cleans, and calculates the I/O ratio for Mod-PM data. Output is saved in a `cleaned_modpm.RData` file that is *untracked* by Github. *All files that depend on using Mod-PM data must be run after running this file.*
+# Modulair Data Cleaning
+This file cleans, assigns participant ID, and calculates the I/O ratio for Modulair data. Output is saved in a `modulair.RData` file that is *untracked* by Github. *All files that depend on using Modulair data must be run after running this file.*
 
-IMPORTANT UPDATE June 14, 2024 - To get the PM data from the Modulair sensors, you must run `OH_modulair_cleaning.Rmd` BEFORE running this file, since this integrates data from there.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -26,15 +25,23 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 ```{r}
 # Get relevant participant IDs from OH_participants
 participants <- as.character(
-  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$modpm))
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$modulair))
+
+# Read summary table of times
+time_map <- read_excel("data/HAFTRAP/OH/OH_notes_summarized.xlsx") %>%
+  # Convert to appropriate variable types
+  mutate(across(dt_start:dt_end, 
+                  ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
+  mutate(across(dt_start:dt_end, 
+                  ~force_tz(.x, tz = "America/New_York")))
 ```
 
 ```{r}
 # Set path to data
-path_to_data <- "data/HAFTRAP/OH/modpm/"
+path_to_data <- "data/HAFTRAP/OH/modulair/"
 
 # Set data category
-data_cat <- "OH_M"
+data_cat <- "OH_R"
 ```
 
 ## Helper Functions
@@ -56,20 +63,6 @@ improve_timestamps <- function(df) {
 }
 ```
 
-### Particle counts and removing unnecessary data
-Alongside particle masses, we are concerned with the counts of particles that fall under certain size bins. To approximate the counts under pm1, sum up bin 0 to 2. Discard all other data columns that are not relevant.
-```{r}
-# Function to calculate sums of particle counts, remove rest
-sum_bins <- function(df) {
-  df %>%
-    # Sum particle counts
-    mutate(pm1num = bin0 + bin1 + bin2) %>%
-    # Drop bin columns
-    select(-starts_with("bin"))
-}
-
-```
-
 ### Calculating 10 minute averages
 When calculating the indoor/outdoor ratio, we want to calculate them over 10 minutes as opposed to every data point to account for the time it takes for the air to mix between indoor and outdoor. This function calculates that ten minute average.
 ```{r}
@@ -81,11 +74,11 @@ round_10min <- function(df) {
   # Group by the rounded datetime
   group_by(case, environment, participant_id, date_round) %>%
   # Calculate mean over ten minutes
-  summarize(across(c(pm1, pm25, pm10, pm1num, temp), mean), .groups = "drop")
+  summarize(across(c(pm1, pm25, pm10, pm1num, temp, bin0, co, no, no2, o3), mean),
+            .groups = "drop")
 }
 
 ```
-
 
 ## Main Code Run
 ### Load all data. 
@@ -94,42 +87,23 @@ Run this carefully, checking everything, and only once!
 # Initialize master dataframe for all data
 all_df <- data.frame()
 
-# Loop through each participant
-for (person in participants) {
-  # Loop through each case
-  for (case in c("sham", "hepa")) {
-    # Loop through each environment
-    for (env in c("indoor", "outdoor")) {
+for (env in c("indoor", "outdoor")) {
       
       # Set file path
-      # Filename = data category + participant ID + case 
-      # + environment
-      file_name <- paste(data_cat, person, case, env, sep = "_")
-      
+      # Filename = data category + environment 
+      file_name <- paste(data_cat, env, sep = "_")
       # File path = path to folder, type csv
       file_path <- paste0(path_to_data, file_name, ".csv")
       
       # Read csv
-      df <- read_csv(file_path, show_col_types = FALSE)
-      
-      # Change column name of sample_temp for Mod-PM sensor to temp
-      # ncol excludes Modulair (where corresponding column already named temp)
-      if (ncol(df) == 55) {
-        df <- rename(df, "temp" = "sample_temp")
-      }
-      
-      df <- df %>%
+      df <- read_csv(file_path, show_col_types = FALSE) %>%
         # Select only relevant columns
-        select(timestamp, pm1, pm25, pm10, temp, bin0, bin1, bin2) %>% 
-        # Add the case and environment type (e.g. sham, indoor)
-        # And participant ID
-        mutate(case = case, environment = env, participant_id = person)
+        select(timestamp, pm1, pm25, pm10, temp, bin0, bin1, bin2, co, no, no2, o3) %>% 
+        # Add the environment
+        mutate(environment = env)
       
       # Append to main dataframe
       all_df <- rbind(all_df, df)
-    }
-  }
-  print(paste("Loaded participant", person))
 }
 
 ```
@@ -138,27 +112,47 @@ for (person in participants) {
 This helps in syncing data across different sensors later - functions here can be found in the 'Helper Functions' section.
 ```{r}
 # Clean data (look at helper functions)
-modpm_df <- all_df %>%
+clean_df <- all_df %>%
   # Reformat timestamps and round to nearest minute
   improve_timestamps() %>%
 
-  # Calculate particle counts
-  sum_bins() %>%
+  # Calculate PM 1 particle counts
+  mutate(pm1num = bin0 + bin1 + bin2) %>%
+  # Drop bin1 and bin2 columns
+  select(-c(bin1, bin2)) %>%
   
   # Remove repeat readings
-  distinct(case, participant_id, date, environment, .keep_all = TRUE)
+  distinct(date, environment, .keep_all = TRUE)
 ```
 
+### Add Participant ID and case (sham or hepa)
+Using cross joins and filtering to find the participant ID, followed by case
+```{r}
+time_map_modulair <- time_map %>% 
+  filter(participant_id %in% participants, environment == "indoor") %>%
+  select(-environment)
+
+main_df <- clean_df %>%
+  cross_join(time_map_modulair) %>%
+  mutate(participant_id = if_else(between(date, dt_start, dt_end), 
+                                  participant_id, NA)) %>% 
+  drop_na() %>% select(-c(dt_start, dt_end, sensor_num)) %>%
+  mutate(participant_id = as.character(participant_id))
+
+```
+
+### Filter invalid values
+Note that currently only filters PM values
 ```{r}
 # Filter out values over a certain threshold
-modpm_df_indoor <- subset(modpm_df, 
+main_df_indoor <- subset(main_df, 
                          environment == "indoor" & 
                            pm1 < 400 & pm25 < 500 & pm10 < 2000)
-modpm_df_outdoor <- subset(modpm_df, 
+main_df_outdoor <- subset(main_df, 
                           environment == "outdoor" & 
                             pm1 < 50 & pm25 < 100 & pm10 < 1000)
 
-modpm_df <- rbind(modpm_df_indoor, modpm_df_outdoor)
+main_df <- rbind(main_df_indoor, main_df_outdoor)
 ```
 
 ### Calculate ratio of indoor and outdoor concentration
@@ -167,8 +161,8 @@ To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that
 Note: Always run this chunk with the previous chunk.
 ```{r}
 # Round over 10 minute averages
-df_indoor_round <- round_10min(modpm_df_indoor)
-df_outdoor_round <- round_10min(modpm_df_outdoor)
+df_indoor_round <- round_10min(main_df_indoor)
+df_outdoor_round <- round_10min(main_df_outdoor)
 
 # Merge
 df_round <- merge(df_indoor_round, df_outdoor_round, 
@@ -186,39 +180,29 @@ df_ratio <- df_round %>%
          pm10 = pm10_indoor/pm10_outdoor, 
          pm1num = pm1num_indoor/pm1num_outdoor, 
          temp = temp_indoor/temp_outdoor,
+         bin0 = bin0_indoor/bin0_outdoor,
+         co = co_indoor/co_outdoor,
+         no = no_indoor/no_outdoor,
+         no2 = no2_indoor/no2_outdoor, 
+         o3 = o3_indoor/o3_outdoor,
          .keep = "unused")
 ```
 
 Run this code chunk only ONCE
 ```{r}
 # Bind back into main dataframe
-modpm_df <- rbind(modpm_df, df_ratio)
+main_df <- rbind(main_df, df_ratio)
 
 # filter out NA and infinite values in data
-modpm_df[sapply(modpm_df, is.infinite)] <- NA
-modpm_df <- drop_na(modpm_df) %>%
+main_df[sapply(main_df, is.infinite)] <- NA
+main_df <- drop_na(main_df) %>%
   # Remove repeat readings
   distinct(case, participant_id, date, environment, .keep_all = TRUE)
-```
-
-### Add in data from Modulair
-Some PM data in 4 deployments is also collected by Modulairs, which have been read and processed separately. This step loads the cleaned Modulair data and joins **only** the PM variables. Run `OH_modulair_cleaning.Rmd` before this script for this to work.
-```{r}
-# Load Modulair data from RData file
-load(paste0("cleaning/HAFTRAP/OH/", "cleaned_modulair.RData"))
-
-# Reassign from main dataframe
-modulair_df <- main_df
-
-# Select only relevant columns from Modulair data and bind to Mod-PM
-main_df <- modulair_df %>% 
-  select(colnames(modpm_df)) %>%
-  rbind(modpm_df)
 ```
 
 
 ### Save Data
 The `main_df` dataframe is saved to `cleaned_modpm.RData`
 ```{r}
-save(main_df, file = paste0("cleaning/HAFTRAP/OH/", "cleaned_modpm.RData"))
+save(main_df, file = paste0("cleaning/HAFTRAP/OH/", "cleaned_modulair.RData"))
 ```
