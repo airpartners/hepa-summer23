@@ -1,0 +1,70 @@
+# Script for pre-processing Aethelometer data from raw CSVs
+Aethelometer data arrives in confusing text files with too many unnecessary columns. This script simply selects the relevant columns and joins all the data into CSV files (one for indoor, another for outdoor). Note that the outdoor sensor malfunctioned so the data for that isn't probably going to be used further.
+
+```{r}
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path; Commented out because it wasn't working on Scott's computer
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "data/HAFTRAP/OH/aethalometer/"
+
+# Set data category
+data_cat <- "OH_E"
+```
+
+```{r}
+# List all directories in raw data
+folders <- list.dirs(path = paste0(path_to_data, "very_raw_data/"), full.names = TRUE, recursive = TRUE)
+```
+
+```{r}
+# Loop through each subfolder
+for (subfolder in folders) {
+  # Split path into individual parts
+  path_parts <- strsplit(subfolder, split = "/")
+  
+  # Only evaluate directories that have specific depth from root 
+  # (change according to your OS/file structure
+  file_depth <- 6
+  if (length(path_parts[[1]]) == file_depth) {
+    
+    # Isolate environment and participant ID
+    env <- path_parts[[1]][file_depth]
+    
+    print(paste("Reading", env, "data for participant"))
+    
+    # Get list of files in directory
+    main_df <- list.files(path = subfolder, full.names = TRUE) %>% 
+      # Read into dataframe (datetime variables, concent, inlttmp, smpflow)
+      map_df(~read_csv(.x, show_col_types = FALSE) %>%
+      
+      # Select relevant variables and rename
+      select(`Date / time local`, `UV BC1`, `Red BC1`) %>%
+      rename(date = `Date / time local`, uv_bc1 = `UV BC1`, red_bc1 = `Red BC1`))
+      # Note: pipe is inside map_df - conversion happens for every file 
+      # read into dataframe
+      
+    # Make new file name
+    new_file_name <- paste(data_cat, env, sep = "_")
+    print(paste("Writing", new_file_name, "..."))
+    
+    # Write into appropriate CSV
+    write_csv(main_df, paste0(path_to_data, new_file_name, ".csv"))
+    print(paste("Combined", env, "data"))
+  }
+}
+```
