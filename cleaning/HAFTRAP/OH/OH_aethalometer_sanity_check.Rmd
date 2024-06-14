@@ -1,0 +1,85 @@
+# Sanity Check Aethalometer Data
+
+## STOP
+
+**HAVE YOU RUN `OH_aethalometer_cleaning`?**
+*This file loads a dataframe created from running `OH_aethalometer_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to sanity check data produced from `OH_aethalometer_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `OH_aethalometer_cleaning`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(readxl)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Participant IDs
+```{r}
+# Get relevant participant IDs from OH_participants
+participants <- as.character(
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$aethalometer))
+```
+
+Paths
+```{r}
+# Set path to data
+path_to_data <- "cleaning/HAFTRAP/OH/"
+```
+
+
+## Load data
+```{r}
+# Load Aethalometer data from RData file
+load(paste0(path_to_data, "cleaned_aethalometer.RData"))
+```
+
+## Plotting
+```{r}
+# Plot stuff
+for (person in participants) {
+  for (env in c("indoor", "outdoor")) {
+    y_check <- case_match(
+      env,
+      "indoor" ~ 100,
+      "outdoor" ~ 100,
+    )
+    for (c in c("sham","hepa")) {
+      # Filter data to appropriate subset
+      df <- main_df %>%
+        filter(participant_id == person, case == c, 
+               environment == env)
+      
+        # Plot time-series of subset with an appropriate horizontal line
+        print(ggplot(df) +
+          geom_line(aes(x = date, y = uv_bc1)) +
+          geom_hline(aes(yintercept = y_check)) +
+          ggtitle(paste(person, c, env, "UV BC1")))
+        
+        # Plot time-series of subset with an appropriate horizontal line
+        print(ggplot(df) +
+          geom_line(aes(x = date, y = red_bc1)) +
+          geom_hline(aes(yintercept = y_check)) +
+          ggtitle(paste(person, c, env, "Red BC1")))
+      
+      # Pause and print
+      print(paste("Plotted for", person, c, env))
+    }
+  }
+}
+```
+
