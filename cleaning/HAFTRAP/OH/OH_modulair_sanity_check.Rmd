@@ -1,0 +1,85 @@
+# Sanity Check Mod-PM Data
+
+## STOP
+
+**HAVE YOU RUN `OH_modpm_cleaning`?**
+*This file loads a dataframe created from running `OH_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This file is used to sanity check data produced from `OH_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `OH_modpm_cleaning`.
+
+Note: you will be asked to input a participant ID, and this script will generate all the plots for that participant. This is different from `OH_cpc_sanity_check` where plots are generated for all participants (since there are fewer participants and only one variable to plot).
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(ggplot2)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+Participant IDs
+```{r}
+# Get relevant participant IDs from OH_participants
+participants <- as.character(
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$modulair))
+```
+
+Paths
+```{r}
+# Set path to data
+path_to_data <- "cleaning/HAFTRAP/OH/"
+```
+
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file; loads as main_df
+load(paste0(path_to_data, "cleaned_modulair.RData"))
+```
+
+## Plotting
+```{r}
+# Input participant ID
+person <- readline("Enter participant ID: ")
+# Re-try if incorrecto
+while (!(person %in% participants)) {
+  person <- readline("Error! Invalid ID, Re-enter: ")
+}
+
+# Plot stuff
+for (env in c("indoor", "outdoor", "ratio")) {
+  # Set horizontal lines for visual reference
+  y_check <- case_match(
+    env,
+    "indoor" ~ 10,
+    "outdoor" ~ 10,
+    "ratio" ~ 10
+  )
+  for (c in c("sham","hepa")) {
+    # Filter data to appropriate subset
+    df <- main_df %>%
+      filter(participant_id == person, case == c, 
+             environment == env)
+    
+    for(var in c("pm1", "pm25", "pm10", "pm1num", "co", "no", "no2", "o3", "bin0"))
+      # Plot time-series of subset with an appropriate horizontal line
+      print(ggplot(df) +
+        geom_line(aes(x = date, y = .data[[var]])) +
+        geom_hline(aes(yintercept = y_check)) +
+        ggtitle(paste(person, c, env, var)))
+    
+    # Print
+    print(paste("Plotted for", person, c, env))
+  }
+}
+```
