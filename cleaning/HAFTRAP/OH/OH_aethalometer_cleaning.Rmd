@@ -1,0 +1,159 @@
+# Aethalometer Data Cleaning
+This file cleans and assigns participant ID for Aethalometer data. Output is saved in a `aethalometer.RData` file that is *untracked* by Github. *All files that depend on using Aethalometer data must be run after running this file.*
+
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(readxl)
+```
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Get relevant participant IDs from OH_participants
+participants <- as.character(
+  na.omit(read_excel("data/HAFTRAP/OH/OH_participants.xlsx")$aethalometer))
+
+# Read summary table of times
+time_map <- read_excel("data/HAFTRAP/OH/OH_notes_summarized.xlsx") %>%
+  # Convert to appropriate variable types
+  mutate(across(dt_start:dt_end, 
+                  ~as.POSIXct(.x, format = "%m/%d/%Y %H:%M"))) %>%
+  mutate(across(dt_start:dt_end, 
+                  ~force_tz(.x, tz = "America/New_York")))
+```
+
+```{r}
+# Set path to data
+path_to_data <- "data/HAFTRAP/OH/aethalometer/"
+
+# Set data category
+data_cat <- "OH_E"
+```
+
+## Helper Functions
+The following function is used to clean and process the data
+
+### Calculating 10 minute averages
+When calculating the indoor/outdoor ratio, we want to calculate them over 10 minutes as opposed to every data point to account for the time it takes for the air to mix between indoor and outdoor. This function calculates that ten minute average.
+```{r}
+# Round over 10 minute averages
+round_10min <- function(df) {
+  df %>%
+  # Create new column with rounded dates
+  mutate(date_round = round_date(date, "10 minutes")) %>%
+  # Group by the rounded datetime
+  group_by(case, environment, participant_id, date_round) %>%
+  # Calculate mean over ten minutes
+  summarize(across(c(uv_bc1, red_bc1), mean),
+            .groups = "drop")
+}
+```
+
+## Main Code Run
+### Load all data. 
+Run this carefully, checking everything, and only once!
+```{r}
+# Initialize master dataframe for all data
+all_df <- data.frame()
+
+for (env in c("indoor", "outdoor")) {
+      
+      # Set file path
+      # Filename = data category + environment 
+      file_name <- paste(data_cat, env, sep = "_")
+      # File path = path to folder, type csv
+      file_path <- paste0(path_to_data, file_name, ".csv")
+      
+      # Read csv
+      df <- read_csv(file_path, show_col_types = FALSE) %>%
+        # Add the environment
+        mutate(environment = env, 
+               date = force_tz(date, tzone = "America/New_York"))
+      
+      # Append to main dataframe
+      all_df <- rbind(all_df, df)
+}
+```
+
+### Add Participant ID and case (sham or hepa)
+Using cross joins and filtering to find the participant ID, followed by case
+```{r}
+time_map_aethalometer <- time_map %>% 
+  filter(participant_id %in% participants, environment == "indoor") %>%
+  select(-environment)
+
+main_df <- all_df %>%
+  cross_join(time_map_aethalometer) %>%
+  mutate(participant_id = if_else(between(date, dt_start, dt_end), 
+                                  participant_id, NA)) %>% 
+  drop_na() %>% select(-c(dt_start, dt_end, sensor_num)) %>%
+  mutate(participant_id = as.character(participant_id))
+```
+
+### Filter invalid values
+Note that currently only filters PM values
+```{r}
+# Filter out values over a certain threshold
+main_df_indoor <- subset(main_df, environment == "indoor")
+main_df_outdoor <- subset(main_df, environment == "outdoor")
+
+main_df <- rbind(main_df_indoor, main_df_outdoor)
+```
+
+### Calculate ratio of indoor and outdoor concentration
+To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that are then divided by each other to calculate the ratio. After calculating the ratio, the dataframe is 'gathered' back up to its original shape.
+
+Note: Always run this chunk with the previous chunk.
+```{r}
+# Round over 10 minute averages
+df_indoor_round <- round_10min(main_df_indoor)
+df_outdoor_round <- round_10min(main_df_outdoor)
+
+# Merge
+df_round <- merge(df_indoor_round, df_outdoor_round, 
+                  by = c("date_round", "participant_id", "case"), 
+                  suffixes = c("_indoor", "_outdoor")) %>%
+            # Remove redundant environment columns
+            select(!starts_with("environment"))
+          
+
+df_ratio <- df_round %>% 
+  mutate(date = date_round,
+         environment = "ratio", 
+         uv_bc1 = uv_bc1_indoor/uv_bc1_outdoor,
+         red_bc1 = red_bc1_indoor/red_bc1_outdoor,
+         .keep = "unused")
+```
+
+Run this code chunk only ONCE
+```{r}
+# Bind back into main dataframe
+main_df <- rbind(main_df, df_ratio)
+
+# filter out NA and infinite values in data
+main_df[sapply(main_df, is.infinite)] <- NA
+main_df <- drop_na(main_df) %>%
+  # Remove repeat readings
+  distinct(case, participant_id, date, environment, .keep_all = TRUE)
+```
+
+
+### Save Data
+The `main_df` dataframe is saved to `cleaned_aethalometer.RData`
+```{r}
+save(main_df, file = paste0("cleaning/HAFTRAP/OH/", "cleaned_aethalometer.RData"))
+```
