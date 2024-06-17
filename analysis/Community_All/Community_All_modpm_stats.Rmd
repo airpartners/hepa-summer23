@@ -10,7 +10,7 @@ This script combines the data from ALL deployments in this repository (except fo
 
 *This file loads two dataframes created from running ALL the above scripts. Make sure you run those files first (if you haven't already) before running this file.*
 
-Results can be found in `summary/Community_All/s_All_MC_quants.csv`.
+Results can be found in `summary/Community_All/s_All_M_quants.csv`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
