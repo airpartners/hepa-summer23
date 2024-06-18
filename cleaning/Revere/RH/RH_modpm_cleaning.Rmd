@@ -95,8 +95,7 @@ main_df <- curated_df %>%
                names_to = c(".value", "environment"), 
                names_sep = "\\.") %>%
   
-  # Drop outdoor data and remove NAs
-  filter(environment != "outdoor") %>%
+  # Remove NAs
   drop_na()
 ```
 

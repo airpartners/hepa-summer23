@@ -80,7 +80,6 @@ To calculate summary statistics of the data, the different measurements (PM1,  P
 ```{r}
 # Calculate for indoor and ratio
 main_df_long <- main_df %>%
-  filter(environment != "outdoor") %>%
   # Gather dataframe to create single variable for measurements
   pivot_longer(c(pm1, pm25, pm10, concent), 
                names_to = "type", values_to = "reading") %>%
@@ -136,7 +135,9 @@ summary_wide %>%
   pivot_longer(mean_off:sd_redu, 
                names_to = c(".value", "case"), names_sep = "_") %>%
   # Filter out all NaN and Inf values
-  filter_all(all_vars(!is.infinite(.))) -> summary_normal
+  filter_all(all_vars(!is.infinite(.))) %>%
+  # Remove NAs explicitly
+  drop_na()-> summary_normal
 ```
 
 ## Save to file
