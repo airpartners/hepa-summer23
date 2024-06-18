@@ -95,10 +95,7 @@ main_df <- curated_df %>%
   # Gather dataframe to make environment a category
   pivot_longer(cols = contains("."), 
                names_to = c(".value", "environment"), 
-               names_sep = "\\.") %>%
-  
-  # Drop outdoor data
-  filter(environment != "outdoor")
+               names_sep = "\\.")
 ```
 
 
