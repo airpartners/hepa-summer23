@@ -80,7 +80,7 @@ To calculate summary statistics of the data, the different measurements (PM1,  P
 ```{r}
 # Calculate for indoor and ratio
 main_df_long <- main_df %>%
-  filter(environment != "outdoor") %>%
+  # filter(environment != "outdoor") %>%
   # Gather dataframe to create single variable for measurements
   pivot_longer(c(pm1, pm25, pm10, concent), 
                names_to = "type", values_to = "reading") %>%
