@@ -1,0 +1,119 @@
+# Calculating proportion of PM1
+
+## STOP
+Have you run `Community_All_modpm_stats.Rmd`?
+*This file loads a dataframe created from running the above script. Make sure you run it first (if you haven't already) before running this file.*
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+```{r}
+load(paste0(path_to_data, "all.RData"))
+```
+
+```{r}
+proportion_pm1 <- function(df, grouping_vars, env_vars, case_vars) {
+  df %>%
+    filter(environment %in% env_vars, case %in% case_vars) %>%
+    group_by(across(all_of(grouping_vars))) %>%
+    mutate(pm1_to_pm25 = pm25 - pm1, pm25_to_pm10 = pm10 - pm25) %>%
+    summarize(pm1_prop = mean(pm1/pm10, na.rm = TRUE),
+              pm1_to_pm25_prop = mean(pm1_to_pm25/pm10, na.rm = TRUE), 
+              pm25_to_pm10_prop = mean(pm25_to_pm10/pm10, na.rm = TRUE)) %>%
+    pivot_longer(pm1_prop:pm25_to_pm10_prop, 
+                 names_to = "size_bin", values_to = "proportion") %>%
+    drop_na()
+}
+```
+
+```{r}
+sum_prop <- function(df) {
+  df %>% 
+    filter(size_bin == "pm1_prop") %>% 
+    summarize(pm1_prop = mean(proportion))
+}
+```
+
+```{r}
+plot_label <- function(df) {
+  geom_text(data = df %>% filter(size_bin == "pm1_prop"), 
+              aes(y = 0.8, label = round(proportion, 3)))
+}
+```
+
+
+```{r}
+plot_df <- all_df %>%
+  proportion_pm1(c("case", "place_id"), 
+               env_vars = c("indoor"), case_vars = c("off", "on"))
+
+plot_df %>%
+  ggplot(aes(x = place_id, y = proportion, fill = size_bin)) +
+    geom_bar(stat = "identity") +
+    facet_grid(vars(case)) +
+    plot_label(plot_df)
+
+sum_prop(plot_df)
+```
+
+```{r}
+plot_df <- all_df %>%
+  proportion_pm1(c("environment", "place_id"), 
+               env_vars = c("indoor", "outdoor"), case_vars = c("off", "on", NA))
+
+plot_df %>%
+  ggplot(aes(x = place_id, y = proportion, fill = size_bin)) +
+    geom_bar(stat = "identity") +
+    facet_grid(vars(environment)) +
+    plot_label(plot_df)
+sum_prop(plot_df)
+```
+```{r}
+plot_df <- all_df %>%
+  proportion_pm1(c("case", "room_type"), 
+               env_vars = c("indoor"), case_vars = c("off", "on"))
+
+plot_df %>%
+  ggplot(aes(x = room_type, y = proportion, fill = size_bin)) +
+    geom_bar(stat = "identity") +
+    facet_grid(vars(case)) +
+    plot_label(plot_df)
+
+sum_prop(plot_df)
+```
+```{r}
+plot_df <- all_df %>%
+  proportion_pm1(c("environment", "room_type"), 
+               env_vars = c("indoor", "outdoor"), case_vars = c("off", "on", NA))
+
+plot_df %>%
+  ggplot(aes(x = room_type, y = proportion, fill = size_bin)) +
+    geom_bar(stat = "identity") +
+    facet_grid(vars(environment)) +
+    plot_label(plot_df)
+
+sum_prop(plot_df)
+```
+
