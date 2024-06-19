@@ -53,16 +53,17 @@ violin_range <- quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE)
                          
 plot_df %>%
   ggplot(aes(x = room_type, y = pm25)) +
-  geom_violin(aes(fill = case), position = d_width) +
-  geom_point(data = mean_plot, aes(y = mean, fill = case, size = "Mean"), 
-             position = d_width) +
-  scale_y_continuous(limits = violin_range) +
-  labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
-  scale_fill_discrete(labels = c("Off", "On")) +
-  geom_text(aes(y = violin_range[2], label = paste0(round(mean, 1), "%")), 
-                data = current_redu, fontface = "bold") +
-  scale_size_manual(name = "Statistic", values = c("Mean" = 2)) +
-  guides(size = guide_legend(title = "Statistic"))
+    geom_violin(aes(fill = case), position = d_width) +
+    geom_point(data = mean_plot, aes(y = mean, fill = case, size = "Mean"), 
+               position = d_width) +
+    scale_y_continuous(limits = violin_range) +
+    labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
+    scale_fill_discrete(labels = c("Off", "On")) +
+    geom_text(aes(y = violin_range[2], label = paste0(round(mean, 1), "%")), 
+                  data = current_redu, fontface = "bold") +
+    scale_size_manual(name = "Statistic", values = c("Mean" = 2)) +
+    guides(size = guide_legend(title = "Statistic")) +
+    theme_bw()
   
 ```
 
@@ -83,15 +84,16 @@ violin_range <- quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE)
                          
 plot_df %>%
   ggplot(aes(x = room_type, y = pm25)) +
-  geom_violin(aes(fill = case), position = d_width) +
-  geom_point(data = mean_plot, aes(y = mean, fill = case, size = "Mean"), 
-             position = d_width) +
-  scale_y_continuous(limits = violin_range, trans = "log10") +
-  labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
-  scale_fill_discrete(labels = c("Off", "On")) +
-  geom_text(aes(y = violin_range[2], label = paste0(round(mean, 1), "%")), 
-                data = current_redu, fontface = "bold") +
-  scale_size_manual(name = "Statistic", values = c("Mean" = 2)) +
-  guides(size = guide_legend(title = "Statistic"))
+    geom_violin(aes(fill = case), position = d_width) +
+    geom_point(data = mean_plot, aes(y = mean, fill = case, size = "Mean"), 
+               position = d_width) +
+    scale_y_continuous(limits = violin_range, trans = "log10") +
+    labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
+    scale_fill_discrete(labels = c("Off", "On")) +
+    geom_text(aes(y = violin_range[2], label = paste0(round(mean, 1), "%")), 
+                  data = current_redu, fontface = "bold") +
+    scale_size_manual(name = "Statistic", values = c("Mean" = 2)) +
+    guides(size = guide_legend(title = "Statistic")) +
+    theme_bw()
   
 ```
