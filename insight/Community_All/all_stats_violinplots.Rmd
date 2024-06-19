@@ -1,0 +1,97 @@
+# Create violin plot
+This script uses summary statistic data to create a violin plot.
+
+## STOP
+Have you run `Community_All_modpm_stats.Rmd`?
+*This file loads a dataframe created from running the above script. Make sure you run it first (if you haven't already) before running this file.*
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+```{r}
+load(paste0(path_to_data, "all.RData"))
+summary_df <- read_csv(paste0(path_to_data, "s_All_M_quants.csv"))
+```
+
+
+```{r}
+current_redu <- summary_df %>% 
+  filter(environment == "indoor", type == "pm25", case == "redu", 
+         participant_id == "all", room_type != "all")
+
+mean_plot <- summary_df %>% 
+  filter(environment == "indoor", type == "pm25", case != "redu", 
+         participant_id == "all", room_type != "all")
+
+plot_df <- all_df %>% filter(environment == "indoor")
+
+d_width <- position_dodge(width = 0.8)
+
+violin_range <- quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE)
+                         
+plot_df %>%
+  ggplot(aes(x = room_type, y = pm25)) +
+  geom_violin(aes(fill = case), position = d_width) +
+  geom_point(data = mean_plot, aes(y = mean, fill = case, size = "Mean"), 
+             position = d_width) +
+  scale_y_continuous(limits = violin_range) +
+  labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
+  scale_fill_discrete(labels = c("Off", "On")) +
+  geom_text(aes(y = violin_range[2], label = paste0(round(mean, 1), "%")), 
+                data = current_redu, fontface = "bold") +
+  scale_size_manual(name = "Statistic", values = c("Mean" = 2)) +
+  guides(size = guide_legend(title = "Statistic"))
+  
+```
+
+```{r}
+current_redu <- summary_df %>% 
+  filter(environment == "ratio", type == "pm25", case == "redu", 
+         participant_id == "all", room_type != "all")
+
+mean_plot <- summary_df %>% 
+  filter(environment == "ratio", type == "pm25", case != "redu", 
+         participant_id == "all", room_type != "all")
+
+plot_df <- all_df %>% filter(environment == "ratio")
+
+d_width <- position_dodge(width = 0.8)
+
+violin_range <- quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE)
+                         
+plot_df %>%
+  ggplot(aes(x = room_type, y = pm25)) +
+  geom_violin(aes(fill = case), position = d_width) +
+  geom_point(data = mean_plot, aes(y = mean, fill = case, size = "Mean"), 
+             position = d_width) +
+  scale_y_continuous(limits = violin_range, trans = "log10") +
+  labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
+  scale_fill_discrete(labels = c("Off", "On")) +
+  geom_text(aes(y = violin_range[2], label = paste0(round(mean, 1), "%")), 
+                data = current_redu, fontface = "bold") +
+  scale_size_manual(name = "Statistic", values = c("Mean" = 2)) +
+  guides(size = guide_legend(title = "Statistic"))
+  
+```
