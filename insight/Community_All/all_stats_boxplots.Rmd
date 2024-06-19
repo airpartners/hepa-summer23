@@ -1,23 +1,100 @@
-# Create bar plot
-This script uses summary statistic data to create a bar plot.
+# Create box plot
+This script uses summary statistic data to create a box and whisker plot.
 
+## STOP
+Have you run `Community_All_modpm_stats.Rmd`?
+*This file loads a dataframe created from running the above script. Make sure you run it first (if you haven't already) before running this file.*
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
 ```{r}
+# Import relevant libraries
 library(tidyverse)
 ```
 
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
 ```{r}
-load("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/all.RData")
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+```{r}
+load(paste0(path_to_data, "all.RData"))
+summary_df <- read_csv(paste0(path_to_data, "s_All_M_quants.csv"))
 ```
 
 
 ```{r}
-all_df %>% 
-  filter(environment == "indoor") %>%
-  ggplot() +
-  geom_boxplot(aes(x = room_type, y = pm25, fill = case), outlier.shape = NA) +
-  scale_y_continuous(limits = quantile(all_df$pm25, c(0.05, 0.95), na.rm = TRUE),
-                     trans = "log10") +
+current_redu <- summary_df %>% 
+  filter(environment == "indoor", type == "pm25", case == "redu", 
+         participant_id == "all", room_type != "all")
+
+plot_df <- all_df %>% filter(environment == "indoor")
+
+whisker_range <- quantile(plot_df$pm25, c(0.01, 0.99), na.rm = TRUE)
+
+plot_df %>%
+  ggplot(aes(x = room_type, y = pm25)) +
+  geom_boxplot(aes(fill = case), outlier.shape = NA) +
+  scale_y_continuous(limits = whisker_range, trans = "log10") +
   labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
-  scale_fill_discrete(labels = c("Off", "On"))
+  scale_fill_discrete(labels = c("Off", "On")) +
+  geom_text(aes(y = whisker_range[2], label = paste0(round(mean, 1), "%")), 
+                data = current_redu, fontface = "bold") +
+  theme_bw()
   
+```
+
+```{r}
+current_redu <- summary_df %>% 
+  filter(environment == "ratio", type == "pm25", case == "redu", 
+         participant_id == "all", room_type != "all")
+
+plot_df <- all_df %>% filter(environment == "ratio")
+
+whisker_range <- quantile(plot_df$pm25, c(0.01, 0.99), na.rm = TRUE)
+
+plot_df %>% 
+  ggplot(aes(x = room_type, y = pm25)) +
+  geom_boxplot(aes(fill = case), outlier.shape = NA) +
+  scale_y_continuous(limits = whisker_range, trans = "log10") +
+  labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
+  scale_fill_discrete(labels = c("Off", "On")) +
+  geom_text(aes(y = whisker_range[2], label = paste0(round(mean, 1), "%")), 
+                data = current_redu, fontface = "bold") +
+  theme_bw()
+  
+```
+
+```{r}
+current_redu <- summary_df %>% 
+  filter(environment != "outdoor", type == "pm25", case == "redu", 
+         participant_id == "all", room_type != "all")
+
+plot_df <- all_df %>% filter(environment != "outdoor")
+
+whisker_range <- quantile(plot_df$pm25, c(0.01, 0.99), na.rm = TRUE)
+
+plot_df %>%
+  ggplot(aes(x = room_type, y = pm25)) +
+  geom_boxplot(aes(fill = case), outlier.shape = NA) +
+  scale_y_continuous(limits = whisker_range, trans = "log10") +
+  labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
+  scale_fill_discrete(labels = c("Off", "On")) +
+  geom_text(aes(y = whisker_range[2], label = paste0(round(mean, 1), "%")), 
+                data = current_redu, fontface = "bold") +
+  facet_wrap(~environment, nrow = 2) +
+  theme_bw()
 ```
