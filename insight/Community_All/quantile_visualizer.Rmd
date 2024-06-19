@@ -1,0 +1,105 @@
+# Visualize the different percentiles
+
+## STOP
+Have you run `Community_All_modpm_stats.Rmd`?
+*This file loads a dataframe created from running the above script. Make sure you run it first (if you haven't already) before running this file.*
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+```{r}
+load(paste0(path_to_data, "all.RData"))
+summary_df <- read_csv(paste0(path_to_data, "s_All_M_quants.csv"))
+```
+```{r}
+summary_df %>%
+  filter(place_id == "IB", participant_id == "105", 
+         environment == "indoor", type == "pm25", case != "redu") -> sum_stats
+
+sum_stats
+```
+
+
+
+```{r}
+all_df %>% 
+  filter(place_id == "IB", participant_id == "105", 
+         environment == "indoor") %>% 
+  left_join(sum_stats) %>%
+  mutate(quartile = case_when(pm25 < q5 ~ "< 5th",
+                   pm25 > q5 & pm25 < q25 ~ "5th to 25th",
+                   pm25 > q25 & pm25 < median ~ "25th to Median",
+                   pm25 > median & pm25 < q75 ~ "Median to 75th",
+                   pm25 > q75 & pm25 < q95 ~ "75th to 95th",
+                   .default = "> 95th")) %>%
+  ggplot(aes(x = date, y = pm25, color = quartile)) +
+    geom_point(size = 0.1) +
+    scale_color_manual(values = c("#9656A2", "#369ACC", "#95CF92", "#F8E16F", 
+                                   "#F4895F", "#DE324C"),
+                         breaks = c("< 5th", "5th to 25th", "25th to Median", 
+                                    "Median to 75th", "75th to 95th", "> 95th")) +
+    geom_vline(xintercept = strptime("2022-10-25 23:16:00", "%Y-%m-%d %H:%M:%S", 
+                                     tz = "America/New_York"),
+               linetype = "dashed", size = 0.2) +
+    guides(color = guide_legend(override.aes = list(size = 2))) +
+    theme_bw()
+```
+
+```{r}
+plot_df <- all_df %>% 
+  filter(place_id == "IB", participant_id == "105", case == "off",
+         environment == "indoor")
+
+summary_df %>%
+  filter(place_id == "IB", participant_id == "105", 
+         environment == "indoor", type == "pm25", case == "off") -> ss_off
+
+zone_names <- c("< 5th", "5th to 25th", "25th to Median", 
+                       "Median to 75th", "75th to 95th")
+rect_df <- ss_off %>% 
+  pivot_longer(cols = c(q5, q25, median, q75, q95), 
+                        names_to = "stat", values_to = "y_max") %>%
+  mutate(y_min = c(0, head(y_max, -1)), 
+         x_min = min(plot_df$date), x_max = max(plot_df$date),
+         zone_name = zone_names)
+```
+
+
+```{r}
+plot_df %>% 
+  ggplot() +
+    geom_line(aes(x = date, y = pm25), size = 0.1) +
+    geom_hline(yintercept = c(ss_off$q5, ss_off$q25, ss_off$median, ss_off$q75,
+                              ss_off$q95),
+               linetype = "dashed", size = 0.2) +
+    geom_rect(data = rect_df, aes(xmin = x_min, xmax = x_max, 
+                                  ymin = y_min, ymax = y_max, fill = zone_name),
+              alpha = 0.2) +
+    ylim(c(0, ss_off$q95 * 3)) + 
+    scale_fill_discrete(limits = zone_names) + 
+    labs(fill = "Percentile Range") +
+    theme_bw()
+```
+
