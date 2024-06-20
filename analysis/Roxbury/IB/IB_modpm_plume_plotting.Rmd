@@ -435,13 +435,23 @@ function, creating reduction statistics, and performing that function on
 the dataset as it is grouped by participation and room.
 
 ```{r}
-get_plumes <- function(before, after, id) {
+get_plumes <- function(before, after, id, pm) {
   # Remove missing data
   indices <- which(my_df_before$pm25 > 0)
   beforepm25 <- my_df_before$pm25[indices]
   
   indices <- which(my_df_after$pm25 > 0)
   afterpm25 <- my_df_after$pm25[indices]
+  
+  # Calculate average baseline parameter and mean parameters, which will be used
+  # to define the baseline and the minimum height of peaks
+  pm25_indoor <- graph_main_df[graph_main_df$environment=='indoor' & graph_main_df$particle==pm,]
+  pm_baseline <- pm25_indoor %>%
+    group_by(case) %>%
+    summarise(mean = mean(mean))
+  pm_min_heights <- pm25_indoor %>%
+    group_by(case) %>%
+    summarise(mean = mean(q75))
 
   # Get peaks from before and after
   peaks_b <- findpeaks(beforepm25,
@@ -482,14 +492,15 @@ get_plumes <- function(before, after, id) {
     mutate(deployment = "IB") %>%
     mutate(room = "residential") %>%
     mutate(participant_id = id) %>%
-    mutate(environment = "indoor")
+    mutate(environment = "indoor") %>%
+    mutate(pm = pm)
   
-  return(data.frame(all_decays[,c(10, 11, 12, 13, 1:9)]))
+  return(data.frame(all_decays[,c(10, 11, 12, 13, 14, 1:9)]))
 }
 ```
 
 ```{r}
-plume_redus <- function(plumes, id) {
+plume_redus <- function(plumes, id, pm) {
   decay_sum <-
     plumes %>%
       group_by(hepa) %>%
@@ -518,9 +529,10 @@ plume_redus <- function(plumes, id) {
   # Add identifying columns
   decay_sum <- decay_sum %>%
     mutate(participant_id = id) %>%
-    mutate(environment = "indoor")
+    mutate(environment = "indoor") %>%
+    mutate(pm = pm)
   
-  return(data.frame(decay_sum[,c(16, 17, 1:15)]))
+  return(data.frame(decay_sum[,c(16, 17, 18, 1:15)]))
 }
 ```
 
@@ -562,7 +574,8 @@ plume_reduc.data <- data.frame(
 )
 
 for (id in unique(my_df$participant_id)) {
-    print(paste("Started for participant", id))
+  for (pm in c("pm1", "pm25", "pm10")) {
+    print(paste("Started for participant", id, "at PM type", pm))
     # Get relevant data
     sub_data <- my_df[my_df$participant_id == id & my_df$environment == "indoor",]
     if (length(sub_data$pm25) < 200) next
@@ -573,11 +586,12 @@ for (id in unique(my_df$participant_id)) {
     if (length(my_df_before$pm25) < 100) next
     if (length(my_df_after$pm25) < 100) next
     
-    new_plumes <- get_plumes(my_df_before, my_df_after, id)
-    new_reducs <- plume_redus(new_plumes, id)
+    new_plumes <- get_plumes(my_df_before, my_df_after, id, pm)
+    new_reducs <- plume_redus(new_plumes, id, pm)
     # Rbind them with previous data
     plumes.data <- rbind(plumes.data, new_plumes)
     plume_reduc.data <- rbind(plume_reduc.data, new_reducs)
+  }
 }
 plumes.data
 plume_reduc.data

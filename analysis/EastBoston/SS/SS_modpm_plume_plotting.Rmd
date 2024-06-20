@@ -468,9 +468,10 @@ get_plumes <- function(data, id, pm, env) {
     mutate(deployment = "SS") %>%
     mutate(room = "daycare") %>%
     mutate(participant_id = id) %>%
-    mutate(environment = env)
+    mutate(environment = env) %>%
+    mutate(pm = pm)
   
-  return(data.frame(all_decays[,c(10, 11, 12, 13, 1:9)]))
+  return(data.frame(all_decays[,c(10, 11, 12, 13, 14, 1:9)]))
 }
 ```
 

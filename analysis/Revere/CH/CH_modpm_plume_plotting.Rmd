@@ -4,19 +4,19 @@ editor_options:
     wrap: 72
 ---
 
-# East Boston Plume Plotting (for Mod-PM)
+# Revere Plume Plotting (for Mod-PM)
 
-Plot various plumes before and after HEPA instalation to compare their
+Plot various plumes before and after HEPA installation to compare their
 heights, widths, decay constants, etc.
 
 ## STOP
 
-**HAVE YOU RUN `MF_modpm_cleaning`?** *This file loads a dataframe
-created from running `MF_modpm_cleaning`. Make sure you run that file
+**HAVE YOU RUN `CH_modpm_cleaning`?** *This file loads a dataframe
+created from running `CH_modpm_cleaning`. Make sure you run that file
 first (if you haven't already) before running this file.*
 
 This file is used to analyze decay constants and complete plume
-visualizations for the East Boston Mod-PM data.
+visualizations for the Revere City Hall Mod-PM data.
 
 ```{r}
 # import necessary libraries
@@ -63,6 +63,8 @@ my_df <- main_df %>%
   mutate(is_wknd = wkdy %in% c(1, 7)) %>%
   # Extract time of the day from datetime
   mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S")) %>%
+  # Arrange by date
+  arrange(date)
 my_df
 ```
 
@@ -245,18 +247,18 @@ my_df_subset <- my_df[my_df$participant_id=="clerk" & my_df$environment=="indoor
 my_df_before <- my_df_subset[my_df_subset$case=='off',]
 my_df_after  <- my_df_subset[my_df_subset$case=='on',]
 
-# Smooth curves
-my_df_before_smoothed <- lowess(my_df_before$pm25, f=0.001)
-my_df_after_smoothed <- lowess(my_df_after$pm25, f=0.001)
+# # Smooth curves
+# my_df_before_smoothed <- lowess(my_df_before$pm25, f=0.001)
+# my_df_after_smoothed <- lowess(my_df_after$pm25, f=0.001)
 
 # Get peaks from before and after
-peaks_b <- findpeaks(my_df_before_smoothed$y,
+peaks_b <- findpeaks(my_df_before$pm25,
                      nups = 1,
                      ndowns = 4,
                      minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='off', 'mean']),
                      minpeakdistance = 1,
                      threshold = 0)
-peaks_a <- findpeaks(my_df_after_smoothed$y,
+peaks_a <- findpeaks(my_df_after$pm25,
                      nups = 1,
                      ndowns = 4,
                      minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='on', 'mean']),
@@ -270,11 +272,11 @@ both level off and fall below a certain mean threshold. In this case, the plumes
 have to fall below the average PM concentration for each case.
 ```{r}
 # Get valleys before and after to isolate each plume
-peaks_b <- get_local_valleys(my_df_before_smoothed$y,
+peaks_b <- get_local_valleys(my_df_before$pm25,
                              peaks = peaks_b,
                              min_threshold = as.numeric(pm_baseline[pm_baseline$case=='off', 'mean']))
                              # min_threshold = 5)
-peaks_a <- get_local_valleys(my_df_after_smoothed$y,
+peaks_a <- get_local_valleys(my_df_after$pm25,
                              peaks = peaks_a,
                              min_threshold = as.numeric(pm_baseline[pm_baseline$case=='on', 'mean']))
                              # min_threshold = 5)
@@ -291,7 +293,7 @@ TODO: fix
 
 # Plot peaks and valleys on top of current time series with valleys 
 # (sanity check)
-plot(my_df_before_smoothed$y,
+plot(my_df_before$pm25,
   type = "l",
   main = "Indoor Concentrations",
   xlab = "Time (indices)",
@@ -299,23 +301,8 @@ plot(my_df_before_smoothed$y,
   col = "navy")
   grid()
 points(peaks_b[, 2], peaks_b[, 1], pch = 20, col = "maroon")
-points(peaks_b[, 3], my_df_before_smoothed$pm25[peaks_b[, 3]], pch = 20, col = "yellow")
-points(peaks_b[, 4], my_df_before_smoothed$y[peaks_b[, 4]], pch = 20, col = "green")
-```
-```{r}
-
-# Plot peaks and valleys on top of current time series with valleys 
-# (sanity check)
-plot(my_df_before$pm25,
-  type = "l",
-  main = "Indoor/Outdoor Ratio",
-  xlab = "Time (indices)",
-  ylab = "Ratio of indoor/outdoor concentrations",
-  col = "navy")
-  grid()
-# points(peaks_a[, 2], peaks_a[, 1], pch = 20, col = "maroon")
-# # points(peaks_b[, 3], my_df_before$pm25[peaks_b[, 3]], pch = 20, col = "yellow")
-# points(peaks_a[, 4], my_df_after_smoothed$y[peaks_a[, 4]], pch = 20, col = "green")
+# points(peaks_b[, 3], my_df_before$pm25[peaks_b[, 3]], pch = 20, col = "yellow")
+points(peaks_b[, 4], my_df_before$pm25[peaks_b[, 4]], pch = 20, col = "green")
 ```
 
 
@@ -441,9 +428,6 @@ get_plumes <- function(data, id, pm, env) {
   # Separate my_df by before vs. after
   my_df_before <- sub_data[sub_data$case=='off',]
   my_df_after  <- sub_data[sub_data$case=='on',]
-  # # Smooth the curve
-  my_df_before_smoothed <- lowess(my_df_before[[pm]], f=0.001)
-  my_df_after_smoothed <- lowess(my_df_before[[pm]], f=0.001)
   
   
   # Calculate average baseline parameter and mean parameters, which will be used
@@ -457,15 +441,14 @@ get_plumes <- function(data, id, pm, env) {
     summarise(mean = mean(mean))
 
   # Get peaks from before and after
-  # peaks_b <- findpeaks(my_df_before_smoothed$y,
-  peaks_b <- findpeaks(my_df_before_smoothed$y,
+  peaks_b <- findpeaks(my_df_before[[pm]],
                        nups = 1,
                        ndowns = 2,
                        minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='off', 'mean']),
                        minpeakdistance = 200,
                        threshold = 0)
   # peaks_a <- findpeaks(my_df_after_smoothed$y,
-  peaks_a <- findpeaks(my_df_after_smoothed$y,
+  peaks_a <- findpeaks(my_df_after[[pm]],
                        nups = 1,
                        ndowns = 2,
                        minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='on', 'mean']),
@@ -474,17 +457,17 @@ get_plumes <- function(data, id, pm, env) {
 
   # Get valleys before and after to isolate each plume
   # peaks_b <- get_local_valleys(my_df_before_smoothed$y,
-  peaks_b <- get_local_valleys(my_df_before_smoothed$y,
+  peaks_b <- get_local_valleys(my_df_before[[pm]],
                                peaks = peaks_b,
                                min_threshold = as.numeric(pm_baseline[pm_baseline$case=='off', 'mean']))
   # peaks_a <- get_local_valleys(my_df_after_smoothed$y,
-  peaks_a <- get_local_valleys(my_df_after_smoothed$y,
+  peaks_a <- get_local_valleys(my_df_after[[pm]],
                                peaks = peaks_a,
                                min_threshold = as.numeric(pm_baseline[pm_baseline$case=='on', 'mean']))
   
   # perform decay analysis for before and after
-  decays_before <- curve_fitting(my_df_before_smoothed$y, peaks = peaks_b)
-  decays_after  <- curve_fitting(my_df_after_smoothed$y, peaks = peaks_a)
+  decays_before <- curve_fitting(my_df_before[[pm]], peaks = peaks_b)
+  decays_after  <- curve_fitting(my_df_after[[pm]], peaks = peaks_a)
   
   # Merge decay tables, adding a column indicating whether HEPA installed or not
   decays_before$hepa <- FALSE
@@ -497,9 +480,10 @@ get_plumes <- function(data, id, pm, env) {
     mutate(deployment = "CH") %>%
     mutate(room = "office") %>%
     mutate(participant_id = id) %>%
-    mutate(environment = "indoor")
+    mutate(environment = "indoor") %>%
+    mutate(pm = pm)
   
-  return(data.frame(all_decays[,c(10, 11, 12, 13, 1:9)]))
+  return(data.frame(all_decays[,c(10, 11, 12, 13, 14, 1:9)]))
 }
 ```
 
@@ -533,9 +517,10 @@ plume_redus <- function(plumes, id, pm, env) {
   # Add identifying columns
   decay_sum <- decay_sum %>%
     mutate(participant_id = id) %>%
-    mutate(environment = "indoor")
+    mutate(environment = "indoor") %>%
+    mutate(pm = pm)
   
-  return(data.frame(decay_sum[,c(16, 17, 1:15)]))
+  return(data.frame(decay_sum[,c(16, 17, 18, 1:15)]))
 }
 ```
 
@@ -590,6 +575,7 @@ for (id in unique(my_df$participant_id)) {
     }
   }
 }
+plumes.data
 plume_reduc.data
 ```
 
