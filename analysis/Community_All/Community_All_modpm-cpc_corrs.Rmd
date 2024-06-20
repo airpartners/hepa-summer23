@@ -16,6 +16,7 @@ Load libraries, define file paths, include participant IDs to be processed
 ```{r}
 # Import relevant libraries
 library(tidyverse)
+library(corrr)
 ```
 
 Set working directory
