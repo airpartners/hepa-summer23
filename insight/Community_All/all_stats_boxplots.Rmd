@@ -98,3 +98,90 @@ plot_df %>%
   facet_wrap(~environment, nrow = 2) +
   theme_bw()
 ```
+
+```{r}
+current_redu <- summary_df %>% 
+  filter(environment == "indoor", type == "pm25", case == "redu", 
+         participant_id == "all", beta_room_type != "all")
+
+num_participants <- summary_df %>% 
+  filter(environment == "indoor", type == "pm25", case == "redu", 
+         participant_id != "all", beta_room_type != "all") %>%
+  count(beta_room_type)
+
+plot_df <- all_df %>% filter(environment == "indoor")
+
+whisker_range <- quantile(plot_df$pm25, c(0.01, 0.99), na.rm = TRUE)
+
+plot_df %>%
+  ggplot(aes(x = beta_room_type, y = pm25)) +
+  geom_boxplot(aes(fill = case), outlier.shape = NA) +
+  scale_y_continuous(limits = whisker_range, trans = "log10") +
+  labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
+  scale_fill_discrete(labels = c("Off", "On")) +
+  geom_text(aes(y = whisker_range[2], label = paste0(round(mean, 1), "%")), 
+                data = current_redu, fontface = "bold") +
+  geom_text(aes(y = whisker_range[1], label = paste("n =", n)), 
+                data = num_participants, fontface = "bold") +
+  theme_bw()
+```
+
+
+
+```{r}
+current_redu <- summary_df %>% 
+  filter(environment == "ratio", type == "pm25", case == "redu", 
+         participant_id == "all", beta_room_type != "all")
+
+num_participants <- summary_df %>% 
+  filter(environment == "ratio", type == "pm25", case == "redu", 
+         participant_id != "all", beta_room_type != "all") %>%
+  count(beta_room_type)
+
+plot_df <- all_df %>% filter(environment == "ratio")
+
+whisker_range <- quantile(plot_df$pm25, c(0.01, 0.99), na.rm = TRUE)
+
+plot_df %>% 
+  ggplot(aes(x = beta_room_type, y = pm25)) +
+  geom_boxplot(aes(fill = case), outlier.shape = NA) +
+  scale_y_continuous(limits = whisker_range, trans = "log10") +
+  labs(fill = "Purifier State", x = "Room Type", y = bquote(PM[2.5])) +
+  scale_fill_discrete(labels = c("Off", "On")) +
+  geom_text(aes(y = whisker_range[2], label = paste0(round(mean, 1), "%")), 
+                data = current_redu, fontface = "bold") +
+  geom_text(aes(y = whisker_range[1], label = paste("n =", n)), 
+                data = num_participants, fontface = "bold") +
+  theme_bw()
+  
+```
+
+
+```{r}
+current_redu <- summary_df %>% 
+  filter(environment != "outdoor", type == "pm25", case == "redu", 
+         participant_id == "all", beta_room_type != "all")
+
+num_participants <- summary_df %>% 
+  filter(environment != "outdoor", type == "pm25", case == "redu", 
+         participant_id != "all", beta_room_type != "all") %>%
+  count(beta_room_type, environment)
+
+plot_df <- all_df %>% filter(environment != "outdoor")
+
+whisker_range <- quantile(plot_df$pm25, c(0.01, 0.99), na.rm = TRUE)
+
+plot_df %>%
+  ggplot(aes(x = beta_room_type, y = pm25)) +
+  geom_boxplot(aes(fill = case), outlier.shape = NA) +
+  scale_y_continuous(limits = whisker_range, trans = "log10") +
+  labs(fill = "Purifier State", x = "Room Type (beta)", y = bquote(PM[2.5])) +
+  scale_fill_discrete(labels = c("Off", "On")) +
+  geom_text(aes(y = whisker_range[2], label = paste0(round(mean, 1), "%")), 
+                data = current_redu, fontface = "bold") +
+  geom_text(aes(y = whisker_range[1], label = paste("n =", n)), 
+                data = num_participants, fontface = "bold") +
+  facet_wrap(~environment, nrow = 2) +
+  theme_bw()
+```
+
