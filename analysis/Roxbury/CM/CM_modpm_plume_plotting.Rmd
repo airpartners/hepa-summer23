@@ -433,12 +433,13 @@ get_plumes <- function(sub_data, id, pm) {
   # Add columns of all_decays
   all_decays <- all_decays %>%
     mutate(peak_width = valley_idx_a - valley_idx_b) %>%
-    mutate(deployment = "MF") %>%
+    mutate(deployment = "CM") %>%
     mutate(room = "residential") %>%
     mutate(participant_id = id) %>%
-    mutate(environment = "indoor")
+    mutate(environment = "indoor") %>%
+    mutate(pm = pm)
   
-  return(data.frame(all_decays[,c(10, 11, 12, 13, 1:9)]))
+  return(data.frame(all_decays[,c(10, 11, 12, 13, 14, 1:9)]))
 }
 ```
 
@@ -472,9 +473,10 @@ plume_redus <- function(plumes, id, pm) {
   # Add identifying columns
   decay_sum <- decay_sum %>%
     mutate(participant_id = id) %>%
-    mutate(environment = "indoor")
+    mutate(environment = "indoor") %>%
+    mutate(pm = pm)
   
-  return(data.frame(decay_sum[,c(16, 17, 1:15)]))
+  return(data.frame(decay_sum[,c(16, 17, 18, 1:15)]))
 }
 ```
 
@@ -524,7 +526,7 @@ for (id in unique(my_df$participant_id)) {
     sub_data <- my_df[my_df$participant_id == id & my_df$environment == "indoor",]
     if (length(sub_data$pm25) < 200) next
     
-    new_plumes <- get_plumes(my_df, id, pm)
+    new_plumes <- get_plumes(sub_data, id, pm)
     new_reducs <- plume_redus(new_plumes, id, pm)
     # Rbind them with previous data
     plumes.data <- rbind(plumes.data, new_plumes)
@@ -645,20 +647,32 @@ ggplot(plot_data, aes(x = time)) +
 
 ### Average Plume Exposure for Each Participant
 ```{r}
-exposure <- plume_reduc.data %>%
-  select(participant_id, pm, hepa, total_plume_area, n) %>%
-  mutate(total_plume_area = total_plume_area/n) %>%
+exposure <- plume_reduc.data[plume_reduc.data$pm == "pm25",] %>%
+  select(participant_id, hepa, total_plume_area, n) %>%
   group_by(participant_id, hepa) %>%
-  mutate(sum_plume = sum(total_plume_area), .keep="none") %>%
+  mutate(sum_plume = sum(total_plume_area)) %>%
+  mutate(avg_plume = sum_plume/n) %>%
   distinct(participant_id, hepa, .keep_all=TRUE)
 
 
 # Create the bar plot with custom legend labels
 ggplot(exposure, aes(x = factor(participant_id), y = sum_plume, fill = factor(hepa))) +
   geom_bar(stat = "identity", position = "dodge") +
-  labs(x = "Participant ID", y = "Total Exposure (ug/m3)", fill = "HEPA Status") +
+  labs(title="Total Exposure for Each Room Type",
+       x = "Deployment",
+       y = "Total Exposure (ug/m3)",
+       fill = "Purifier State") +
   scale_fill_manual(values = c("FALSE" = "red", "TRUE" = "green"),
-                    labels = c("FALSE" = "offline", "TRUE" = "online")) +
-  theme_minimal()
+                    labels = c("FALSE" = "off", "TRUE" = "on"))
+
+
+ggplot(exposure, aes(x = factor(participant_id), y = avg_plume, fill = factor(hepa))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title="Average Exposure per Plume for Each Room Type",
+       x = "Deployment",
+       y = "Total Exposure (ug/m3)",
+       fill = "Purifier State") +
+  scale_fill_manual(values = c("FALSE" = "red", "TRUE" = "green"),
+                    labels = c("FALSE" = "off", "TRUE" = "on"))
 ```
 

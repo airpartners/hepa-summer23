@@ -4,19 +4,16 @@ editor_options:
     wrap: 72
 ---
 
-# Revere Plume Plotting (for Mod-PM)
+# MF Mod-PM Plume Plotting for Participant 11
 
-Plot various plumes before and after HEPA installation to compare their
-heights, widths, decay constants, etc.
+This notebook aims to examine why Participant 11 of the Mothers Out Front 
+HEPA deployment is such an anomaly.
 
 ## STOP
 
-**HAVE YOU RUN `CH_modpm_cleaning`?** *This file loads a dataframe
-created from running `CH_modpm_cleaning`. Make sure you run that file
+**HAVE YOU RUN `MF_modpm_cleaning`?** *This file loads a dataframe
+created from running `MF_modpm_cleaning`. Make sure you run that file
 first (if you haven't already) before running this file.*
-
-This file is used to analyze decay constants and complete plume
-visualizations for the Revere City Hall Mod-PM data.
 
 ```{r}
 # import necessary libraries
@@ -40,7 +37,7 @@ if (!endsWith(getwd(), "hepa-summer23")) {
 
 ```{r}
 # set path to data
-path_to_data <- "cleaning/Revere/CH/"
+path_to_data <- "cleaning/EastBoston/MF/"
 ```
 
 ## Load data
@@ -63,7 +60,7 @@ my_df <- main_df %>%
   mutate(is_wknd = wkdy %in% c(1, 7)) %>%
   # Extract time of the day from datetime
   mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S")) %>%
-  # Arrange by date
+  # Sort the dataframe by date
   arrange(date)
 my_df
 ```
@@ -77,13 +74,13 @@ graph_main_df <- my_df %>%
   # For every 10 minutes for given case, environment, particle, weekday/end
   group_by(is_wknd, time, case, environment, particle) %>%
   # Find summary statistics
-  summarise(mean = mean(reading),
-          median = median(reading), 
-          q5 = quantile(reading, probs = 0.05), 
-          q25 = quantile(reading, probs = 0.25),
-          q75 = quantile(reading, probs = 0.75),
-          q95 = quantile(reading, probs = 0.95),
-          sd = sd(reading),
+  summarise(mean = mean(reading, na.rm = TRUE),
+          median = median(reading, na.rm = TRUE), 
+          q5 = quantile(reading, probs = 0.05, na.rm = TRUE), 
+          q25 = quantile(reading, probs = 0.25, na.rm = TRUE),
+          q75 = quantile(reading, probs = 0.75, na.rm = TRUE),
+          q95 = quantile(reading, probs = 0.95, na.rm = TRUE),
+          sd = sd(reading, na.rm = TRUE),
           .groups = 'drop')
 graph_main_df
 ```
@@ -199,7 +196,7 @@ curve_fitting <- function(data, peaks) {
     st <- list(a = exp(coef(fm_lm)[1]), b = coef(fm_lm)[2])
     fit <- try(nls(y ~ f(t, a, b), data = df, start = st, control = nlc))
     # If try block fails, break out of loop and don't return anything
-    if (sapply(fit[1], class) == "character") {
+    if (sapply(fit, class) == "character") {
       break
     }
     # Get parameters of the fit
@@ -241,27 +238,24 @@ First, we separate the data based on whether the HEPA purifier was there or not.
 Then, we detect the plumes through peak detection.
 ```{r}
 # Get data subset
-my_df_subset <- my_df[my_df$participant_id=="clerk" & my_df$environment=="indoor",]
+my_df_subset <- my_df[my_df$participant_id=="11" & my_df$environment=="indoor",]
 
 # Separate my_df by before vs. after
-my_df_before <- my_df_subset[my_df_subset$case=='off',]
-my_df_after  <- my_df_subset[my_df_subset$case=='on',]
-
-# # Smooth curves
-# my_df_before_smoothed <- lowess(my_df_before$pm25, f=0.001)
-# my_df_after_smoothed <- lowess(my_df_after$pm25, f=0.001)
+my_df_before <- my_df_subset[my_df_subset$case=='before',]
+my_df_after  <- my_df_subset[my_df_subset$case=='after',]
 
 # Get peaks from before and after
-peaks_b <- findpeaks(my_df_before$pm25,
+peaks_b <- findpeaks(my_df_before$pm1,
                      nups = 1,
                      ndowns = 4,
-                     minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='off', 'mean']),
+                     minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='before', 'mean']),
+                     # minpeakheight = 10,
                      minpeakdistance = 1,
                      threshold = 0)
-peaks_a <- findpeaks(my_df_after$pm25,
+peaks_a <- findpeaks(my_df_after$pm1,
                      nups = 1,
                      ndowns = 4,
-                     minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='on', 'mean']),
+                     minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='after', 'mean']),
                      minpeakdistance = 1,
                      threshold = 0)
 ```
@@ -272,13 +266,13 @@ both level off and fall below a certain mean threshold. In this case, the plumes
 have to fall below the average PM concentration for each case.
 ```{r}
 # Get valleys before and after to isolate each plume
-peaks_b <- get_local_valleys(my_df_before$pm25,
+peaks_b <- get_local_valleys(my_df_before$pm1,
                              peaks = peaks_b,
-                             min_threshold = as.numeric(pm_baseline[pm_baseline$case=='off', 'mean']))
+                             min_threshold = as.numeric(pm_baseline[pm_baseline$case=='before', 'mean']))
                              # min_threshold = 5)
-peaks_a <- get_local_valleys(my_df_after$pm25,
+peaks_a <- get_local_valleys(my_df_after$pm1,
                              peaks = peaks_a,
-                             min_threshold = as.numeric(pm_baseline[pm_baseline$case=='on', 'mean']))
+                             min_threshold = as.numeric(pm_baseline[pm_baseline$case=='after', 'mean']))
                              # min_threshold = 5)
 ```
 
@@ -288,35 +282,50 @@ are not detected due to the distances between plumes. This algorithm ignores
 "abnormal plumes," or plumes that are too close to each other resulting in the 
 exponential decay to be distorted.
 
-TODO: fix
 ```{r}
 
 # Plot peaks and valleys on top of current time series with valleys 
 # (sanity check)
-plot(my_df_before$pm25,
+plot(my_df_before$pm1,
   type = "l",
-  main = "Indoor Concentrations",
+  main = "PM1 Concentrations Before HEPA Purifier",
   xlab = "Time (indices)",
-  ylab = "PM Concentrations (ug/m3)",
+  ylab = "Concentration (ug/m3)",
+  # log = 'y',
   col = "navy")
   grid()
 points(peaks_b[, 2], peaks_b[, 1], pch = 20, col = "maroon")
-# points(peaks_b[, 3], my_df_before$pm25[peaks_b[, 3]], pch = 20, col = "yellow")
-points(peaks_b[, 4], my_df_before$pm25[peaks_b[, 4]], pch = 20, col = "green")
+points(peaks_b[, 3], my_df_before$pm1[peaks_b[, 3]+1], pch = 20, col = "yellow")
+points(peaks_b[, 4], my_df_before$pm1[peaks_b[, 4]], pch = 20, col = "green")
 ```
 
+```{r}
 
+# Plot peaks and valleys on top of current time series with valleys 
+# (sanity check)
+plot(my_df_after$pm1,
+  type = "l",
+  main = "PM1 Concentration After HEPA Purifier",
+  xlab = "Time (indices)",
+  ylab = "Concentration (ug/m3)",
+  log = 'y',
+  col = "navy")
+  grid()
+points(peaks_a[, 2], peaks_a[, 1], pch = 20, col = "maroon")
+points(peaks_a[, 3], my_df_after$pm1[peaks_a[, 3]+1], pch = 20, col = "yellow")
+points(peaks_a[, 4], my_df_after$pm1[peaks_a[, 4]], pch = 20, col = "green")
+```
 Now we can calculate this plume analysis for before and after the HEPA purifier
 was installed for each plume.
 ```{r}
 # perform decay analysis
-decays_before <- curve_fitting(my_df_before[["pm25"]], peaks = peaks_b)
+decays_before <- curve_fitting(my_df_before[["pm1"]], peaks = peaks_b)
 decays_before
 ```
 
 ```{r}
 # perform decay analysis
-decays_after <- curve_fitting(my_df_after$pm25, peaks = peaks_a)
+decays_after <- curve_fitting(my_df_after$pm1, peaks = peaks_a)
 decays_after
 ```
 
@@ -328,13 +337,13 @@ the change of plumes from before and after the purifier was installed.
 ```{r}
 # Before HEPA deployment
 peak_idxs <- c(
-  tail(decays_before, n=1)$valley_idx_a,
-  tail(decays_before, n=1)$valley_idx_b
+  tail(decays_before, n=1)$valley_idx_b,
+  tail(decays_before, n=1)$valley_idx_a
 )
 my_df_before %>%
   ggplot(aes(x = as.numeric(row.names(my_df_before)))) +
   # Plot the highest pm25 plume
-  geom_line(aes(y = pm25)) +
+  geom_line(aes(y = pm1)) +
   # Labels
   xlab('Time Since Sensor Deployment (10min)') + 
   ylab('PM2.5 Levels') +
@@ -348,13 +357,13 @@ my_df_before %>%
 ```{r}
 # After HEPA deployment
 peak_idxs <- c(
-  tail(decays_after, n=1)$valley_idx_a,
-  tail(decays_after, n=1)$valley_idx_b
+  tail(decays_after, n=1)$valley_idx_b,
+  tail(decays_after, n=1)$valley_idx_a
 )
 my_df_after %>%
   ggplot(aes(x = as.numeric(row.names(my_df_after)))) +
   # Plot the highest pm25 plume
-  geom_line(aes(y = pm25)) +
+  geom_line(aes(y = pm1)) +
   # Labels
   xlab('Time Since Sensor Deployment (10min)') + 
   ylab('PM2.5 Levels') +
@@ -375,15 +384,19 @@ We can summarize the statistics for all plumes in a small table.
 decays_before$hepa <- FALSE
 decays_after$hepa <- TRUE
 all_decays <- merge(decays_before, decays_after, all = TRUE)
+
+# Add column names
+all_decays <- all_decays %>%
+  mutate(peak_width = valley_idx_a - valley_idx_b) %>%
+  mutate(deployment = "MF") %>%
+  mutate(room = "daycare") %>%
+  mutate(participant_id = "11") %>%
+  mutate(environment = "indoor")
+
 all_decays
+```
 
-# Get index of when HEPA was installed
-hepa_install_idx <- match(TRUE, all_decays$hepa)
-
-# Create summary of decay values for before and after
-all_decays["hepa_installed"] <- all_decays["peak_idx"] >= hepa_install_idx
-all_decays["peak_width"] <- all_decays["valley_idx_a"] - all_decays["valley_idx_b"]
-
+```{r}
 decay_sum <-
   all_decays %>%
     group_by(hepa) %>%
@@ -396,15 +409,17 @@ decay_sum <-
       # peak heights
       peak_hgt_mean = mean(peak_hgt, na.rm = TRUE),
       peak_hgt_median = median(peak_hgt, na.rm = TRUE),
-      peak_wdh_min = min(peak_width, na.rm = TRUE),
-      peak_wdh_max = max(peak_width, na.rm = TRUE),
+      peak_hgt_min = min(peak_hgt, na.rm = TRUE),
+      peak_hgt_max = max(peak_hgt, na.rm = TRUE),
       # peak widths
       peak_wdh_mean = mean(peak_width, na.rm = TRUE),
       peak_wdh_median = median(peak_width, na.rm = TRUE),
       peak_wdh_min = min(peak_width, na.rm = TRUE),
       peak_wdh_max = max(peak_width, na.rm = TRUE),
       # cumulative PM
-      total_plume_area = sum(cumm_pm, na.rm = TRUE)
+      total_plume_area = sum(cumm_pm, na.rm = TRUE),
+      # number of plumes
+      n = n()
     )
 decay_sum
 ```
@@ -412,187 +427,116 @@ Note how the mean *k* value increased; this is because the exponential decay of
 PM2.5 after the HEPA purifier was installed was *faster*. In essence, particles 
 filtered out of the room at a greater rate compared to before.
 
+## Peak Widths vs. Decay Constants
 
-## Plume Analysis by Participant
-
-The rest of this file calculated statistics on plume reduction
-throughout the dataset. Below summarizes all that analysis into one
-function, creating reduction statistics, and performing that function on
-the dataset as it is grouped by participation, room, and PM.
 
 ```{r}
-get_plumes <- function(data, id, pm, env) {
-  sub_data <- data[data$participant_id == id & data$environment == env,]
-  # Drop NA data
-  sub_data <- sub_data[!is.na(sub_data[pm]),]
-  # Separate my_df by before vs. after
-  my_df_before <- sub_data[sub_data$case=='off',]
-  my_df_after  <- sub_data[sub_data$case=='on',]
-  
-  
-  # Calculate average baseline parameter and mean parameters, which will be used
-  # to define the baseline and the minimum height of peaks
-  pm_indoor <- graph_main_df[graph_main_df$environment==env & graph_main_df$particle==pm,]
-  pm_baseline <- pm_indoor %>%
-    group_by(case) %>%
-    summarise(mean = mean(median))
-  pm_min_heights <- pm_indoor %>%
-    group_by(case) %>%
-    summarise(mean = mean(mean))
+ggplot(all_decays, aes(x = abs(k_val), y = peak_width)) + 
+  geom_point(shape = 1) +
+  geom_smooth(method=lm) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title="Regressions for Peak Width and Decay Constants (Participant 11)",
+       x = "Decay Constant Magnitude",
+       y = "Peak Width") +
+  theme_minimal()
+```
 
-  # Get peaks from before and after
-  peaks_b <- findpeaks(my_df_before[[pm]],
-                       nups = 1,
-                       ndowns = 2,
-                       minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='off', 'mean']),
-                       minpeakdistance = 200,
-                       threshold = 0)
-  # peaks_a <- findpeaks(my_df_after_smoothed$y,
-  peaks_a <- findpeaks(my_df_after[[pm]],
-                       nups = 1,
-                       ndowns = 2,
-                       minpeakheight = as.numeric(pm_min_heights[pm_min_heights$case=='on', 'mean']),
-                       minpeakdistance = 200,
-                       threshold = 0)
 
-  # Get valleys before and after to isolate each plume
-  # peaks_b <- get_local_valleys(my_df_before_smoothed$y,
-  peaks_b <- get_local_valleys(my_df_before[[pm]],
-                               peaks = peaks_b,
-                               min_threshold = as.numeric(pm_baseline[pm_baseline$case=='off', 'mean']))
-  # peaks_a <- get_local_valleys(my_df_after_smoothed$y,
-  peaks_a <- get_local_valleys(my_df_after[[pm]],
-                               peaks = peaks_a,
-                               min_threshold = as.numeric(pm_baseline[pm_baseline$case=='on', 'mean']))
-  
-  # perform decay analysis for before and after
-  decays_before <- curve_fitting(my_df_before[[pm]], peaks = peaks_b)
-  decays_after  <- curve_fitting(my_df_after[[pm]], peaks = peaks_a)
-  
-  # Merge decay tables, adding a column indicating whether HEPA installed or not
-  decays_before$hepa <- FALSE
-  decays_after$hepa <- TRUE
-  all_decays <- merge(decays_before, decays_after, all = TRUE)
-  
-  # Add columns of all_decays
-  all_decays <- all_decays %>%
-    mutate(peak_width = valley_idx_a - valley_idx_b) %>%
-    mutate(deployment = "CH") %>%
-    mutate(room = "office") %>%
-    mutate(participant_id = id) %>%
-    mutate(environment = "indoor") %>%
-    mutate(pm = pm)
-  
-  return(data.frame(all_decays[,c(10, 11, 12, 13, 14, 1:9)]))
-}
+```{r}
+ggplot(all_decays, aes(x = abs(k_val), y = peak_width, color = hepa)) + 
+  geom_point(shape = 1) +
+  geom_smooth(method=lm) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title="Regressions for Peak Width and Decay Constants by HEPA Status",
+       x = "Decay Constant Magnitude",
+       y = "Peak Width") +
+  theme_minimal()
+```
+
+So when purifier was off, it seems we had a few plumes with very low widths, and
+when purifer was on, we had a few plumes with very high widths. Let's see what 
+happens when they are removed.
+
+
+## Alteration
+
+What happens when we remove a small group of plumes that are low in height and
+width?
+
+```{r}
+# perform decay analysis
+peaks_b_temp <- peaks_b %>% arrange(valley_b)
+decays_before <- curve_fitting(my_df_before$pm1, peaks = peaks_b_temp[c(1:10, 14:21),])
+decays_before
+```
+
+Likewise, what happens if we remove the widest peak from this analysis?
+
+```{r}
+# perform decay analysis
+peaks_a_temp <- peaks_a %>% arrange(valley_b)
+decays_after <- curve_fitting(my_df_after$pm25, peaks = peaks_a_temp[c(1:4, 8:19),])
+decays_after
 ```
 
 ```{r}
-plume_redus <- function(plumes, id, pm, env) {
-  decay_sum <-
-    plumes %>%
-      group_by(hepa) %>%
-      summarize(
-        # kval
-        k_val_mean = mean(k_val, na.rm = TRUE),
-        k_val_median = median(k_val, na.rm = TRUE),
-        k_val_min = min(k_val, na.rm = TRUE),
-        k_val_max = max(k_val, na.rm = TRUE),
-        # peak heights
-        peak_hgt_mean = mean(peak_hgt, na.rm = TRUE),
-        peak_hgt_median = median(peak_hgt, na.rm = TRUE),
-        peak_hgt_min = min(peak_hgt, na.rm = TRUE),
-        peak_hgt_max = max(peak_hgt, na.rm = TRUE),
-        # total peak widths
-        peak_wdh_mean = mean(peak_width, na.rm = TRUE),
-        peak_wdh_median = median(peak_width, na.rm = TRUE),
-        peak_wdh_min = min(peak_width, na.rm = TRUE),
-        peak_wdh_max = max(peak_width, na.rm = TRUE),
-        # cumulative PM
-        total_plume_area = sum(cumm_pm, na.rm = TRUE),
-        # number of plumes
-        n = n()
-      )
-  
-  # Add identifying columns
-  decay_sum <- decay_sum %>%
-    mutate(participant_id = id) %>%
-    mutate(environment = "indoor") %>%
-    mutate(pm = pm)
-  
-  return(data.frame(decay_sum[,c(16, 17, 18, 1:15)]))
-}
+# Merge decay tables, adding a column indicating whether HEPA installed or not
+decays_before$hepa <- FALSE
+decays_after$hepa <- TRUE
+all_decays <- merge(decays_before, decays_after, all = TRUE)
+
+# Add column names
+all_decays <- all_decays %>%
+  mutate(peak_width = valley_idx_a - valley_idx_b) %>%
+  mutate(deployment = "MF") %>%
+  mutate(room = "daycare") %>%
+  mutate(participant_id = "11") %>%
+  mutate(environment = "indoor")
+
+all_decays
+```
+
+
+```{r}
+decay_sum <-
+  all_decays %>%
+    group_by(hepa) %>%
+    summarize(
+      # kval
+      k_val_mean = mean(k_val, na.rm = TRUE),
+      k_val_median = median(k_val, na.rm = TRUE),
+      k_val_min = min(k_val, na.rm = TRUE),
+      k_val_max = max(k_val, na.rm = TRUE),
+      # peak heights
+      peak_hgt_mean = mean(peak_hgt, na.rm = TRUE),
+      peak_hgt_median = median(peak_hgt, na.rm = TRUE),
+      peak_hgt_min = min(peak_hgt, na.rm = TRUE),
+      peak_hgt_max = max(peak_hgt, na.rm = TRUE),
+      # peak widths
+      peak_wdh_mean = mean(peak_width, na.rm = TRUE),
+      peak_wdh_median = median(peak_width, na.rm = TRUE),
+      peak_wdh_min = min(peak_width, na.rm = TRUE),
+      peak_wdh_max = max(peak_width, na.rm = TRUE),
+      # cumulative PM
+      total_plume_area = sum(cumm_pm, na.rm = TRUE),
+      # number of plumes
+      n = n()
+    )
+decay_sum
 ```
 
 ```{r}
-# Create new DataFrame for storing plumes
-plumes.data <- data.frame(
-  "deployment" = numeric(0),
-  "room" = numeric(0),
-  "participant_id" = numeric(0),
-  "environment" = numeric(0),
-  "peak_idx" = numeric(0),
-  "valley_idx_b" = numeric(0),
-  "valley_idx_a" = numeric(0),
-  "peak_hgt" = numeric(0),
-  "k_val" = numeric(0),
-  "conv_tool" = numeric(0),
-  "cumm_pm" = numeric(0),
-  "hepa" = numeric(0),
-  "hepa_installed" = numeric(0),
-  "peak_width" = numeric(0)
-)
-# Create empty DataFrame for storing k values
-plume_reduc.data <- data.frame(
-  "participant_id" = numeric(0),
-  "environment" = numeric(0),
-  "type" = numeric(0),
-  "k_val_mean" = numeric(0),
-  "k_val_median" = numeric(0),
-  # "k_val_min" = numeric(0),
-  # "k_val_max" = numeric(0),
-  "peak_hgt_mean" = numeric(0),
-  "peak_hgt_median" = numeric(0),
-  # "peak_hgt_min" = numeric(0),
-  # "peak_hgt_max" = numeric(0),
-  "peak_wdh_mean" = numeric(0),
-  "peak_wdh_median" = numeric(0),
-  # "peak_wdh_min" = numeric(0),
-  # "peak_wdh_max" = numeric(0),
-  "total_plume_area" = numeric(0),
-  "hepa" = numeric(0)
-)
-
-for (id in unique(my_df$participant_id)) {
-  for (pm in c("pm1", "pm25", "pm10")) {
-    for (env in c("indoor")) {
-      print(paste("Calculating PM", pm, "for participant", id, "in environment", env))
-      new_plumes <- get_plumes(my_df, id, pm, env)
-      new_reducs <- plume_redus(new_plumes, id, pm, env)
-      # Rbind them with previous data
-      plumes.data <- rbind(plumes.data, new_plumes)
-      plume_reduc.data <- rbind(plume_reduc.data, new_reducs)
-    }
-  }
-}
-plumes.data
-plume_reduc.data
+ggplot(all_decays, aes(x = abs(k_val), y = peak_width, color = hepa)) + 
+  geom_point(shape = 1) +
+  geom_smooth(method=lm) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title="Regressions for Peak Width and Decay Constants by HEPA Status",
+       x = "Decay Constant Magnitude",
+       y = "Peak Width") +
+  theme_minimal()
 ```
 
-**IMPORTANT NOTE**: As can be seen in the output table, most instances show that
-the air purifier is having a negative effect on the air quality. This result is
-misleading, since the plumes in this data have a maximum height of around 15-20
-ug/m3 for each particulate matter. These are small plumes compared to other
-plumes detected in other datasets. Because the air quality does not deviate far
-from the baseline, I would be hesitant in using this analysis for this specific
-dataset.
 
-
-## Save to file
-Plume characteristics and statistics are saved in a CSV file.
-
-```{r}
-# Save plume statistic files to CSVs
-write.csv(plumes.data, "summary/Revere/CH/s_CH_M_allplumes.csv")
-write.csv(plume_reduc.data, "summary/Revere/CH/s_CH_M_plumestats.csv")
-```

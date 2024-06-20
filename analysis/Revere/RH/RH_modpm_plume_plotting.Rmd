@@ -282,11 +282,12 @@ get_plumes <- function(data, id, pm, env) {
   all_decays <- all_decays %>%
     mutate(peak_width = valley_idx_a - valley_idx_b) %>%
     mutate(deployment = "RH") %>%
-    mutate(room = "classroom") %>%
+    mutate(room = "office") %>%
     mutate(participant_id = id) %>%
-    mutate(environment = env)
+    mutate(environment = env) %>%
+    mutate(pm = pm)
   
-  return(data.frame(all_decays[,c(10, 11, 12, 13, 1:9)]))
+  return(data.frame(all_decays[,c(10, 11, 12, 13, 14, 1:9)]))
 }
 ```
 
@@ -320,9 +321,10 @@ plume_redus <- function(plumes, id, pm, env) {
   # Add identifying columns
   decay_sum <- decay_sum %>%
     mutate(participant_id = id) %>%
-    mutate(environment = env)
+    mutate(environment = env) %>%
+    mutate(pm = pm)
   
-  return(data.frame(decay_sum[,c(16, 17, 1:15)]))
+  return(data.frame(decay_sum[,c(16, 17, 18, 1:15)]))
 }
 ```
 

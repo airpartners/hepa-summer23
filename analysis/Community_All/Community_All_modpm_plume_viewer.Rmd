@@ -1,0 +1,113 @@
+---
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+# Community All Mod-PM Plume Viewer
+
+Plot any particular plume you would like from any dataset!
+
+To use this, you must make sure to import the correct data from whichever
+deployment you want to look at. You also need to know the beginning and ending
+indices for the plume so you can plot it. All of this information can be found
+for each plume in the combined DataFrame created in
+`Community_All_modpm_plume_plotting`.
+
+```{r}
+# import necessary libraries
+library(tidyverse)
+library(data.table)
+```
+
+```{r, setup, include=FALSE}
+# set working directory
+knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
+```
+
+```{r}
+# check file path for working directory
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# SET PATH TO DATA HERE
+path_to_data <- "cleaning/Revere/CH/"
+```
+
+## Load data
+
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+## Main Code Run
+
+```{r}
+# Pre-processing to add relevant columns
+my_df <- main_df %>%
+  # Round date to nearest ten minutes
+  mutate(date_round = round_date(date, unit = "10 mins")) %>%
+  # Get day of the week as integer from 1 to 7
+  mutate(wkdy = wday(date)) %>%
+  # Classify as weekday or weekend
+  mutate(is_wknd = wkdy %in% c(1, 7)) %>%
+  # Extract time of the day from datetime
+  mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S")) %>%
+  # Sort the dataframe by date
+  arrange(date)
+my_df
+```
+
+## Displaying Peaks
+
+We can look at the plumes with the best fits for before and after to visualize
+the change of plumes from before and after the purifier was installed.
+
+```{r}
+my_df_subset <- my_df[my_df$participant_id=="engineering" & my_df$environment=="indoor",]
+
+my_df_before <- my_df_subset[my_df_subset$case=="off",]
+my_df_after  <- my_df_subset[my_df_subset$case=="on",]
+
+```
+
+
+```{r}
+# ENTER BEGINNING AND ENDING INDICES FOR PEAKS HERE
+peak_idx_beginning <- 5933
+peak_idx_ending <- 7500
+my_df_before %>%
+  ggplot(aes(x = as.numeric(row.names(my_df_before)))) +
+  # ENTER PM TYPE HERE
+  geom_line(aes(y = pm25)) +
+  # Labels
+  xlab('Time Since Sensor Deployment (10min)') +
+  ylab('PM Levels (ug/m3)') +
+  # ylim(0,500) +
+  # Add fun theme
+  theme_minimal() +
+  # Scale to just around the plume
+  coord_cartesian(xlim = c(peak_idx_beginning, peak_idx_ending))
+```
+
+```{r}
+# ENTER BEGINNING AND ENDING INDICES FOR PEAKS HERE
+peak_idx_beginning <- 22022
+peak_idx_ending <- 23245
+my_df_after %>%
+  ggplot(aes(x = as.numeric(row.names(my_df_after)))) +
+  # ENTER PM TYPE HERE
+  geom_line(aes(y = pm25)) +
+  # Labels
+  xlab('Time Since Sensor Deployment (10min)') +
+  ylab('PM Levels (ug/m3)') +
+  # ylim(0,500) +
+  # Add fun theme
+  theme_minimal() +
+  # Scale to just around the plume
+  coord_cartesian(xlim = c(peak_idx_beginning, peak_idx_ending))
+```
