@@ -1,0 +1,598 @@
+---
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+# Community All Plume Plotting (for Mod-PM)
+
+Plot various plumes before and after HEPA installation to compare their
+heights, widths, decay constants, etc.
+
+This file compiles all plumes from all deployments, saved in
+`summary/{location_name}/{deployment_name}/s_{deployment_name}_M_allplumes.csv`,
+and computes summary statistics for every participant, every deployment, and
+every room type.
+
+```{r}
+# import necessary libraries
+library(tidyverse)
+library(data.table)
+library(scales)
+library(pracma)
+```
+
+```{r, setup, include=FALSE}
+# set working directory
+knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
+```
+
+```{r}
+# check file path for working directory
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+## Load data
+
+```{r}
+load_data <- function(paths_to_data) {
+  res <- data.frame()
+  # For each path, read the CSV file in that path
+  for (path in paths_to_data) {
+    main <- read_csv(path)
+    # Append dataframes together
+    if (length(res) > 1) {
+      res <- rbind(res, main)
+    } else {
+      res <- data.frame(main)
+    }
+  }
+  return(res)
+}
+```
+
+```{r}
+PATHS_TO_DATA <- c(
+  # East Boston
+  "summary/EastBoston/MF/s_MF_M_allplumes.csv",
+  "summary/EastBoston/LF/s_LF_M_allplumes.csv",
+  "summary/EastBoston/SS/s_SS_M_allplumes.csv",
+  # Revere
+  "summary/Revere/CH/s_CH_M_allplumes.csv",
+  "summary/Revere/RH/s_RH_M_allplumes.csv",
+  # Roxbury
+  "summary/Roxbury/CM/s_CM_M_allplumes.csv",
+  "summary/Roxbury/IB/s_IB_M_allplumes.csv"
+)
+
+main_df <- load_data(PATHS_TO_DATA)
+```
+
+## Filtering the Dataset
+```{r}
+my_df <- main_df %>%
+  # Remove unnecessary index column
+  mutate(...1 = NULL) %>%
+  # Remove environment (always indoor)
+  mutate(environment = NULL) %>%
+  # Only include peaks that have a width greater than 20
+  filter(peak_width >= 30) %>%
+  # Only include peaks with a height greater than 10
+  filter(peak_hgt >= 10) %>%
+  # Only include decay constants that are negative
+  filter(k_val < 0) %>%
+  # Include peaks where the conv_tol is less than third quantile
+  filter(conv_tol <= 0.000005702)
+my_df
+```
+
+```{r}
+length(my_df[my_df$room=="daycare",]$participant_id)
+```
+
+
+## Characterize Decay Constants by Room Type
+
+The rest of this file calculated statistics on plume reduction
+throughout the dataset. Below summarizes all that analysis into one
+function, creating reduction statistics, and performing that function on
+the dataset as it is grouped by participant and room.
+
+```{r}
+plume_redus <- function(data, room_type) {  
+  decay_sum <-
+    data %>%
+      filter(room == room_type) %>%
+      group_by(pm, hepa) %>%
+      summarize(
+        # kval
+        k_val_mean = mean(k_val, na.rm = TRUE),
+        k_val_min = min(k_val, na.rm = TRUE),
+        k_val_q25 = quantile(k_val, prob = 0.25, na.rm = TRUE),
+        k_val_median = median(k_val, na.rm = TRUE),
+        k_val_q75 = quantile(k_val, prob = 0.75, na.rm = TRUE),
+        k_val_max = max(k_val, na.rm = TRUE),
+        # peak heights
+        peak_hgt_mean = mean(peak_hgt, na.rm = TRUE),
+        peak_hgt_median = median(peak_hgt, na.rm = TRUE),
+        peak_hgt_min = min(peak_hgt, na.rm = TRUE),
+        peak_hgt_max = max(peak_hgt, na.rm = TRUE),
+        # total peak widths
+        peak_wdh_mean = mean(peak_width, na.rm = TRUE),
+        peak_wdh_median = median(peak_width, na.rm = TRUE),
+        peak_wdh_min = min(peak_width, na.rm = TRUE),
+        peak_wdh_max = max(peak_width, na.rm = TRUE),
+        # cumulative PM
+        total_plume_area = sum(cumm_pm, na.rm = TRUE),
+        # number of plumes
+        n = n(),
+        .groups = "keep"
+      )
+  
+  decay_sum <- decay_sum %>% mutate(room = room_type)
+  
+  return(data.frame(decay_sum[,c(19, 1:18)]))
+}
+```
+
+```{r}
+plume_locs <- function(data, loc) {  
+  decay_sum <-
+    data %>%
+      filter(deployment == loc) %>%
+      group_by(pm, hepa) %>%
+      summarize(
+        # kval
+        k_val_mean = mean(k_val, na.rm = TRUE),
+        k_val_min = min(k_val, na.rm = TRUE),
+        k_val_q25 = quantile(k_val, prob = 0.25, na.rm = TRUE),
+        k_val_median = median(k_val, na.rm = TRUE),
+        k_val_q75 = quantile(k_val, prob = 0.75, na.rm = TRUE),
+        k_val_max = max(k_val, na.rm = TRUE),
+        # peak heights
+        peak_hgt_mean = mean(peak_hgt, na.rm = TRUE),
+        peak_hgt_median = median(peak_hgt, na.rm = TRUE),
+        peak_hgt_min = min(peak_hgt, na.rm = TRUE),
+        peak_hgt_max = max(peak_hgt, na.rm = TRUE),
+        # total peak widths
+        peak_wdh_mean = mean(peak_width, na.rm = TRUE),
+        peak_wdh_median = median(peak_width, na.rm = TRUE),
+        peak_wdh_min = min(peak_width, na.rm = TRUE),
+        peak_wdh_max = max(peak_width, na.rm = TRUE),
+        # cumulative PM
+        total_plume_area = sum(cumm_pm, na.rm = TRUE),
+        # number of plumes
+        n = n(),
+        .groups = "keep"
+      )
+  
+  decay_sum <- decay_sum %>% mutate(deployment = loc)
+  
+  return(data.frame(decay_sum[,c(19, 1:18)]))
+}
+```
+
+
+```{r}
+# Create empty DataFrame for storing k values
+plume_reduc.data <- data.frame()
+
+for (room in unique(my_df$room)) {
+  print(paste("Calculating for room type", room))
+  new_reducs <- plume_redus(my_df, room)
+  # Rbind them with previous data
+  plume_reduc.data <- rbind(plume_reduc.data, new_reducs)
+}
+plume_reduc.data
+```
+
+```{r}
+# Create empty DataFrame for storing k values
+plume_locs.data <- data.frame()
+
+for (loc in unique(my_df$deployment)) {
+  print(paste("Calculating for deployment", loc))
+  new_reducs <- plume_locs(my_df, loc)
+  # Rbind them with previous data
+  plume_locs.data <- rbind(plume_locs.data, new_reducs)
+}
+plume_locs.data
+```
+
+## Visualizations Based on Room Type
+
+```{r}
+plume_reduc.data %>%
+  filter(pm == "pm1") %>%
+  group_by(room) %>%
+  summarise(
+    min_reduc = (k_val_min[hepa==FALSE] - k_val_min[hepa==TRUE])/abs(k_val_min[hepa==FALSE]),
+    q25_reduc = (k_val_q25[hepa==FALSE] - k_val_q25[hepa==TRUE])/abs(k_val_q25[hepa==FALSE]),
+    median_reduc = (k_val_median[hepa==FALSE] - k_val_median[hepa==TRUE])/abs(k_val_median[hepa==FALSE]),
+    mean_reduc = (k_val_mean[hepa==FALSE] - k_val_mean[hepa==TRUE])/abs(k_val_mean[hepa==FALSE]),
+    q75_reduc = (k_val_q75[hepa==FALSE] - k_val_q75[hepa==TRUE])/abs(k_val_q75[hepa==FALSE]),
+    max_reduc = (k_val_max[hepa==FALSE] - k_val_max[hepa==TRUE])/abs(k_val_max[hepa==FALSE])
+  ) %>%
+  pivot_longer(cols = min_reduc:max_reduc, names_to = "stat") %>%
+  mutate(stat = fct_relevel(stat, "min_reduc", "q25_reduc", "median_reduc", 
+                            "mean_reduc", "q75_reduc", "max_reduc")) %>%
+  ggplot() + geom_col(aes(x = room, y = value, fill = stat), position = "dodge")
+```
+
+```{r}
+plume_reduc.data %>%
+  filter(pm == "pm25") %>%
+  group_by(room) %>%
+  summarise(
+    min_reduc = (k_val_min[hepa==FALSE] - k_val_min[hepa==TRUE])/abs(k_val_min[hepa==FALSE]),
+    q25_reduc = (k_val_q25[hepa==FALSE] - k_val_q25[hepa==TRUE])/abs(k_val_q25[hepa==FALSE]),
+    median_reduc = (k_val_median[hepa==FALSE] - k_val_median[hepa==TRUE])/abs(k_val_median[hepa==FALSE]),
+    mean_reduc = (k_val_mean[hepa==FALSE] - k_val_mean[hepa==TRUE])/abs(k_val_mean[hepa==FALSE]),
+    q75_reduc = (k_val_q75[hepa==FALSE] - k_val_q75[hepa==TRUE])/abs(k_val_q75[hepa==FALSE]),
+    max_reduc = (k_val_max[hepa==FALSE] - k_val_max[hepa==TRUE])/abs(k_val_max[hepa==FALSE])
+  ) %>%
+  pivot_longer(cols = min_reduc:max_reduc, names_to = "stat") %>%
+  mutate(stat = fct_relevel(stat, "min_reduc", "q25_reduc", "median_reduc", 
+                            "mean_reduc", "q75_reduc", "max_reduc")) %>%
+  ggplot() + geom_col(aes(x = room, y = value, fill = stat), position = "dodge")
+```
+```{r}
+plume_reduc.data %>%
+  filter(pm == "pm10") %>%
+  group_by(room) %>%
+  summarise(
+    min_reduc = (k_val_min[hepa==FALSE] - k_val_min[hepa==TRUE])/abs(k_val_min[hepa==FALSE]),
+    q25_reduc = (k_val_q25[hepa==FALSE] - k_val_q25[hepa==TRUE])/abs(k_val_q25[hepa==FALSE]),
+    median_reduc = (k_val_median[hepa==FALSE] - k_val_median[hepa==TRUE])/abs(k_val_median[hepa==FALSE]),
+    mean_reduc = (k_val_mean[hepa==FALSE] - k_val_mean[hepa==TRUE])/abs(k_val_mean[hepa==FALSE]),
+    q75_reduc = (k_val_q75[hepa==FALSE] - k_val_q75[hepa==TRUE])/abs(k_val_q75[hepa==FALSE]),
+    max_reduc = (k_val_max[hepa==FALSE] - k_val_max[hepa==TRUE])/abs(k_val_max[hepa==FALSE])
+  ) %>%
+  pivot_longer(cols = min_reduc:max_reduc, names_to = "stat") %>%
+  mutate(stat = fct_relevel(stat, "min_reduc", "q25_reduc", "median_reduc", 
+                            "mean_reduc", "q75_reduc", "max_reduc")) %>%
+  ggplot() + geom_col(aes(x = room, y = value, fill = stat), position = "dodge")
+```
+
+```{r}
+plume_reduc.data %>%
+  group_by(room, pm) %>%
+  summarise(
+    mean_reduc = (k_val_mean[hepa==FALSE] - k_val_mean[hepa==TRUE])/abs(k_val_mean[hepa==FALSE])
+  ) %>%
+  ggplot() + geom_col(aes(x = room, y = mean_reduc, fill = pm), position = "dodge")
+```
+
+```{r}
+plume_reduc.data %>%
+  group_by(room, pm) %>%
+  summarise(
+    peak_reduc = (peak_wdh_mean[hepa==FALSE] - peak_wdh_mean[hepa==TRUE])/abs(peak_wdh_mean[hepa==FALSE])
+  ) %>%
+  ggplot() + geom_col(aes(x = room, y = peak_reduc, fill = pm), position = "dodge")
+```
+```{r}
+plume_reduc.data %>%
+  group_by(room, pm) %>%
+  summarise(
+    peak_reduc = (peak_hgt_mean[hepa==FALSE] - peak_hgt_mean[hepa==TRUE])/abs(peak_hgt_mean[hepa==FALSE])
+  ) %>%
+  ggplot() + geom_col(aes(x = room, y = peak_reduc, fill = pm), position = "dodge")
+```
+```{r}
+options(repr.plot.width=8, repr.plot.height=15)
+
+my_df %>%
+  filter(room != "classroom") %>%
+  mutate(hepa = ifelse(hepa, "on", "off")) %>%
+  group_by(room) %>%
+  ggplot(aes(x = room, y = abs(k_val), fill = factor(hepa))) + 
+  geom_boxplot(position = "dodge", outlier.shape = NA) +
+  scale_y_log10() +
+  labs(title = "Decay Constant Magnitudes Based on Room Types",
+       x = "Room Type",
+       y = "Decay Constants",
+       fill = "HEPA") +
+  facet_grid(vars(pm)) +
+  theme_minimal()
+```
+
+```{r}
+my_df %>%
+  filter(room != "classroom") %>%
+  group_by(room) %>%
+  ggplot(aes(x = room, y = peak_width, fill = factor(hepa))) + 
+  geom_boxplot(position = "dodge", outlier.shape = NA) +
+  scale_y_log10() +
+  labs(title = "Peak Widths Based on Room Types",
+       x = "Room Type",
+       y = "Peak Heights (ug/m3)",
+       fill = "HEPA") +
+  scale_fill_manual(values = c("FALSE" = "red", "TRUE" = "green"),
+                    labels = c("FALSE" = "off", "TRUE" = "on")) +
+  facet_grid(vars(pm)) +
+  theme_minimal()
+```
+
+```{r}
+# Peak width 30
+# Peak height 5
+
+exposure <- plume_reduc.data[plume_reduc.data$pm=="pm1",] %>%
+  select(room, hepa, total_plume_area, n) %>%
+  group_by(room, hepa) %>%
+  mutate(sum_plume = sum(total_plume_area)) %>%
+  mutate(avg_plume = sum_plume/n) %>%
+  distinct(room, hepa, .keep_all=TRUE) %>%
+  mutate(hepa = ifelse(hepa==TRUE, "on", "off"))
+exposure
+
+
+# Create the bar plot with custom legend labels
+ggplot(exposure, aes(x = factor(room), y = sum_plume, fill = factor(hepa))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title="Total Exposure for Each Room Type",
+       x = "Room Type",
+       y = "Total Exposure (ug/m3)",
+       fill = "Purifier State") +
+  # scale_fill_manual(values = c("FALSE" = "red", "TRUE" = "green"),
+  #                   labels = c("FALSE" = "off", "TRUE" = "on")) +
+  theme_minimal()
+
+
+ggplot(exposure, aes(x = factor(room), y = avg_plume, fill = factor(hepa))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title="Average Exposure per Plume for Each Room Type",
+       x = "Room Type",
+       y = "Total Exposure (ug/m3)",
+       fill = "Purifier State") +
+  # scale_fill_manual(values = c("FALSE", "TRUE"),
+  #                   labels = c("FALSE" = "off", "TRUE" = "on")) +
+  theme_minimal()
+```
+
+```{r}
+# Peak width 30
+# Peak height 5
+
+exposure <- plume_locs.data[plume_locs.data$pm=="pm1",] %>%
+  select(deployment, hepa, total_plume_area, n) %>%
+  group_by(deployment, hepa) %>%
+  mutate(sum_plume = sum(total_plume_area)) %>%
+  mutate(avg_plume = sum_plume/n) %>%
+  distinct(deployment, hepa, .keep_all=TRUE) %>%
+  mutate(hepa = ifelse(hepa==TRUE, "on", "off"))
+exposure
+
+
+# Create the bar plot with custom legend labels
+ggplot(exposure, aes(x = factor(deployment), y = sum_plume, fill = factor(hepa))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title="Total Exposure for Each Deployment",
+       x = "Deployment",
+       y = "Total Exposure (ug/m3)",
+       fill = "Purifier State") +
+  # scale_fill_manual(values = c("FALSE" = "red", "TRUE" = "green"),
+  #                   labels = c("FALSE" = "off", "TRUE" = "on")) +
+  theme_minimal()
+
+
+ggplot(exposure, aes(x = factor(deployment), y = avg_plume, fill = factor(hepa))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title="Average Exposure per Plume for Each Deployment",
+       x = "Deployment",
+       y = "Total Exposure (ug/m3)",
+       fill = "Purifier State") +
+  # scale_fill_manual(values = c("FALSE" = "red", "TRUE" = "green"),
+  #                   labels = c("FALSE" = "off", "TRUE" = "on")) +
+  theme_minimal()
+```
+
+
+
+From the analysis above, it seems that organizing this data by room type does
+not reveal any sort of emerging patterns. 
+
+## Decay Constant and Exposure Curve Visualization
+
+```{r}
+# Define the exponential function
+decay_func <- function(x, k, init_hgt) {
+  return(init_hgt*exp(k*x))  # Exponential function e^x
+}
+```
+
+```{r}
+# Construct curves with set initial height of 20
+init_hgt <- 20
+
+# Initialize a series of x values
+time <- seq(0, 150, by=0.2)
+
+# Use filtered version of plume reductions data
+decay_info <- plume_reduc.data %>% filter(room == "residential", pm == "pm1")
+
+# Get median output from decay function
+bpm_median <- decay_func(time, decay_info$k_val_mean[1])
+bpm_25th   <- decay_func(time, decay_info$k_val_q25[1])
+bpm_75th   <- decay_func(time, decay_info$k_val_q75[1])
+
+apm_median <- decay_func(time, decay_info$k_val_mean[2])
+apm_25th   <- decay_func(time, decay_info$k_val_q25[2])
+apm_75th   <- decay_func(time, decay_info$k_val_q75[2])
+
+# Bind them into a dataframe
+plot_data <- as.data.frame(t(rbind(time,
+                                   bpm_median, bpm_25th, bpm_75th,
+                                   apm_median, apm_25th, apm_75th)))
+plot_data.col_names <- c("time", 
+                         "bpm_median", "bpm_25th", "bpm_75th",
+                         "apm_median", "apm_25th", "apm_75th")
+```
+
+```{r}
+# Plot!
+ggplot(plot_data, aes(x = time)) +
+  geom_line(aes(y = bpm_median),
+            color="#F8766D",
+            linewidth=1) +
+  geom_ribbon(aes(ymin = bpm_25th, ymax = bpm_75th),
+              alpha=0.1,       #transparency
+              linetype=0,      #solid, dashed or other line types
+              colour="grey70", #border line color
+              fill="#F8766D") +    #fill color
+  geom_line(aes(y = apm_median),
+            color="#00BFC4",
+            linewidth=1) +
+  geom_ribbon(aes(ymin = apm_25th, ymax = apm_75th),
+              alpha=0.1,       #transparency
+              linetype=0,      #solid, dashed or other line types
+              colour="black",  #border line color
+              fill="#00BFC4") +  #fill color
+  geom_hline(yintercept = 5, linetype = "dotted") +
+  # Annotations
+  annotate("point", x = 53.9393, y = 5, color = "black", size = 2) +
+  annotate("point", x = 84.4426, y = 5, color = "black", size = 2) +
+  annotate("text", x = 54, y = 5, label = "53.9393", vjust = 2, size = 3) +
+  annotate("text", x = 85, y = 5, label = "84.4426", vjust = 2, size = 3) +
+  ggtitle("Average Rate of Decay for Before and After
+  HEPA Installation with 25th and 75th Percentiles") +
+  xlab("Time (min)") +
+  ylab("PM2.5 Concentration (ug/m3)") +
+  theme_bw()
+```
+
+```{r}
+# Plot!
+ggplot(plot_data, aes(x = time)) +
+  geom_line(aes(y = bpm_median),
+            color="#F8766D",
+            linewidth=1) +
+  geom_line(aes(y = apm_median),
+            color="#00BFC4",
+            linewidth=1) +
+  geom_hline(yintercept = 5, linetype = "dotted") +
+  # Annotations
+  annotate("point", x = 53.9393, y = 5, color = "black", size = 2) +
+  annotate("point", x = 84.4426, y = 5, color = "black", size = 2) +
+  annotate("text", x = 54, y = 5, label = "53.9393", vjust = 2, size = 3) +
+  annotate("text", x = 85, y = 5, label = "84.4426", vjust = 2, size = 3) +
+  ggtitle("Average Rate of Decay for Before and After
+  HEPA Installation") +
+  xlab("Time (min)") +
+  ylab("PM2.5 Concentration (ug/m3)") +
+  theme_bw()
+```
+
+
+```{r}
+# Plot!
+ggplot(plot_data, aes(x = time)) +
+  geom_line(aes(y = bpm_median),
+            color="#F8766D",
+            linewidth=1) +
+  geom_line(aes(y = apm_median),
+            color="#00BFC4",
+            linewidth=1) +
+  
+  geom_ribbon(aes(ymin = 0, ymax = bpm_median),
+              alpha=0.1,       #transparency
+              linetype=0,      #solid, dashed or other line types
+              colour="grey70", #border line color
+              fill="#F8766D") +#fill color
+  geom_ribbon(aes(ymin = 0, ymax = apm_median),
+              alpha=0.1,       #transparency
+              linetype=0,      #solid, dashed or other line types
+              colour="grey70", #border line color
+              fill="#00BFC4") +#fill color
+  geom_hline(yintercept = 5, linetype = "dotted") +
+  # Annotations
+  annotate("point", x = 53.9393, y = 5, color = "black", size = 2) +
+  annotate("point", x = 84.4426, y = 5, color = "black", size = 2) +
+  annotate("text", x = 54, y = 5, label = "53.9393", vjust = 2, size = 3) +
+  annotate("text", x = 85, y = 5, label = "84.4426", vjust = 2, size = 3) +
+  ggtitle("Average Rate of Decay for Before and After
+  HEPA Installation with Exposure Reduction") +
+  xlab("Time (min)") +
+  ylab("PM2.5 Concentration (ug/m3)") +
+  theme_bw()
+```
+
+
+## Peak Height and Decay Constants (Appendix Analysis)
+
+```{r}
+ggplot(my_df, aes(x = abs(k_val), y = peak_hgt)) + 
+  geom_point(shape = 1) +
+  geom_smooth(method=lm) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title="Regressions for Peak Height and Decay Constants by Room Type",
+       x = "Decay Constant Magnitude",
+       y = "Peak Height (ug/m3)") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(my_df, aes(x = abs(k_val), y = peak_hgt, color=room)) + 
+  geom_point(shape = 1) +
+  geom_smooth(method=lm) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title="Regressions for Peak Height and Decay Constants by Room Type",
+       x = "Decay Constant Magnitude",
+       y = "Peak Height (ug/m3)",
+       color = "Room Type") +
+  theme_minimal()
+```
+
+```{r}
+my_df %>%
+  mutate(hepa = ifelse(hepa, "on", "off")) %>%
+  ggplot(aes(x = abs(k_val), y = peak_hgt, color=hepa)) + 
+  geom_point(shape = 1) +
+  geom_smooth(method=lm) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title="Regressions for Peak Height and Decay Constants by HEPA Status",
+       x = "Decay Constant Magnitude",
+       y = "Peak Height (ug/m3)",
+       color = "Purifier State") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(my_df, aes(x = abs(k_val), y = peak_width)) + 
+  geom_point(shape = 1) +
+  geom_smooth(method=lm) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title="Regressions for Peak Width and Decay Constants",
+       x = "Decay Constant Magnitude",
+       y = "Peak Width (min)") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(my_df, aes(x = abs(k_val), y = peak_width, color=room)) + 
+  geom_point(shape = 1, alpha=0.5) +
+  geom_smooth(method=lm) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title="Regressions for Peak Width and Decay Constants by Room Type",
+       x = "Decay Constant Magnitude",
+       y = "Peak Width (min)",
+       color = "Room Type") +
+  theme_minimal()
+```
+
+
+
+## Save Output
+Save 
+```{r}
+# write.csv(plumes.data, file = paste0("summary/Revere/RH/", "s_RH_M_allplumes.csv"))
+# write.csv(plume_reduc.data, file = paste0("summary/Revere/RH/", "s_RH_M_plumestats.csv"))
+```
