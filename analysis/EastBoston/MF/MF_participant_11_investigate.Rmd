@@ -1,0 +1,69 @@
+# EastBoston Data Summarization - multiple (for Mod-PM)
+
+## STOP
+
+**HAVE YOU RUN `MF_modpm_cleaning`?**
+*This file loads a dataframe created from running `MF_modpm_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to calculated summary statistics for multiple participants in the East Boston pilot, for Mod-PM deployments by Olin. This is different from `MF_modpm_all_stats` in that it filters out participant 11 (the one anomalous value).
+
+Results can be found in `summary/EastBoston/MF/s_MF_M_quants.csv`.
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/MF/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+```
+
+## Filter out anomalous value
+```{r}
+select_df <- main_df %>% filter(participant_id == "11", day(date) != 29)
+```
+
+## Calculate summary statistics
+```{r}
+select_df %>%
+  group_by(case, environment) %>%
+  summarise(mean_pm1 = mean(pm1)) %>%
+  pivot_wider(names_from = case, values_from = mean_pm1) %>%
+  mutate(redu = (before - after) / before)
+```
+
+```{r}
+select_df %>%
+  mutate(date_plot = case_when(
+    case == "before" ~ date,
+    case == "after" ~ date - as.difftime(2, unit = "weeks")
+  )) %>%
+  filter(environment == "ratio") %>%
+  ggplot(aes(x = date_plot, y = pm1, color = case)) +
+    geom_line(alpha = 0.5) +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+```
+
