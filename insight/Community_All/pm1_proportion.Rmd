@@ -73,7 +73,11 @@ plot_df %>%
   ggplot(aes(x = place_id, y = proportion, fill = size_bin)) +
     geom_bar(stat = "identity") +
     facet_grid(vars(case)) +
-    plot_label(plot_df)
+    plot_label(plot_df) +
+    scale_fill_discrete(
+      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
+    labs(fill = "Particle Diameter") +
+    theme_bw()
 
 sum_prop(plot_df)
 ```
@@ -87,7 +91,12 @@ plot_df %>%
   ggplot(aes(x = place_id, y = proportion, fill = size_bin)) +
     geom_bar(stat = "identity") +
     facet_grid(vars(environment)) +
-    plot_label(plot_df)
+    plot_label(plot_df) +
+    scale_fill_discrete(
+      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
+    labs(fill = "Particle Diameter") +
+    theme_bw()
+
 sum_prop(plot_df)
 ```
 ```{r}
@@ -99,7 +108,11 @@ plot_df %>%
   ggplot(aes(x = room_type, y = proportion, fill = size_bin)) +
     geom_bar(stat = "identity") +
     facet_grid(vars(case)) +
-    plot_label(plot_df)
+    plot_label(plot_df) +
+    scale_fill_discrete(
+      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
+    labs(fill = "Particle Diameter") +
+    theme_bw()
 
 sum_prop(plot_df)
 ```
@@ -112,7 +125,11 @@ plot_df %>%
   ggplot(aes(x = room_type, y = proportion, fill = size_bin)) +
     geom_bar(stat = "identity") +
     facet_grid(vars(environment)) +
-    plot_label(plot_df)
+    plot_label(plot_df) +
+    scale_fill_discrete(
+      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
+    labs(fill = "Particle Diameter") +
+    theme_bw()
 
 sum_prop(plot_df)
 ```

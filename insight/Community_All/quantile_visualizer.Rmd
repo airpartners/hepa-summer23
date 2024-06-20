@@ -64,7 +64,13 @@ all_df %>%
                                      tz = "America/New_York"),
                linetype = "dashed", size = 0.2) +
     guides(color = guide_legend(override.aes = list(size = 2))) +
-    theme_bw()
+    theme_bw() -> current_plot
+
+current_plot
+```
+```{r}
+current_plot +
+    ylim(c(0, ss_off$q95 * 3))
 ```
 
 ```{r}
@@ -97,9 +103,15 @@ plot_df %>%
     geom_rect(data = rect_df, aes(xmin = x_min, xmax = x_max, 
                                   ymin = y_min, ymax = y_max, fill = zone_name),
               alpha = 0.2) +
-    ylim(c(0, ss_off$q95 * 3)) + 
     scale_fill_discrete(limits = zone_names) + 
     labs(fill = "Percentile Range") +
-    theme_bw()
+    theme_bw() -> current_plot
+
+current_plot
 ```
+```{r}
+current_plot +
+    ylim(c(0, ss_off$q95 * 3))
+```
+
 

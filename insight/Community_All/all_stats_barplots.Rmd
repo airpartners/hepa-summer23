@@ -1,14 +1,37 @@
 # Create bar plot
 This script uses summary statistic data to create a bar plot.
 
+## STOP
+Have you run `Community_All_modpm_stats.Rmd`?
+*This file loads a dataframe created from running the above script. Make sure you run it first (if you haven't already) before running this file.*
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
 ```{r}
+# Import relevant libraries
 library(tidyverse)
 ```
 
-```{r}
-# setwd("C:/Users/vkuchhal/Documents/hepa-summer23")
-summary_df <- read_csv("C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/s_All_M_quants.csv")
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
 
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+```{r}
+summary_df <- read_csv(paste0(path_to_data, "s_All_M_quants.csv"))
 ```
 
 ```{r}
@@ -24,15 +47,42 @@ summary_df %>% filter(environment == "indoor", type == var_type, case == "redu",
   scale_fill_discrete(labels = c("5th Percentile", "25th Percentile", "Median", 
                                  "75th Percentile", "95th Percentile", "Mean"))
 ```
+
 ```{r}
-var_type <- "pm25"
+var_type <- "pm1"
+
+plot_df <- summary_df %>% 
+  filter(environment == "indoor", type == var_type, case == "redu", 
+         room_type == "all") %>%
+  pivot_longer(cols = mean:sd, names_to = "stat") %>%
+  filter(stat %in% c("q5", "q25", "median", "q75", "q95", "mean")) %>%
+  mutate(stat = fct_relevel(stat, "q5", "q25", "median", "q75", "q95"))
+
+mean_redu <- plot_df %>% filter(stat == "mean") %>% select(value) %>% as.double()
+plot_df %>%
+  filter(stat != "mean") %>%
+  ggplot() + 
+    geom_col(aes(x = stat, y = value), position = "dodge", fill = "#c3e7fd") +
+    labs(x = "Deployment Class", y = paste("Percentage Reduction", var_type)) +
+    scale_x_discrete(labels = c("5th Percentile", "25th Percentile", "Median", 
+                                   "75th Percentile", "95th Percentile")) +
+    geom_hline(yintercept = mean_redu, linetype = "dashed") + 
+    geom_text(label = "Mean", x = "q95", y = mean_redu, vjust = -0.5) +
+    theme_bw()
+
+```
+
+```{r}
+var_type <- "pm1"
 stat_order <- c("q5", "q25", "median", "q75", "q95")
 summary_df %>% 
-  filter(environment == "ratio", type == var_type, participant_id == "all", 
+  filter(environment %in% c("indoor", "ratio"), type == var_type, participant_id == "all",
          room_type != "all", case %in% c("off", "on")) %>%
   ggplot() + 
   geom_col(aes(x = room_type, y = mean, fill = case), position = "dodge") +
   labs(x = "Deployment Class", y = paste("Mean", var_type, "Comparison"), 
-       fill = "Purifier State")
+       fill = "Purifier State") +
+  facet_wrap(~environment, nrow = 2, scales = "free_y") +
+  theme_bw()
 ```
 
