@@ -1,0 +1,69 @@
+# Plotting corrplots
+
+## STOP
+
+Have you run `Community_All_modpm-cpc_corrs.Rmd`?
+*This file loads a dataframe created from running the above script. Make sure you run it first (if you haven't already) before running this file.*
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(corrr)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+```{r}
+load(paste0(path_to_data, "mod_cpc.RData"))
+```
+
+```{r}
+get_corr <- function(df, place) {
+  df %>% 
+    filter(place_id == place, environment == "indoor") %>%
+    select(-room) %>%
+    drop_na() %>%
+    select(where(is.numeric)) %>%
+    cor()
+}
+```
+
+
+```{r}
+# Calculate correlations within each group
+for (place_id in c("CH", "RH", "SS", "LF")) {
+  get_corr(modcpc_df, place_id) %>%
+    corrplot(method = "number", type = "upper", diag = FALSE, 
+             title = paste("Correlation for", place_id), mar=c(0,0,1,0))
+}
+```
+
+```{r}
+modcpc_df %>% 
+    filter(environment == "indoor") %>%
+    select(-room) %>%
+    drop_na() %>%
+    select(where(is.numeric)) %>%
+    cor() %>%
+    corrplot(method = "number", type = "upper", diag = FALSE, 
+             title = paste("Correlation overall"), mar=c(0,0,1,0))
+```
+
