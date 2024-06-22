@@ -1,0 +1,62 @@
+# Roxbury HOBO and Mod-PM
+
+## STOP
+
+**HAVE YOU RUN `IB_modpm_all_stats` and `IB_hobo_stats`?**
+*This file loads dataframes created from running these two scripts. Make sure you run them first (if you haven't already) before running this file.*
+
+This script is used to gain insight into correlation between purifier use and percentage reduction in PMs. 
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Roxbury/IB/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+modpm_df <- read_csv(paste0(path_to_data, "s_IB_M_quants.csv"))
+hobo_df <- read_csv(paste0(path_to_data, "s_IB_H_props.csv"))
+```
+```{r}
+merged_df <- modpm_df %>%
+  filter(case == "redu", environment == "ratio", type == "pm1", 
+         participant_id != "all") %>%
+  left_join(hobo_df, join_by(participant_id)) %>%
+  drop_na() %>%
+  mutate(match_room = case_when(!is_br & room == "living" ~ TRUE,
+                                is_br & room == "bedroom" ~ TRUE,
+                                participant_id == "303" ~ TRUE,
+                                .default = FALSE)) %>%
+  filter(match_room) %>%
+  filter(!(participant_id == "303" & room == "living"))
+```
+
+```{r}
+merged_df %>%
+  ggplot(aes(x = mean, y = prop_on, label = participant_id)) +
+    geom_point() +
+    geom_text(vjust =1.5) +
+    labs(x = "Mean % Reduction", y = "Proportion of Time Purifier On")
+```
+
