@@ -488,6 +488,9 @@ get_plumes <- function(before, after, id, pm) {
   
   # Add columns of all_decays
   all_decays <- all_decays %>%
+    mutate(total_pm = ifelse(hepa, 
+                             sum(my_df_after[[pm]]), 
+                             sum(my_df_before[[pm]]))) %>%
     mutate(peak_width = valley_idx_a - valley_idx_b) %>%
     mutate(deployment = "IB") %>%
     mutate(room = "residential") %>%
@@ -495,7 +498,7 @@ get_plumes <- function(before, after, id, pm) {
     mutate(environment = "indoor") %>%
     mutate(pm = pm)
   
-  return(data.frame(all_decays[,c(10, 11, 12, 13, 14, 1:9)]))
+  return(data.frame(all_decays[,c(11:15, 1:10)]))
 }
 ```
 
@@ -523,7 +526,9 @@ plume_redus <- function(plumes, id, pm) {
         # cumulative PM
         total_plume_area = sum(cumm_pm, na.rm = TRUE),
         # number of plumes
-        n = n()
+        n = n(),
+        # total exposure
+        total_exposure = median(total_pm, na.rm = TRUE)
       )
   
   # Add identifying columns
@@ -532,7 +537,7 @@ plume_redus <- function(plumes, id, pm) {
     mutate(environment = "indoor") %>%
     mutate(pm = pm)
   
-  return(data.frame(decay_sum[,c(16, 17, 18, 1:15)]))
+  return(data.frame(decay_sum[,c(17:19, 1:16)]))
 }
 ```
 
@@ -603,137 +608,3 @@ Save
 write.csv(plumes.data, file = paste0("summary/Roxbury/IB/", "s_IB_M_allplumes.csv"))
 write.csv(plume_reduc.data, file = paste0("summary/Roxbury/IB/", "s_IB_M_plumestats.csv"))
 ```
-
-## Visualizations for Plume Plotting
-
-These are some candidate visualizations for presenting the information
-pertaining to plume statistics. Eventually these will be ported over to 
-Community All; until then, we will use IB data to display what these
-visualizations will encapsulate and their strengths and limitations.
-
-```{r}
-# Magnitude of decay constants
-plume_reduc.data <-
-  plume_reduc.data %>%
-  mutate(abs_k_val = abs(k_val_median)) %>%
-  mutate(abs_k_val_mean = abs(k_val_mean))
-
-boxplot(abs_k_val~hepa,
-        data=plume_reduc.data,
-        main="Magnitude of Median Decay Constants",
-        xlab="HEPA State",
-        ylab="Decay constant",
-        ylim=c(0.00, 0.05),
-        col="orange",
-        border="brown")
-
-boxplot(abs_k_val_mean~hepa,
-        data=plume_reduc.data,
-        main="Magnitude of Average Decay Constants",
-        xlab="HEPA State",
-        ylab="Decay constant",
-        ylim=c(0.00, 0.12),
-        col="orange",
-        border="brown")
-```
-### "Typical Peaks"
-```{r}
-# General parameters
-# Summarize information and get 25th and 75th quartiles of decay constants
-decay_info <-
-  plume_reduc.data %>%
-  group_by(hepa) %>%
-  summarise(mean = mean(k_val_median),
-            median = median(k_val_median),
-            q25 = quantile(k_val_median, probs = 0.25),
-            q75 = quantile(k_val_median, probs = 0.75))
-# Construct curves with set initial height of 25
-init_hgt <- 25
-```
-
-```{r}
-# Define the exponential function
-decay_func <- function(x, k) {
-  return(init_hgt*exp(k*x))  # Exponential function e^x
-}
-```
-
-```{r}
-# Initialize a series of x values
-time <- seq(0, 50, by=0.2)
-
-# Get median output from decay function
-bpm_median <- decay_func(time, decay_info$mean[1])
-bpm_25th   <- decay_func(time, decay_info$q25[1])
-bpm_75th   <- decay_func(time, decay_info$q75[1])
-
-apm_median <- decay_func(time, decay_info$mean[2])
-apm_25th   <- decay_func(time, decay_info$q25[2])
-apm_75th   <- decay_func(time, decay_info$q75[2])
-
-# Bind them into a dataframe
-plot_data <- as.data.frame(t(rbind(time,
-                                   bpm_median, bpm_25th, bpm_75th,
-                                   apm_median, apm_25th, apm_75th)))
-plot_data.col_names <- c("time", 
-                         "bpm_median", "bpm_25th", "bpm_75th",
-                         "apm_median", "apm_25th", "apm_75th")
-
-
-# Plot!
-ggplot(plot_data, aes(x = time)) +
-  geom_line(aes(y = bpm_median),
-            color="red",
-            linewidth=1) +
-  geom_ribbon(aes(ymin = bpm_25th, ymax = bpm_75th),
-              alpha=0.1,       #transparency
-              linetype=0,      #solid, dashed or other line types
-              colour="grey70", #border line color
-              fill="red") +    #fill color
-  geom_line(aes(y = apm_median),
-            color="green",
-            linewidth=1) +
-  geom_ribbon(aes(ymin = apm_25th, ymax = apm_75th),
-              alpha=0.1,       #transparency
-              linetype=0,      #solid, dashed or other line types
-              colour="black", #border line color
-              fill="green") + #fill color
-  ggtitle("Average Rate of Decay for Before and After
-  HEPA Installation with 25th and 75th Percentiles") +
-  xlab("Time") +
-  ylab("PM2.5 Concentration") +
-  theme_bw()
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
