@@ -36,9 +36,10 @@ summary_df <- read_csv(paste0(path_to_data, "s_All_M_quants.csv"))
 ```{r}
 summary_df %>%
   filter(place_id == "IB", participant_id == "105", 
-         environment == "indoor", type == "pm25", case != "redu") -> sum_stats
+         environment == "indoor", type == "pm1", case != "redu") -> sum_stats
 
-sum_stats
+sum_stats %>% 
+  filter(case == "off") -> ss_off
 ```
 
 
@@ -48,13 +49,13 @@ all_df %>%
   filter(place_id == "IB", participant_id == "105", 
          environment == "indoor") %>% 
   left_join(sum_stats) %>%
-  mutate(quartile = case_when(pm25 < q5 ~ "< 5th",
-                   pm25 > q5 & pm25 < q25 ~ "5th to 25th",
-                   pm25 > q25 & pm25 < median ~ "25th to Median",
-                   pm25 > median & pm25 < q75 ~ "Median to 75th",
-                   pm25 > q75 & pm25 < q95 ~ "75th to 95th",
+  mutate(quartile = case_when(pm1 < q5 ~ "< 5th",
+                   pm1 > q5 & pm1 < q25 ~ "5th to 25th",
+                   pm1 > q25 & pm1 < median ~ "25th to Median",
+                   pm1 > median & pm1 < q75 ~ "Median to 75th",
+                   pm1 > q75 & pm1 < q95 ~ "75th to 95th",
                    .default = "> 95th")) %>%
-  ggplot(aes(x = date, y = pm25, color = quartile)) +
+  ggplot(aes(x = date, y = pm1, color = quartile)) +
     geom_point(size = 0.1) +
     scale_color_manual(values = c("#9656A2", "#369ACC", "#95CF92", "#F8E16F", 
                                    "#F4895F", "#DE324C"),
@@ -70,7 +71,20 @@ current_plot
 ```
 ```{r}
 current_plot +
-    ylim(c(0, ss_off$q95 * 3))
+    ylim(c(0, ss_off$q95 * 3)) +
+    labs(y = bquote(PM[1]~(mu~"g/cm"^3)), x = "Date", color = "Quantile Bin",
+         title = "Visualizing Quantiles for Sample Deployment") +
+    annotate("segment", 
+             x = as.POSIXct(strptime("2022-10-27 21:00:00", "%Y-%m-%d %H:%M:%S", 
+                          tz = "America/New_York")), 
+             xend = as.POSIXct(strptime("2022-10-26 01:00:00", "%Y-%m-%d %H:%M:%S", 
+                             tz = "America/New_York")), 
+             y = 18.5, yend = 18.5, arrow = arrow(length = unit(0.02, "npc"))) +
+  
+  annotate(geom = "text", 
+           x = as.POSIXct(strptime("2022-10-27 22:00:00", "%Y-%m-%d %H:%M:%S", 
+                          tz = "America/New_York")), 
+           y = 18.6, label = "Purifier Installed", hjust = "left")
 ```
 
 ```{r}
@@ -80,7 +94,7 @@ plot_df <- all_df %>%
 
 summary_df %>%
   filter(place_id == "IB", participant_id == "105", 
-         environment == "indoor", type == "pm25", case == "off") -> ss_off
+         environment == "indoor", type == "pm1", case == "off") -> ss_off
 
 zone_names <- c("< 5th", "5th to 25th", "25th to Median", 
                        "Median to 75th", "75th to 95th")
@@ -96,7 +110,7 @@ rect_df <- ss_off %>%
 ```{r}
 plot_df %>% 
   ggplot() +
-    geom_line(aes(x = date, y = pm25), size = 0.1) +
+    geom_line(aes(x = date, y = pm1), size = 0.1) +
     geom_hline(yintercept = c(ss_off$q5, ss_off$q25, ss_off$median, ss_off$q75,
                               ss_off$q95),
                linetype = "dashed", size = 0.2) +
