@@ -378,7 +378,8 @@ all_decays <- all_decays %>%
   mutate(deployment = "MF") %>%
   mutate(room = "daycare") %>%
   mutate(participant_id = "10") %>%
-  mutate(environment = "indoor")
+  mutate(environment = "indoor") %>%
+  mutate(total_pm = ifelse(hepa, sum(my_df_after$pm25), sum(my_df_before$pm25)))
 
 all_decays
 ```
@@ -404,7 +405,11 @@ decay_sum <-
       peak_wdh_min = min(peak_width, na.rm = TRUE),
       peak_wdh_max = max(peak_width, na.rm = TRUE),
       # cumulative PM
-      total_plume_area = sum(cumm_pm, na.rm = TRUE)
+      total_plume_area = sum(cumm_pm, na.rm = TRUE),
+      # Count of plumes
+      n = n(),
+      # Total exposure
+      total_exposure = median(total_pm, na.rm = TRUE)
     )
 decay_sum
 ```
@@ -472,6 +477,9 @@ get_plumes <- function(data, id, pm, env) {
   
   # Add columns of all_decays
   all_decays <- all_decays %>%
+    mutate(total_pm = ifelse(hepa, 
+                             sum(my_df_after[[pm]]), 
+                             sum(my_df_before[[pm]]))) %>%
     mutate(peak_width = valley_idx_a - valley_idx_b) %>%
     mutate(deployment = "MF") %>%
     mutate(room = "daycare") %>%
@@ -479,7 +487,7 @@ get_plumes <- function(data, id, pm, env) {
     mutate(pm = pm) %>%
     mutate(environment = env)
   
-  return(data.frame(all_decays[,c(10:14, 1:9)]))
+  return(data.frame(all_decays[,c(11:15, 1:10)]))
 }
 ```
 
@@ -507,7 +515,9 @@ plume_redus <- function(plumes, id, pm, env) {
         # cumulative PM
         total_plume_area = sum(cumm_pm, na.rm = TRUE),
         # number of plumes
-        n = n()
+        n = n(),
+        # total exposure
+        total_exposure = median(total_pm, na.rm = TRUE)
       )
   # Add identifying columns
   decay_sum <- decay_sum %>%
@@ -515,7 +525,7 @@ plume_redus <- function(plumes, id, pm, env) {
     mutate(pm = pm) %>%
     mutate(environment = env)
   
-  return(data.frame(decay_sum[,c(16, 17, 18, 1:15)]))
+  return(data.frame(decay_sum[,c(17:19, 1:16)]))
 }
 ```
 
@@ -731,14 +741,16 @@ ggplot(plot_data, aes(x = time)) +
 
 ### Exposure for Each Participant
 ```{r}
-exposure <- plume_reduc.data[plume_reduc.data$pm=="pm10",] %>%
-  select(participant_id, hepa, total_plume_area, n) %>%
+exposure <- plume_reduc.data[plume_reduc.data$pm=="pm25",] %>%
+  select(participant_id, hepa, total_plume_area, n, total_exposure) %>%
   group_by(participant_id, hepa) %>%
   mutate(sum_plume = sum(total_plume_area)) %>%
   mutate(avg_plume = sum_plume/n) %>%
   distinct(participant_id, hepa, .keep_all=TRUE)
+exposure
+```
 
-
+```{r}
 # Create the bar plot with custom legend labels
 ggplot(exposure, aes(x = factor(participant_id), y = sum_plume, fill = factor(hepa))) +
   geom_bar(stat = "identity", position = "dodge") +
@@ -748,8 +760,11 @@ ggplot(exposure, aes(x = factor(participant_id), y = sum_plume, fill = factor(he
   theme_minimal()
 
 
-ggplot(exposure, aes(x = factor(participant_id), y = sum_plume, fill = factor(hepa))) +
-  geom_bar(stat = "identity", position = "dodge") +
+ggplot(exposure, aes(x = factor(participant_id), fill = factor(hepa))) +
+  geom_bar(aes(y = sum_plume), 
+           stat = "identity", position = "dodge") +
+  geom_bar(aes(y = total_exposure),
+           stat = "identity", position = "dodge", alpha = 0.2) +
   labs(x = "Participant ID", y = "Total Exposure (ug/m3)", fill = "HEPA Status") +
   scale_fill_manual(values = c("FALSE" = "red", "TRUE" = "green"),
                     labels = c("FALSE" = "offline", "TRUE" = "online")) +

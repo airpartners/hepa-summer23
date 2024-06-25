@@ -280,6 +280,9 @@ get_plumes <- function(data, id, pm, env) {
   
   # Add columns of all_decays
   all_decays <- all_decays %>%
+    mutate(total_pm = ifelse(hepa, 
+                             sum(my_df_after[[pm]]), 
+                             sum(my_df_before[[pm]]))) %>%
     mutate(peak_width = valley_idx_a - valley_idx_b) %>%
     mutate(deployment = "RH") %>%
     mutate(room = "office") %>%
@@ -287,7 +290,7 @@ get_plumes <- function(data, id, pm, env) {
     mutate(environment = env) %>%
     mutate(pm = pm)
   
-  return(data.frame(all_decays[,c(10, 11, 12, 13, 14, 1:9)]))
+  return(data.frame(all_decays[,c(11:15, 1:10)]))
 }
 ```
 
@@ -315,7 +318,9 @@ plume_redus <- function(plumes, id, pm, env) {
         # cumulative PM
         total_plume_area = sum(cumm_pm, na.rm = TRUE),
         # number of plumes
-        n = n()
+        n = n(),
+        # total exposure
+        total_exposure = median(total_pm, na.rm = TRUE)
       )
   
   # Add identifying columns
@@ -324,7 +329,7 @@ plume_redus <- function(plumes, id, pm, env) {
     mutate(environment = env) %>%
     mutate(pm = pm)
   
-  return(data.frame(decay_sum[,c(16, 17, 18, 1:15)]))
+  return(data.frame(decay_sum[,c(17:19, 1:16)]))
 }
 ```
 
