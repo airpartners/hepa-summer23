@@ -105,7 +105,7 @@ all_df <- binded_df %>%
   mutate(room_type = case_when(
     # All residential deployments
     area == "Roxbury" ~ "residential",
-    place_id == "MF" & participant_id %in% c("2", "3", "5", "10") ~ "residential",
+    place_id == "MF" ~ "residential",
     
     # All classroom deployments
     area == "Revere" & str_detect(participant_id, "class") ~ "classroom",
@@ -116,7 +116,6 @@ all_df <- binded_df %>%
     
     # All daycare deployments
     place_id %in% c("LF", "SS") & participant_id != "admin" ~ "daycare",
-    place_id == "MF"  & participant_id %in% c("6", "7", "8", "11") ~ "daycare",
     ))
 ```
 
