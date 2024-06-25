@@ -49,10 +49,10 @@ for (file_name in list.files(path_to_data)) {
   
   
   df <- df %>%
-    # Filter relevant columns
-    select(date1min, HEPA_on, starts_with(c("bin0.", "bin1.", "bin2.",
-                                            "pm1.", "pm25.", "pm10.")),
-           pm1_ratio, pm25_ratio, pm10_ratio) %>%
+    # Select broadly relevant columns
+    select(date1min, HEPA_on, starts_with(c("bin", "pm"))) %>%
+    # Filter out unnecessary columns (bin12;23, model_id, env, bin0_ratio)
+    select(-contains(c(as.character(12:23), "model", "env", "bin0_", "MToF", "std"))) %>%
     
     # Add the participant ID
     mutate(participant_id = paste(room, subroom, sep = "_"))
@@ -70,6 +70,12 @@ curated_df <- all_df %>%
   # Calculate number count of particles in PM1 size
   mutate(pm1num.indoor = bin0.indoor + bin1.indoor + bin2.indoor,
          pm1num.outdoor = bin0.outdoor + bin1.outdoor + bin2.outdoor,
+         pm25num.indoor = pm1num.indoor + bin3.indoor + bin4.indoor + bin5.indoor,
+         pm25num.outdoor = pm1num.outdoor + bin3.outdoor + bin4.outdoor + bin5.outdoor,
+         pm10num.indoor = pm25num.indoor + bin6.indoor + bin7.indoor + bin8.indoor +
+           bin9.indoor + bin10.indoor + bin11.indoor,
+         pm10num.outdoor = pm25num.outdoor + bin6.outdoor + bin7.outdoor + bin8.outdoor +
+           bin9.outdoor + bin10.outdoor + bin11.outdoor,
          
          # Convert HEPA readings to on or off
          case = case_when(HEPA_on == 0 ~ "off", HEPA_on == 1 ~ "on"), 
@@ -77,7 +83,9 @@ curated_df <- all_df %>%
          # Drop redundant columns
          .keep = "unused") %>%
   
-  mutate(pm1num_ratio = pm1num.indoor / pm1num.outdoor) %>%
+  mutate(pm1num_ratio = pm1num.indoor / pm1num.outdoor,
+         pm25num_ratio = pm25num.indoor / pm25num.outdoor,
+         pm10num_ratio = pm10num.indoor / pm10num.outdoor) %>%
   
   # Rename date column to standard
   rename(date = date1min) %>%

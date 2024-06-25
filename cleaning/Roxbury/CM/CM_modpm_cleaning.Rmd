@@ -79,7 +79,7 @@ round_10min <- function(df) {
   # Group by the rounded datetime
   group_by(case, environment, participant_id, date_round) %>%
   # Calculate mean over ten minutes
-  summarize(across(c(pm1, pm25, pm10, pm1num), mean), .groups = "drop")
+  summarize(across(c(pm1, pm25, pm10, pm1num, pm25num, pm10num), mean), .groups = "drop")
 }
 
 ```
@@ -124,9 +124,11 @@ clean_df <- all_df %>%
   mutate(date = round_date(date, unit = "minute")) %>%
   
   # Select relevant columns
-  select(date, environment, participant_id, pm1:pm10, bin0:bin2) %>%
-  # Calculate number count of particles in PM1 size
-  mutate(pm1num = bin0 + bin1 + bin2, .keep = "unused") %>%
+  select(date, environment, participant_id, pm1:pm10, bin0:bin11) %>%
+  # Calculate number count of particles in PM1, PM2.5, and PM10 bins
+  mutate(pm1num = bin0 + bin1 + bin2, pm25num = pm1num + bin3 + bin4 + bin5,
+         pm10num = pm25num + bin6 + bin7 + bin8 + bin9 + bin10 + bin11, 
+         .keep = "unused") %>%
   
   # Filter out erroneous values
   filter(pm1 < pm1_threshold, pm25 < pm25_threshold, pm10 < pm10_threshold) %>%
@@ -162,7 +164,7 @@ for (person in participants) {
 # Filter out only outdoor values and add dummy case
 outdoor_df <- clean_df %>% 
   filter(environment == "outdoor") %>%
-  filter(complete.cases(across(pm1:pm1num))) %>%
+  filter(complete.cases(across(pm1:pm10num))) %>%
   mutate(case = NA)
 ```
 
@@ -196,7 +198,9 @@ ratio_df <- indoor_df_round %>%
   mutate(pm1_ratio = pm1_indoor/pm1_outdoor, 
          pm25_ratio = pm25_indoor/pm25_outdoor, 
          pm10_ratio = pm10_indoor/pm10_outdoor, 
-         pm1num_ratio = pm1num_indoor/pm1num_outdoor) %>%
+         pm1num_ratio = pm1num_indoor/pm1num_outdoor,
+         pm25num_ratio = pm25num_indoor/pm25num_outdoor,
+         pm10num_ratio = pm10num_indoor/pm10num_outdoor) %>%
   # Select relevant columns
   select(date_round, participant_id_indoor, case_indoor, 
          ends_with("ratio")) %>%

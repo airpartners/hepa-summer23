@@ -11,7 +11,7 @@ library(readxl)
 ```
 Set working directory
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/AirPartners/hepa-summer23")
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
 ```
 
 ```{r}
@@ -63,10 +63,12 @@ Alongside particle masses, we are concerned with the counts of particles that fa
 # Function to calculate sums of particle counts, remove rest
 sum_bins <- function(df) {
   df %>%
-    # Sum particle counts
-    mutate(pm1num = bin0 + bin1 + bin2) %>%
+    # Calculate number count of particles in PM1, PM2.5, and PM10 bins
+    mutate(pm1num = bin0 + bin1 + bin2, pm25num = pm1num + bin3 + bin4 + bin5,
+           pm10num = pm25num + bin6 + bin7 + bin8 + bin9 + bin10 + bin11, 
+           .keep = "unused") %>%
     # Delete unnecessary columns
-    select(pm1:pm1num, sample_temp) %>%
+    select(pm1:pm10num, sample_temp) %>%
     select(-ends_with("_model_id")) %>%
     rename("temp" = "sample_temp")
 }
@@ -84,7 +86,8 @@ round_10min <- function(df) {
   # Group by the rounded datetime
   group_by(case, environment, participant_id, date_round, room) %>%
   # Calculate mean over ten minutes
-  summarize(across(c(pm1, pm25, pm10, pm1num, temp), mean), .groups = "drop")
+  summarize(across(c(pm1, pm25, pm10, pm1num, pm25num, pm10num, temp), mean), 
+            .groups = "drop")
 }
 
 ```

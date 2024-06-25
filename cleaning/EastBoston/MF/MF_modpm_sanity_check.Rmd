@@ -67,6 +67,10 @@ plot_types <- function(input_df, sp, y_c) {
   print(plot_one(input_df, sp, "pm10", y_c))
   # PM 1 Count
   print(plot_one(input_df, sp, "pm1num", y_c))
+  # PM 2.5 Count
+  print(plot_one(input_df, sp, "pm25num", y_c))
+  # PM 10 Count
+  print(plot_one(input_df, sp, "pm10num", y_c))
 }
 ```
 
