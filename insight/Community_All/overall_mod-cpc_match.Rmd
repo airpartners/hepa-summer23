@@ -1,0 +1,123 @@
+# Plotting corrplots
+
+## STOP
+
+Have you run `Community_All_modpm-cpc_corrs.Rmd`?
+*This file loads a dataframe created from running the above script. Make sure you run it first (if you haven't already) before running this file.*
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(corrr)
+library(corrplot)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+```{r}
+load(paste0(path_to_data, "mod_cpc.RData"))
+```
+
+```{r}
+get_corr <- function(df, place) {
+  df %>% 
+    filter(place_id == place, environment == "indoor") %>%
+    select(-room) %>%
+    drop_na() %>%
+    select(where(is.numeric)) %>%
+    cor()
+}
+```
+
+
+```{r}
+# Calculate correlations within each group
+for (place_id in c("CH", "RH", "SS", "LF")) {
+  get_corr(modcpc_df, place_id) %>%
+    corrplot(method = "number", type = "upper", diag = FALSE, 
+             title = paste("Correlation for", place_id), mar=c(0,0,1,0))
+}
+```
+
+```{r}
+modcpc_df %>% 
+    filter(environment == "indoor") %>%
+    select(-room) %>%
+    drop_na() %>%
+    select(where(is.numeric)) %>%
+    cor() -> corr_plot_df
+```
+
+```{r}
+rownames(corr_plot_df) <- c(":PM[1]", ":PM[2.5]", ":PM[10]", ":PM[1] (Count)", "UFP Count")
+
+colnames(corr_plot_df) <- c(":PM[1]", ":PM[2.5]", ":PM[10]", ":PM[1] (Count)", "UFP Count")
+
+corr_plot_df %>%
+    corrplot(method = "number", type = "upper", diag = FALSE, 
+             title = paste("Mod-PM to CPC Correlation"), mar=c(0,0,1,0))
+```
+
+## Part 2: Percentage reductions comparison
+```{r}
+modpm_summary <- read_csv(paste0(path_to_data, "s_All_M_quants.csv"))
+cpc_summary <- read_csv(paste0(path_to_data, "s_All_C_quants.csv"))
+```
+
+```{r}
+merged_summary <- left_join(cpc_summary, modpm_summary,
+                            by = c("area", "room_type", "participant_id", 
+                                   "place_id", "environment", "case"),
+                            relationship = "one-to-many",
+                            suffix = c("_cpc", "_modpm")) %>%
+  select(where(is.character), starts_with("mean")) %>%
+  filter(case == "redu")
+```
+
+```{r}
+merged_summary %>%
+  filter(environment == "ratio", type_modpm == "pm1", area != "all") %>%
+  ggplot(aes(x = mean_modpm, y = mean_cpc)) +
+    geom_point(aes(color = place_id), size = 3) +
+    lims(x = c(-50, 100), y = c(-50, 100)) +
+    geom_hline(yintercept = 0, linetype = "dotted") +
+    geom_vline(xintercept = 0, linetype = "dotted") +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  annotate("segment", x = 50, xend = 75, y = 90, yend = 75, 
+           arrow = arrow(length = unit(0.03, "npc"))) +
+  annotate("segment", x = 50, xend = 60, y = 90, yend = 60, 
+           arrow = arrow(length = unit(0.03, "npc"))) +
+  annotate(geom = "text", x = 50, y = 95, 
+           label = "Mod-PM, CPC Results Match", size = 3.2) +
+    scale_color_discrete("Deployment Location",
+                         labels = c(
+                           "CH" = "Revere City Hall",
+                           "LF" = "Little Folks Daycare",
+                           "RH" = "Revere High School",
+                           "SS" = "Shining Star Daycare"
+                         )) +
+    theme_bw() +
+    labs(x = bquote("Mean % Reduction in "~PM[1]),
+         y = "Mean % Reduction in UFP Count",
+         title = "Comparison of Efficacy (Measured by I/O Ratio)")
+
+```
+
