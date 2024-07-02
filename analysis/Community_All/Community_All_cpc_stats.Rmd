@@ -82,21 +82,6 @@ all_df <- cpc_df %>%
 ```
 
 ```{r}
-all_df <- all_df %>%
-  # Classify all the deployments
-  mutate(beta_room_type = case_when(
-    # All classroom deployments
-    area == "Revere" & str_detect(participant_id, "class") ~ "R-classroom",
-    
-    # All office deployments
-    area == "Revere" & !str_detect(participant_id, "class") ~ "R-office",
-    
-    # All daycare deployments
-    place_id %in% c("LF", "SS") & participant_id != "kitchen" ~ "EB-daycare",
-    participant_id == "kitchen" ~ "EB-kitchen"))
-```
-
-```{r}
 # Save dataframe in summary folder
 save(all_df, file = "C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/all_cpc.RData")
 ```
@@ -137,8 +122,7 @@ main_df_long <- all_df %>%
 participant_summary <- main_df_long %>%
   drop_na() %>%
   # Group by participant ID, case, environment, and type
-  group_by(participant_id, room_type, area, place_id, case, environment, type,
-           beta_room_type) %>%
+  group_by(participant_id, room_type, area, place_id, case, environment, type) %>%
   # Calculate summary statistics
   my_summarise()
 
@@ -150,19 +134,7 @@ class_summary <- main_df_long %>%
   # Calculate summary statistics
   my_summarise() %>%
   # Add participant ID column as 'all'
-  mutate(participant_id = "all", area = "all", place_id = "all", 
-         beta_room_type = NA)
-
-# Calculate summary statistics for each room type
-beta_class_summary <- main_df_long %>%
-  drop_na() %>%
-  # Group by participant ID, case, environment, and type
-  group_by(beta_room_type, case, environment, type) %>%
-  # Calculate summary statistics
-  my_summarise() %>%
-  # Add participant ID column as 'all'
-  mutate(participant_id = "all", area = "all", place_id = "all", 
-         room_type = NA)
+  mutate(participant_id = "all", area = "all", place_id = "all")
 
 # Calculate summary statistics over all the data
 overall_summary <- main_df_long %>%
@@ -172,13 +144,12 @@ overall_summary <- main_df_long %>%
   # Calculate summary statistics
   my_summarise() %>%
   # Add participant ID column as 'all'
-  mutate(room_type = "all", beta_room_type = "all", participant_id = "all", 
-         area = "all", place_id = "all")
+  mutate(room_type = "all", participant_id = "all", area = "all", place_id = "all")
 ```
 
 ```{r}
 # Bind together participant and overall summary statistics
-summary <- rbind(participant_summary, class_summary, beta_class_summary, overall_summary)
+summary <- rbind(participant_summary, class_summary, overall_summary)
 ```
 
 ### Calculate percentage reduction in concentration from off to on HEPA installation
