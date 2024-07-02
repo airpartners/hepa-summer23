@@ -1,0 +1,64 @@
+# HAFTRAP Temperature Collection
+
+## STOP
+
+**HAVE YOU RUN `OH_modpm_cleaning` and `OH_modulair_cleaning`?**
+*This file loads dataframes created from running `OH_modpm_cleaning` and `OH_modulair_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+This script is used to collate the temperature data for all HAFTRAP deployments for Olin.
+
+Results can be found in `summary/HAFTRAP/OH/s_OH_M_quants.csv`.
+
+## Set up
+Load libraries, define file paths
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/HAFTRAP/OH/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM data from RData file
+load(paste0(path_to_data, "cleaned_modpm.RData"))
+
+modpm_df <- main_df
+```
+
+```{r}
+# Load Modulair data from RData file
+load(paste0(path_to_data, "cleaned_modulair.RData"))
+
+modulair_df <- main_df
+```
+
+## Isolate and join temperature data
+```{r}
+var_list <- c("date", "temp", "environment", "participant_id", "case")
+
+rbind(select(modpm_df, all_of(var_list)), select(modulair_df, all_of(var_list))) %>%
+  filter(environment %in% c("indoor", "outdoor")) -> temperature_df
+```
+
+## Export data as CSV
+Make sure to create the `artifacts/HAFTRAP/OH/temperature` folder beforehand!
+```{r}
+write_csv(temperature_df, "artifacts/HAFTRAP/OH/temperature/temperature_data.csv")
+```
+
