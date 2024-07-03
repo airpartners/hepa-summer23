@@ -121,3 +121,16 @@ merged_summary %>%
 
 ```
 
+```{r}
+modpm_summary %>% 
+  filter(case == "redu") %>% 
+  pivot_wider(names_from = type, values_from = mean, 
+              id_cols = c(participant_id, room_type, area, place_id, environment)) %>%
+  filter(environment == "ratio", area != "all") %>%
+  ggplot(aes(x = pm1, y = pm25)) +
+    geom_point() +
+    lims(x = c(-100, 100), y = c(-100, 100)) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed")
+
+```
+
