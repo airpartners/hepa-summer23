@@ -2,8 +2,8 @@
 
 ## STOP
 
-Have you run `Community_All_modpm-cpc_corrs.Rmd`?
-*This file loads a dataframe created from running the above script. Make sure you run it first (if you haven't already) before running this file.*
+Have you run `Community_All_modpm-cpc_corrs.Rmd`, `Community_All_modpm_stats.Rmd` and `Community_All_cpc_stats.Rmd`?
+*This file loads a dataframe and two CSVs created from running the above script. Make sure you run them first (if you haven't already) before running this file.*
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
