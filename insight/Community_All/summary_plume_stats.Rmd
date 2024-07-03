@@ -1,0 +1,119 @@
+# Normalizing for activity
+
+## STOP
+
+Have you run `Community_All_modpm_stats.Rmd`?
+*This file loads the CSV created from running the above script. Make sure you run it first (if you haven't already) before running this file.*
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "summary/Community_All/"
+```
+
+```{r}
+# Load Mod-PM summary statistics
+modpm_summary <- read_csv(paste0(path_to_data, "s_All_M_quants.csv"))
+```
+
+```{r}
+# Load plume statistics summary
+plume_summary <- read_csv(paste0(path_to_data, "participant_plume_summary.csv"))
+```
+## Process data
+Clean summary and plume data to prepare for merging
+```{r}
+# Select relevant columns and filter rows from summary stats
+modpm_clean <- modpm_summary %>%
+  filter(place_id != "all", environment == "indoor", type == "pm1",
+         case %in% c("off", "on")) %>%
+  select(participant_id, place_id, case, mean)
+
+# Select relevant columns and filter rows from plume
+plume_clean <- plume_summary %>%
+  filter(pm == "pm1") %>%
+  select(deployment, participant_id, hepa, n) %>%
+  mutate(case = case_when(hepa ~ "on", !hepa ~ "off"), .keep = "unused")
+```
+
+```{r}
+stats_plumes <- inner_join(modpm_clean, plume_clean, 
+          by = join_by(participant_id, case, place_id == deployment)) %>%
+  mutate(mean.per.peak = mean/n)
+```
+
+```{r}
+stats_plumes %>%
+  pivot_longer(contains("mean"), names_to = "mean_type", values_to = "mean_value") %>%
+  pivot_wider(id_cols = c(participant_id, place_id, mean_type), 
+              names_from = case, values_from = mean_value) -> stats_plumes_reshaped
+
+stats_plumes_reshaped %>%
+  mutate(is_effective = off > on) %>%
+  group_by(mean_type) %>%
+  summarize(prop_effective = round(mean(is_effective), 3)) -> props
+
+stats_plumes_reshaped %>%
+  ggplot(aes(x = off, y = on)) +
+    geom_point() +
+    geom_text(data = props, mapping = aes(label = prop_effective), x = 1, y = 5, 
+              hjust = "left") +
+    geom_abline(slope = 1, intercept =  0, linetype = "dashed") +
+    facet_wrap(~mean_type, scales = "free")
+```
+
+### Calculate percentage reduction in concentration from off to on HEPA installation
+```{r}
+# Spread: Create separate off, on summary statistics columns
+summary_wide <- pivot_wider(stats_plumes, names_from = case, 
+                            values_from = mean:mean.per.peak)
+
+# Calculate percentage reduction in all summary statistics
+summary_redu <- 100*(select(summary_wide, ends_with("off")) - 
+  select(summary_wide, ends_with("on"))) / 
+  select(summary_wide, ends_with("off"))
+
+# Rename computed columns to 'redu' for percentage reduction
+colnames(summary_redu) <- sub("off", "redu", colnames(summary_redu))
+
+# Reshape data and pipe into variable 'summary_normal'
+summary_wide %>%
+  # Merge back with joined data-frame
+  cbind(summary_redu) %>%
+  # Gather: Return to original shape by removing the 'sham/hepa/redu'
+  # suffixes by re-forming the case variable
+  pivot_longer(mean_off:mean.per.peak_redu, 
+               names_to = c(".value", "case"), names_sep = "_") %>%
+  # Filter out all NaN and Inf values
+  filter_all(all_vars(!is.infinite(.))) -> summary_normal
+
+
+```
+
+```{r}
+summary_normal %>%
+  filter(case == "redu") %>%
+  ggplot(aes(x = mean, y = mean.per.peak)) +
+    geom_point() +
+    lims(x = c(-50, 100), y = c(-50, 100))
+```
+
