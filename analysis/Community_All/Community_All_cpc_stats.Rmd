@@ -74,16 +74,15 @@ all_df <- cpc_df %>%
     
     # All office deployments
     area == "Revere" & !str_detect(participant_id, "class") ~ "office",
-    place_id %in% c("LF", "SS") & participant_id == "admin" ~ "office",
     
     # All daycare deployments
-    place_id %in% c("LF", "SS") & participant_id != "admin" ~ "daycare",
+    area == "EastBoston" ~ "daycare",
     ))
 ```
 
 ```{r}
 # Save dataframe in summary folder
-save(all_df, file = "C:/Users/vkuchhal/Documents/hepa-summer23/summary/Community_All/all_cpc.RData")
+save(all_df, file = "summary/Community_All/all_cpc.RData")
 ```
 
 
