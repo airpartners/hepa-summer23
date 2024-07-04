@@ -75,137 +75,10 @@ sum_prop <- function(df) {
 ```{r}
 plot_label <- function(df) {
   geom_text(data = df %>% filter(size_bin == "pm1_prop"), 
-              aes(y = 0.8, label = paste0(round(proportion, 3)*100, "%")))
+              aes(y = 0.8, label = paste0(round(proportion, 3)*100, "%")),
+            size = 3)
 }
 ```
-
-
-```{r}
-select_df <- all_df %>%
-  proportion_pm1(c("case", "place_id"), 
-               env_vars = c("indoor"), case_vars = c("off", "on"))
-
-mean_df <- select_df %>% 
-    group_by(size_bin, case) %>% 
-    summarize(proportion = mean(proportion)) %>%
-    mutate(place_id = "*Mean")
-
-plot_df <- rbind(select_df, mean_df)
-
-plot_df %>%
-  ggplot(aes(x = place_id, y = proportion, fill = size_bin)) +
-    geom_bar(stat = "identity") +
-    facet_grid(vars(case)) +
-    plot_label(plot_df) +
-    scale_fill_discrete(
-      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
-    labs(fill = "Particle Diameter") +
-    theme_bw()
-```
-
-
-```{r}
-select_df <- all_df %>%
-  proportion_pm1(c("environment", "place_id"), 
-               env_vars = c("indoor", "outdoor"), case_vars = c("off", "on", NA))
-
-mean_df <- select_df %>% 
-    group_by(size_bin, environment) %>% 
-    summarize(proportion = mean(proportion)) %>%
-    mutate(place_id = "*Mean")
-
-plot_df <- rbind(select_df, mean_df)
-plot_df %>%
-  ggplot(aes(x = place_id, y = proportion, fill = size_bin)) +
-    geom_bar(stat = "identity") +
-    facet_grid(vars(environment)) +
-    plot_label(plot_df) +
-    scale_fill_discrete(
-      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
-    labs(fill = "Particle Diameter") +
-    theme_bw()
-```
-```{r}
-plot_df <- all_df %>%
-  proportion_pm1(c("case", "room_type"), 
-               env_vars = c("indoor"), case_vars = c("off", "on"))
-
-plot_df %>%
-  ggplot(aes(x = room_type, y = proportion, fill = size_bin)) +
-    geom_bar(stat = "identity") +
-    facet_grid(vars(case)) +
-    plot_label(plot_df) +
-    scale_fill_discrete(
-      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
-    labs(fill = "Particle Diameter") +
-    theme_bw()
-
-sum_prop(plot_df)
-```
-```{r}
-plot_df <- all_df %>%
-  proportion_pm1(c("environment", "room_type"), 
-               env_vars = c("indoor", "outdoor"), case_vars = c("off", "on", NA))
-
-plot_df %>%
-  ggplot(aes(x = room_type, y = proportion, fill = size_bin)) +
-    geom_bar(stat = "identity") +
-    facet_grid(vars(environment)) +
-    plot_label(plot_df) +
-    scale_fill_discrete(
-      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
-    labs(fill = "Particle Diameter") +
-    theme_bw()
-
-sum_prop(plot_df)
-```
-
-```{r}
-select_df <- all_df %>%
-  proportion_pm1num(c("case", "place_id"), 
-               env_vars = c("indoor"), case_vars = c("off", "on"))
-
-mean_df <- select_df %>% 
-    group_by(size_bin, case) %>% 
-    summarize(proportion = mean(proportion)) %>%
-    mutate(place_id = "*Mean")
-
-plot_df <- rbind(select_df, mean_df)
-
-plot_df %>%
-  ggplot(aes(x = place_id, y = proportion, fill = size_bin)) +
-    geom_bar(stat = "identity") +
-    facet_grid(vars(case)) +
-    plot_label(plot_df) +
-    scale_fill_discrete(
-      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
-    labs(fill = "Particle Diameter") +
-    theme_bw()
-```
-
-
-```{r}
-select_df <- all_df %>%
-  proportion_pm1num(c("environment", "place_id"), 
-               env_vars = c("indoor", "outdoor"), case_vars = c("off", "on", NA))
-
-mean_df <- select_df %>% 
-    group_by(size_bin, environment) %>% 
-    summarize(proportion = mean(proportion)) %>%
-    mutate(place_id = "*Mean")
-
-plot_df <- rbind(select_df, mean_df)
-plot_df %>%
-  ggplot(aes(x = place_id, y = proportion, fill = size_bin)) +
-    geom_bar(stat = "identity") +
-    facet_grid(vars(environment)) +
-    plot_label(plot_df) +
-    scale_fill_discrete(
-      labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
-    labs(fill = "Particle Diameter") +
-    theme_bw()
-```
-
 
 ```{r}
 select_df <- all_df %>%
@@ -223,7 +96,6 @@ plot_df %>%
   ggplot(aes(x = room_type, y = proportion, fill = size_bin)) +
     geom_bar(stat = "identity") +
     facet_wrap(vars(environment), ncol = 2) +
-    plot_label(plot_df) +
     scale_fill_discrete(
       labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
     labs(fill = "Particle Diameter") +
@@ -231,6 +103,7 @@ plot_df %>%
 ```
 ```{r}
 prop_plot +
+  plot_label(plot_df) +
   labs(x = "Room Type", y = "Proportion of Total Mass", 
        title = bquote("Proportion of"~PM[1]~"by Particle Mass")) +
   geom_vline(xintercept = 1.5, color = "#666666") +
@@ -247,14 +120,12 @@ mean_df <- select_df %>%
     summarize(proportion = mean(proportion)) %>%
     mutate(room_type = "*Mean")
 
-plot_df <- rbind(select_df, mean_df)  %>%
-  mutate(room_type = case_when(room_type == "EastBoston" ~ "East Boston", .default = room_type))
+plot_df <- rbind(select_df, mean_df)
 
 plot_df %>%
   ggplot(aes(x = room_type, y = proportion, fill = size_bin)) +
     geom_bar(stat = "identity") +
     facet_wrap(vars(environment), ncol = 2) +
-    plot_label(plot_df) +
     scale_fill_discrete(
       labels = c("< 1 Micron", "1 - 2.5 Microns", "2.5 - 10 Microns")) +
     labs(fill = "Particle Diameter") +
@@ -262,6 +133,7 @@ plot_df %>%
 ```
 ```{r}
 propnum_plot +
+  plot_label(plot_df) +
   labs(x = "Room Type", y = "Proportion of Total Count", 
        title = bquote("Proportion of"~PM[1]~"by Particle Count")) +
   geom_vline(xintercept = 1.5, color = "#666666") +
