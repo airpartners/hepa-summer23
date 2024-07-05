@@ -5,7 +5,7 @@
 **HAVE YOU RUN `MF_hobo_cleaning`?**
 *This file loads a dataframe created from running `MF_hobo_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This file is used to sanity check data produced from `MF_hobo_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `MF_hobo_cleaning`.
+This file is used to summarize proportion of time HEPA air purifiers are switched on using HOBO data.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -25,11 +25,6 @@ if (!endsWith(getwd(), "hepa-summer23")) {
   stop("Incorrect working directory")
 }
 ```
-Participant IDs
-```{r}
-# Get relevant participant IDs from MF_participants
-participants <- c("2", "3", "5", "6", "7", "8")
-```
 
 Paths
 ```{r}
@@ -40,7 +35,7 @@ path_to_data <- "cleaning/EastBoston/MF/"
 
 ## Load data
 ```{r}
-# Load Mod-PM data from RData file; loads as main_df
+# Load HOBO data from RData file; loads as main_df
 load(paste0(path_to_data, "cleaned_hobo.RData"))
 ```
 
