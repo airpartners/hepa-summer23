@@ -129,8 +129,8 @@ plot_df %>%
 
 ```{r}
 my_plot +
-  facet_wrap(~environment_formatted, nrow = 2, scales = "free_y", strip.position = "left",
-             labeller = label_parsed) +
+  facet_wrap(~environment_formatted, nrow = 2, scales = "free_y", 
+             strip.position = "left", labeller = label_parsed) +
   ylab(NULL) +
   theme_bw() +
   theme(strip.background = element_blank(),
