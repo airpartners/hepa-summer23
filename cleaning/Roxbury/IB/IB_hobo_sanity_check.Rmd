@@ -7,7 +7,7 @@ TODO: Change so that it plots before/after separately
 **HAVE YOU RUN `IB_hobo_cleaning`?**
 *This file loads a dataframe created from running `IB_hobo_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
 
-This file is used to sanity check data produced from `IB_modpm_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `IB_modpm_cleaning`.
+This file is used to sanity check data produced from `IB_hobo_cleaning`. Time-series plots are created of each sensor and given a quick visual check. If required, appropriate edits are to be made to `IB_hobo_cleaning`.
 
 ## Set up
 Load libraries, define file paths, include participant IDs to be processed
@@ -37,13 +37,13 @@ path_to_data <- "cleaning/Roxbury/IB/"
 
 ## Load data
 ```{r}
-# Load Mod-PM data from RData file; loads as main_df
+# Load HOBO data from RData file; loads as main_df
 load(paste0(path_to_data, "cleaned_hobo.RData"))
 ```
 
 Participant IDs
 ```{r}
-# Get relevant participant IDs from IB_participants
+# Get relevant participant IDs
 participants <- unique(main_df$participant_id)
 ```
 
