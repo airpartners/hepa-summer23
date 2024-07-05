@@ -91,14 +91,14 @@ for (file_name in list.files(path_to_data)) {
   # Extract serial number from file name
   name_split <- strsplit(file_name, "[_.]")[[1]] %>% head(-1)
   apartment <- name_split[3]
-  is_bedroom <- TRUE
+  is_bedroom <- "bedroom"
   
   if(is.na(name_split[4])){
-    is_bedroom <- FALSE
+    is_bedroom <- "living"
   }
   
   # Add serial number to dataframe
-  df <- mutate(df, participant_id = apartment, is_br = is_bedroom)
+  df <- mutate(df, participant_id = apartment, room = is_bedroom)
 
   # Append to main dataframe
   all_df <- rbind(all_df, df)

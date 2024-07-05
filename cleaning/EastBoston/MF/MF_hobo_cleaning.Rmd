@@ -35,21 +35,6 @@ improve_timestamps <- function(df) {
 ```
 
 ```{r}
-include_participant <- function(df, person, cd) {
-  df %>%
-    # Select current participant
-    filter(participant_id == person) %>%
-    # Add case column
-    mutate(case = case_when(
-      # Before purifier is switched on
-      # Note: 'cd' is the table 'current_dates' in function call
-      between(date, cd$dt_start, cd$dt_hepa) ~ 'before',
-      # After purifier is switched on
-      between(date, cd$dt_hepa, cd$dt_end) ~ 'after'))
-}
-```
-
-```{r}
 include_case <- function(df, person, cd) {
   df %>%
     # Select current participant
@@ -119,6 +104,7 @@ for (file_name in list.files(path_to_data)) {
   print(paste("Loaded HOBO logger", serial_no))
 }
 ```
+
 ```{r}
 # Initialize master dataframe for all data
 clean_df <- data.frame()
@@ -127,13 +113,21 @@ for (serial_no in unique(all_df$sn_hobo)) {
   df <- all_df %>% filter(sn_hobo == serial_no)
   parts <- time_map %>% filter(sn_hobo == serial_no)
   
+  
+  
   serial_df <- data.frame()
   for (person in unique(parts$participant_id)) {
     cd <- parts %>% filter(participant_id == person)
+    
+    # Split environment to obtain room
+    name_split <- strsplit(cd$environment, "_")[[1]]
+    env <- name_split[1]
+    place <- name_split[2]
+    
     person_df <- df %>%
       filter(between(date, cd$dt_start, cd$dt_end)) %>%
       # Add case column
-      mutate(participant_id = person)
+      mutate(participant_id = person, room = place)
     
     serial_df <- rbind(serial_df, person_df)
   }

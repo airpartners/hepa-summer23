@@ -48,13 +48,13 @@ load(paste0(path_to_data, "cleaned_hobo.RData"))
 ```{r}
 participant_prop <- main_df %>%
   filter(case == "after") %>%
-  group_by(participant_id, is_br) %>%
+  group_by(participant_id, room) %>%
   summarise(prop_on = sum(power > 10)/n())
 
 overall_prop <- main_df %>%
   filter(case == "after") %>%
   summarise(prop_on = sum(power > 10)/n()) %>%
-  mutate(participant_id = "all", is_br = NA)
+  mutate(participant_id = "all", room = NA)
 
 props_df <- rbind(participant_prop, overall_prop)
 ```
