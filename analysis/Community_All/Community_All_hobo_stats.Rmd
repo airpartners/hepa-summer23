@@ -4,7 +4,7 @@
 
 This script combines the data from ALL deployments with cleaned HOBO data in this repository (except for HAFTRAP). Have you run ALL the relevant cleaning scripts? These are:
 
-1. Roxbury - `IB_hobo_cleaning.Rmd`
+1. Roxbury - `IB_hobo_cleaning.Rmd`, `CM_hobo_cleaning.Rmd`
 2. East Boston - `MF_hobo_cleaning.Rmd`
 
 *This file loads  dataframes created from running ALL the above scripts. Make sure you run those files first (if you haven't already) before running this file.*
@@ -42,13 +42,17 @@ var_list <- c("date", "case", "participant_id", "room", "area", "place_id", "pow
 
 hobo_df <- data.frame(matrix(ncol = length(var_list), nrow = 0))
 
-hobo_data <- c("Roxbury/IB/", "EastBoston/MF/")
+hobo_data <- c("Roxbury/IB/", "Roxbury/CM/", "EastBoston/MF/")
 
 for (file_path in hobo_data) {
   # Load HOBO data from RData file
   load(paste0(path_to_data, file_path, "cleaned_hobo.RData"))
   
   loc <- strsplit(file_path, "/")[[1]]
+  
+  if (str_detect(file_path, "CM")) {
+    main_df <- main_df %>% mutate(room = NA)
+  }
   
   main_df <- main_df %>%
     # Add the area and place ID
@@ -58,7 +62,7 @@ for (file_path in hobo_data) {
     # Standardize case between off and on
     mutate(case = case_when(case == "after" ~ "on", case == "before" ~ "off",
                             .default = case))
-                                 
+  
   hobo_df <- rbind(hobo_df, main_df)
 }
 ```
