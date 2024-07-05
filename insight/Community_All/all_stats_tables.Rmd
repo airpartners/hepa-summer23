@@ -77,3 +77,18 @@ summary_all %>%
   count(room_type, place_names)
 ```
 
+```{r}
+summary_all %>% 
+  filter(participant_id == "all", type == "pm1") %>%
+  pivot_wider(id_cols = c(room_type), names_from = c(case, environment), 
+              values_from = mean) %>%
+  select(order(colnames(.))) %>%
+  select(room_type, everything()) %>% select(-redu_outdoor) %>%
+  mutate(across(where(is.numeric), signif, 3)) %>%
+  mutate(across(contains("redu"), ~paste0(.x, "%"))) -> mean_table
+```
+
+```{r}
+write_csv(mean_table, "artifacts/Community_All/mean_stats.csv")
+```
+
