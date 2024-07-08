@@ -49,17 +49,38 @@ merged_df <- modpm_df %>%
 
 ```{r}
 merged_df %>%
-  ggplot(aes(x = mean, y = prop_on, label = participant_id)) +
+  ggplot(aes(x = prop_on, y = mean, label = participant_id, color = place_id)) +
     geom_point() +
     # geom_text(hjust = 0.5, vjust = -0.5) +
-    labs(x = "Mean % Reduction", y = "Proportion of Time Purifier On") +
-    xlim(-50, 100) +
-    geom_vline(xintercept = 0)
+    labs(y = bquote("Mean % Reduction in "~PM[1]~"(I/O Ratio)"), 
+         x = "Proportion of Time Purifier On",
+         title = "Relating Purifier Usage to Efficacy") +
+    ylim(-50, 100) +
+    geom_hline(yintercept = 0) +
+    scale_color_discrete("Deployment Location",
+                         labels = c(
+                           "CM" = "Cardinal Medeiros",
+                           "IB" = "Indigo Block",
+                           "MF" = "Mothers Out Front"
+                         )) +
+    theme_bw()
 ```
 
 
-# Part 2: Isolating purifier on times
+# Part 2: Isolating times when purifier is really on
 ```{r}
+# Load Mod-PM Data
+load(paste0(path_to_data, "all.RData"))
 
+# Load HOBO Data
+load(paste0(path_to_data, "all_hobo.RData"))
+```
+
+## Merge overall Mod-PM and HOBO Data
+```{r}
+all_df %>%
+  filter(case == "on", environment == "indoor") %>%
+  inner_join(on_df, join_by(date, area, place_id, participant_id, room, case)) %>%
+  count(place_id)
 ```
 
