@@ -67,26 +67,31 @@ for (file_path in hobo_data) {
 }
 ```
 
+```{r}
+on_df <- hobo_df %>% filter(case == "on") %>% mutate(purifier_on = power > 10)
+
+# Save dataframe in summary folder
+save(on_df, file = "summary/Community_All/all_hobo.RData")
+```
+
 ## Find means
 ```{r}
-on_df <- hobo_df %>% filter(case == "on")
-
 participant_prop <- on_df %>%
   group_by(area, place_id, participant_id, room) %>%
-  summarise(prop_on = sum(power > 10)/n())
+  summarise(prop_on = mean(purifier_on))
 
 place_prop <- on_df %>%
   group_by(area, place_id) %>%
-  summarise(prop_on = sum(power > 10)/n()) %>%
+  summarise(prop_on = mean(purifier_on)) %>%
   mutate(participant_id = "all", room = "all")
 
 area_prop <- on_df %>%
   group_by(area) %>%
-  summarise(prop_on = sum(power > 10)/n()) %>%
+  summarise(prop_on = mean(purifier_on)) %>%
   mutate(place_id = "all", participant_id = "all", room = "all")
 
 overall_prop <- on_df %>%
-  summarise(prop_on = sum(power > 10)/n()) %>%
+  summarise(prop_on = mean(purifier_on)) %>%
   mutate(area = "all", place_id = "all", participant_id = "all", room = "all")
 
 props_df <- rbind(participant_prop, place_prop, area_prop, overall_prop)
