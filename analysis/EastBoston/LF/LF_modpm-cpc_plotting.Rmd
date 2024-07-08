@@ -1,0 +1,105 @@
+# East Boston PM1 against CPC Count
+
+## STOP
+
+**HAVE YOU RUN `LF_modpm-cpc_cleaning`?**
+*This file loads the dataframe created from running `LF_modpm-cpc_cleaning`. Make sure you run that file first (if you haven't already) before running this file.*
+
+## Set up
+Load libraries, define file paths
+```{r}
+# Import relevant libraries
+library(tidyverse)
+```
+
+Set working directory
+NOTE: The working directory is dependent by user. 
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+```{r}
+# Get file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+```{r}
+# Set path to data
+path_to_data <- "cleaning/EastBoston/LF/"
+```
+
+## Load data
+```{r}
+# Load Mod-PM + CPC data from RData file
+load(paste0(path_to_data, "cleaned_modpm-cpc.RData"))
+```
+
+### Constants
+Used to map variable to appropriate meaning while plotting
+```{r}
+# List mapping variable to appropriate meaning
+title_map <- list(pm1 = "PM 1", pm25 = "PM 2.5", pm10 = "PM 10", 
+                  pm1num = "PM 1 Count", concent = "UFP")
+
+# List mapping variable to appropriate meaning
+axes_map <- list(pm1 = "PM 1 Concentration", pm25 = "PM 2.5 Concentration",
+               pm10 = "PM 10 Concentration", pm1num = "PM 1 Particle Count",
+               concent = "CPC Particle Count")
+```
+
+#### Time-series plot to compare two variables
+Plots two time-series overlaying each other to compare two different measurements for a particular participant in a specified case. Usually used to compare CPC (UFP Particle Count) to a Mod-PM reading. If using for a different set of variables, change the scaling constant (sc) appropriately (e.g.- sc is ~1 for comparison between Mod-PM variables).
+```{r}
+series_compare <- function(df, person, var_a, var_b, case_str, env_str, sc){
+  # Filter dataframe
+  df %>% 
+    filter(participant_id == person, case == case_str, 
+                     environment == env_str) %>%
+  # Plot time-series of UFP with PM 2.5
+  ggplot(aes(x = date)) + 
+    # Create second (right) y-axis with 200 times the scale of first
+    scale_y_continuous(sec.axis = sec_axis(~.*sc, name = axes_map[[var_a]])) +
+    # Plot CPC reading against right axis
+    geom_line(aes(y = .data[[var_a]]/sc, color = title_map[[var_a]])) +
+    # Plot PM 2.5 reading against left axis
+    geom_line(aes(y = .data[[var_b]], color = title_map[[var_b]])) +
+    
+    # Set colors
+    scale_color_manual(name = "Particles", 
+                       values = setNames(c('#56B4E9', '#E69F00'),
+                                         c(title_map[[var_a]],
+                                           title_map[[var_b]]))) +
+    
+    # Set axes labels, title
+    labs(title = paste("CPC vs. Mod-PM Readings for Participant", person), 
+         x = "Date", y = axes_map[[var_b]]) -> my_plot
+    
+  # Save plot
+  ggsave(filename = paste("artifacts/HAFTRAP/OH/scatterplot/OH", person,
+                           var_a, var_b, case_str, env_str, "timeseries.png",
+                          sep = "_"), plot = my_plot)
+  # Display plot
+  my_plot
+}
+```
+
+```{r}
+main_df %>%
+  pivot_longer(c(pm1num, concent), names_to = "p_type", values_to = "value") %>%
+  select(!pm1:pm10num) -> select_df
+
+pm1num_df <- select_df %>% filter(p_type == "pm1num")
+
+concent_df <- select_df %>% filter(p_type == "concent")
+```
+
+
+```{r}
+main_df %>%
+  filter(day(date) %in% c(26, 27)) %>%
+  series_compare("class2", "concent", "pm1num", "off", "indoor", 700)
+```
+
+
