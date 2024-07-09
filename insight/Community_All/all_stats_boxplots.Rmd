@@ -135,6 +135,7 @@ my_plot +
   theme_bw() +
   theme(strip.background = element_blank(),
        strip.placement = "outside") +
+  guides(size = guide_legend(title=NULL)) +
   annotate("segment", x = 2.5, xend = 2.2, y = whisker_range[2] / 2, 
            yend = whisker_range[2]*0.9, arrow = arrow(length = unit(0.03, "npc"))) +
   annotate(geom = "text", x = 2.5, y = whisker_range[2] / 2, 
