@@ -134,3 +134,57 @@ modpm_summary %>%
 
 ```
 
+## Plot CPC vs. Mod-PM for Indoor
+### Constants
+Used to map variable to appropriate meaning while plotting
+```{r}
+# List mapping variable to appropriate meaning
+title_map <- list(pm1 = "PM 1", pm25 = "PM 2.5", pm10 = "PM 10", 
+                  pm1num = "PM 1 Count", concent = "UFP")
+
+# List mapping variable to appropriate meaning
+axes_map <- list(pm1 = "PM 1 Concentration", pm25 = "PM 2.5 Concentration",
+               pm10 = "PM 10 Concentration", pm1num = "PM 1 Particle Count",
+               concent = "CPC Particle Count")
+```
+#### Time-series plot to compare two variables
+Plots two time-series overlaying each other to compare two different measurements for a particular participant in a specified case. Usually used to compare CPC (UFP Particle Count) to a Mod-PM reading. If using for a different set of variables, change the scaling constant (sc) appropriately (e.g.- sc is ~1 for comparison between Mod-PM variables).
+```{r}
+series_compare <- function(df, person, var_a, var_b, case_str, env_str, sc){
+  # Filter dataframe
+  df %>% 
+    filter(participant_id == person, case == case_str, 
+                     environment == env_str) %>%
+  # Plot time-series of UFP with PM 2.5
+  ggplot(aes(x = date)) + 
+    # Create second (right) y-axis with 200 times the scale of first
+    scale_y_continuous(sec.axis = sec_axis(~.*sc, name = axes_map[[var_a]])) +
+    # Plot CPC reading against right axis
+    geom_line(aes(y = .data[[var_a]]/sc, color = title_map[[var_a]])) +
+    # Plot PM 2.5 reading against left axis
+    geom_line(aes(y = .data[[var_b]], color = title_map[[var_b]])) +
+    
+    # Set colors
+    scale_color_manual(name = "Particles", 
+                       values = setNames(c('#56B4E9', '#E69F00'),
+                                         c(title_map[[var_a]],
+                                           title_map[[var_b]]))) +
+    
+    # Set axes labels, title
+    labs(title = paste("CPC vs. Mod-PM Readings for Participant", person), 
+         x = "Date", y = axes_map[[var_b]]) -> my_plot
+    
+  # # Save plot
+  # ggsave(filename = paste("artifacts/HAFTRAP/OH/scatterplot/OH", person,
+  #                          var_a, var_b, case_str, env_str, "timeseries.png",
+  #                         sep = "_"), plot = my_plot)
+  # Display plot
+  my_plot
+}
+```
+
+
+```{r}
+series_compare(modcpc_df, "business", "concent", "pm1", "off", "indoor", 1000)
+```
+
