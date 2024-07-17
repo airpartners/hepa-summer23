@@ -40,6 +40,9 @@ summary_df %>%
 
 sum_stats %>% 
   filter(case == "off") -> ss_off
+
+sum_stats %>% 
+  filter(case == "on") -> ss_on
 ```
 
 
@@ -61,7 +64,7 @@ all_df %>%
                                    "#F4895F", "#DE324C"),
                          breaks = c("< 5th", "5th to 25th", "25th to Median", 
                                     "Median to 75th", "75th to 95th", "> 95th")) +
-    geom_vline(xintercept = strptime("2022-10-25 23:16:00", "%Y-%m-%d %H:%M:%S", 
+    geom_vline(xintercept = strptime("2022-10-25 19:15:00", "%Y-%m-%d %H:%M:%S", 
                                      tz = "America/New_York"),
                linetype = "dashed", size = 0.2) +
     guides(color = guide_legend(override.aes = list(size = 2))) +
@@ -70,20 +73,28 @@ all_df %>%
 current_plot
 ```
 ```{r}
+t <- "America/New_York"
 current_plot +
     ylim(c(0, ss_off$q95 * 3)) +
     labs(y = bquote(PM[1]~(mu~"g/cm"^3)), x = "Date", color = "Quantile Bin",
          title = "Visualizing Quantiles for Sample Deployment") +
-    annotate("segment", 
-             x = as.POSIXct(strptime("2022-10-27 21:00:00", "%Y-%m-%d %H:%M:%S", 
-                          tz = "America/New_York")), 
-             xend = as.POSIXct(strptime("2022-10-26 01:00:00", "%Y-%m-%d %H:%M:%S", 
-                             tz = "America/New_York")), 
-             y = 18.5, yend = 18.5, arrow = arrow(length = unit(0.02, "npc"))) +
-  
+    annotate("segment",
+             x = as.POSIXct(strptime("2022-10-27 21:00:00", "%F %T", tz = t)), 
+             xend = as.POSIXct(strptime("2022-10-26 01:00:00", "%F %T", tz = t)), 
+             y = 18.5, yend = 18.5, arrow = arrow(length = unit(0.02, "npc"))) + 
+    annotate("segment", linetype = "dashed", 
+             x = as.POSIXct(strptime("2022-10-18 00:00:00", "%F %T", tz = t)), 
+             xend = as.POSIXct(strptime("2022-10-25 19:15:00", "%F %T", tz = t)), 
+             y = ss_off$mean, yend = ss_off$mean) +
+  annotate("segment", linetype = "dashed", 
+             x = as.POSIXct(strptime("2022-10-25 19:15:00", "%F %T", tz = t)), 
+             xend = as.POSIXct(strptime("2022-11-03 06:45:00", "%F %T", tz = t)), 
+             y = ss_on$mean, yend = ss_on$mean) +
   annotate(geom = "text", 
-           x = as.POSIXct(strptime("2022-10-27 22:00:00", "%Y-%m-%d %H:%M:%S", 
-                          tz = "America/New_York")), 
+           x = as.POSIXct(strptime("2022-10-17 12:00:00", "%F %T", tz = t)), 
+           y = ss_off$mean - 0.5, label = "Mean", hjust = "left") +
+  annotate(geom = "text", 
+           x = as.POSIXct(strptime("2022-10-27 22:00:00", "%F %T", tz = t)), 
            y = 18.6, label = "Purifier Installed", hjust = "left")
 ```
 
