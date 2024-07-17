@@ -1,0 +1,195 @@
+# CPC Data Cleaning
+This file cleans, and calculates the I/O ratio for CPC data. Data is from the output of `cpc_preprocessing`, but that script doesn't need to be run since the data should already be present in CSV files in the data folder. To update CPC data, run `cpc_preprocessing` *then* run this script.
+
+Output is saved in a `cleaned_cpc.RData` file that is *untracked* by Github. *All files that depend on using CPC data must be run after running this file.*
+
+## Set up
+Load libraries, define file paths, include participant IDs to be processed
+```{r}
+# Import relevant libraries
+library(tidyverse)
+library(readxl)
+```
+
+Set working directory
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/hepa-summer23")
+```
+
+Check for working directory
+```{r}
+# Check file path
+if (!endsWith(getwd(), "hepa-summer23")) {
+  stop("Incorrect working directory")
+}
+```
+
+Participant IDs and corresponding time map tables
+```{r}
+# Read summary table of times
+time_map <- read_excel("data/HAFTRAP/TU/TU_notes_summarized.xlsx")
+
+# Get relevant participant IDs from TU_participants
+participants <- unique(time_map$participant_id)
+```
+
+```{r}
+# Set path to data
+path_to_data <- "data/HAFTRAP/TU/cpc/"
+
+# Set data category
+data_cat <- "TU_C"
+```
+
+## Helper Functions:
+The following functions are not part of the main pipeline to calculate summary statistics, but is used to clean and process the data. 
+
+### Calculating 10 minute averages
+When calculating the indoor/outdoor ratio, we want to calculate them over 10 minutes as oppposed to every data point to account for the time it takes for the air to mix between indoor and outdoor. This function calculates that ten minute average.
+```{r}
+# Round over 10 minute averages
+round_10min <- function(df) {
+  df %>%
+    # Create new column with rounded dates
+    mutate(date_round = round_date(date, "10 minutes")) %>%
+    # Group by the rounded datetime
+    group_by(case, environment, participant_id, date_round) %>%
+    # Calculate mean over ten minutes
+    summarize(across(c(cpc_count), mean), .groups = "drop")
+}
+```
+
+### Filter by relevant times
+Each participant contains data for periods where both the sham and actual purifier was running. This function filters the relevant time periods and adds an added variable to track sham and HEPA (actual) readings.
+```{r}
+include_case <- function(df, person, cd) {
+  df %>%
+    # Select current participant
+    filter(participant_id == person) %>%
+    # Add case column
+    mutate(case = case_when(
+      # For sham periods
+      # Note: 'cd' is the table 'current_dates' in function call
+      period == cd$period[cd$case == "sham (dummy)"] ~ 'sham (dummy)',
+      # For HEPA periods
+      period == cd$period[cd$case == "hepa (dummy)"] ~ 'hepa (dummy)'))
+}
+```
+
+
+## Main Code Run
+### Load all data. 
+Ensure that all functions in the code blocks after this loop are loaded. Run this carefully, checking everything, and only once!
+```{r}
+# Initialize master dataframe for all data
+all_df <- data.frame()
+
+# Loop through each participant
+for (person in participants) {
+  # Loop through each environment
+  for (env in c("indoor", "outdoor")) {
+    # Loop through each period
+    for (per in 1:2) {
+      # Set file path
+      # Filename = data category + participant ID + environment
+      file_name <- paste(data_cat, person, env, per, sep = "_")
+      
+      # File path = path to folder, type csv
+      file_path <- paste0(path_to_data, file_name, ".csv")
+      
+      # Read csv
+      df <- read_csv(file_path, show_col_types = FALSE) %>%
+        # Add the environment type (e.g. indoor) and participant ID
+        mutate(environment = env, participant_id = person, period = per)
+      
+      # Append to main dataframe
+      all_df <- rbind(all_df, df) 
+      }
+    }
+  print(paste("Loaded participant", person))
+}
+```
+
+```{r}
+# Warning: this code chunk may seem simple but takes FOREVER.
+# Have patience. It deals with datetimes.
+clean_df <- all_df %>%
+  # Merge the date and time column
+  unite(col = "date", Date, Time, sep = " ") %>%
+  # Convert to datetime object
+  mutate(date = as.POSIXct(date, format = "%F %T", tz = "America/New_York")) %>%
+  # Remove repeat readings
+  distinct(participant_id, date, environment, period, .keep_all = TRUE) %>%
+  # Rename column to be more descriptive
+  rename(cpc_count = Count)
+```
+
+
+
+```{r}
+# Filter by time to find whether sham or hepa
+case_df <- data.frame()
+for (person in participants) {
+  # Filter indoor (dates match outdoor) and by current participant
+  current_dates <- time_map %>% 
+    filter(environment == "indoor") %>%
+    filter(participant_id == person)
+  # Filter by date for sham and hepa (see helper function)
+  df <- include_case(clean_df, person, current_dates)
+  # Append to overall dataframe
+  case_df <- rbind(case_df, df)
+}
+```
+
+```{r}
+# Crucial filtering based on sanity checks
+main_df <- case_df %>%
+  # Period is now redundant
+  select(-period) %>%
+  # Filter out cpc_count values that are < 100 (this can never be true IRL)
+  filter(cpc_count > 100) %>%
+  # Remove all filtered-out values
+  drop_na()
+```
+
+
+### Calculate ratio of indoor and outdoor concentration
+To do so, the dataframe is 'spread' to form separate indoor/outdoor columns that are then divided by each other to calculate the ratio. After calculating the ratio, the dataframe is 'gathered' back up to its original shape.
+```{r}
+# Round over 10 minute averages
+df_round <- round_10min(main_df)
+
+# Spread: Create separate indoor and outdoor columns for measurements
+df_round_wide <- pivot_wider(df_round, 
+                             names_from = environment, 
+                             values_from = cpc_count)
+
+# Divide indoor by outdoor to calculate ratios
+df_ratio <- select(df_round_wide, indoor)/ select(df_round_wide, outdoor)
+
+
+# Rename computed columns to ratio
+df_ratio <- rename(df_ratio, cpc_count = indoor)
+
+# Merge back with joined data-frame
+df_ratio <- cbind(df_round_wide, df_ratio) %>%
+                    select(!c(indoor, outdoor)) %>%
+                    mutate(environment = "ratio") %>%
+                    rename(date = date_round)
+```
+
+Run this code chunk only ONCE
+```{r}
+# Bind back into main dataframe
+main_df <- rbind(main_df, df_ratio)
+
+# filter out NA and infinite values in data
+main_df[sapply(main_df, is.infinite)] <- NA
+main_df <- drop_na(main_df)
+```
+
+### Save Data
+The `main_df` dataframe is saved to `cleaned_cpc.RData`
+```{r}
+save(main_df, file = paste0("cleaning/HAFTRAP/TU/", "cleaned_cpc.RData"))
+```
