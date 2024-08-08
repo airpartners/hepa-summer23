@@ -92,3 +92,30 @@ summary_all %>%
 write_csv(mean_table, "artifacts/Community_All/mean_stats.csv")
 ```
 
+```{r}
+summary_all %>%
+  filter(participant_id == "all", type == "pm1") %>%
+  select(room_type, environment, case, mean, median, q25, q95) %>%
+  pivot_wider(names_from = case, values_from = mean:q95) %>%
+  arrange(environment) %>%
+  mutate(across(where(is.numeric), \(x) signif(x, digits = 3))) -> percentile_table
+```
+
+```{r}
+custom_order <- function(names) {
+  split_names <- strsplit(names, "_")
+  order <- order(sapply(split_names, `[`, 2), sapply(split_names, `[`, 1))
+  names[order]
+}
+```
+
+```{r}
+percentile_table <- percentile_table %>%
+  select(custom_order(names(percentile_table)))
+
+```
+
+```{r}
+write_csv(percentile_table, "artifacts/Community_All/percentile_stats.csv")
+```
+

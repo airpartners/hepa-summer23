@@ -7,7 +7,7 @@
 
 This script is used to collate the temperature data for all HAFTRAP deployments for Olin.
 
-Results can be found in `summary/HAFTRAP/OH/s_OH_M_quants.csv`.
+Results can be found in `artifacts/HAFTRAP/OH/temperature/`.
 
 ## Set up
 Load libraries, define file paths
@@ -60,5 +60,17 @@ rbind(select(modpm_df, all_of(var_list)), select(modulair_df, all_of(var_list)))
 Make sure to create the `artifacts/HAFTRAP/OH/temperature` folder beforehand!
 ```{r}
 write_csv(temperature_df, "artifacts/HAFTRAP/OH/temperature/temperature_data.csv")
+```
+
+## Also save by participant ID
+```{r}
+for (person in unique(temperature_df$participant_id)) {
+  temperature_df %>%
+    filter(participant_id == person) %>%
+    write_csv(paste0("artifacts/HAFTRAP/OH/temperature/by_participant/", 
+                     person, ".csv"))
+  
+  print(paste("Saved participant", person))
+}
 ```
 
