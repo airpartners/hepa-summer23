@@ -20,7 +20,7 @@ The deployments here were in various rooms at the Revere City Hall and a nearby 
 ## Pre-requisites
 To run the code in `cleaning`, `analysis`, and `insight`, only the `tidyverse` collection of packages needs to be installed into RStudio
 
-This guide also assumes access to the appropriate folders from the Air Partners Google Drive, especially [the one with the data](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n?usp=sharing)
+This guide also assumes access to the appropriate folders from the Air Partners Google Drive, especially [the one with the data](https://drive.google.com/drive/u/0/folders/1KEAv7w8r2XXhcmSFqohsCHd2VaLua97b)
 
 ## Data Pipeline
 Unlike the main data guide, this description of the pipeline focuses on *understanding the files and getting the code to run*. Before we dive in, look at the following figure that outlines all the files:
@@ -34,7 +34,7 @@ If you have just freshly cloned the repository, you won't (or definitely shouldn
 
 Get the data (copied over from the main data guide):
 
-1. **Go to the provided [Data for Codebase](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n) Google Drive folder.**
+1. **Go to the provided [Data for Codebase](https://drive.google.com/drive/u/0/folders/1KEAv7w8r2XXhcmSFqohsCHd2VaLua97b) Google Drive folder.**
 2. Download and extract the `data` folder inside it. Deal with zipped folder(s) appropriately.
 3. Move the extracted `data` folder to the root of your `hepa-summer23` respository clone, i.e. the same location as this data guide. 
 4. Confirm that the folder has the expected four subfolders and is named `data`. 

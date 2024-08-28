@@ -45,7 +45,7 @@ If you have just freshly cloned the repository, you won't (or definitely shouldn
 
 Copied over from the main data guide, to get or update to the latest version of the data:
 
-1. **Go to the provided [Data for Codebase](https://drive.google.com/drive/folders/1J6w_h6FFlxgXWv3k7CkSchYMkhryRF8n) Google Drive folder.**
+1. **Go to the provided [Data for Codebase](https://drive.google.com/drive/u/0/folders/1KEAv7w8r2XXhcmSFqohsCHd2VaLua97b) Google Drive folder.**
 2. Download and extract the `data` folder inside it. Deal with zipped folder(s) appropriately.
 3. Move the extracted `data` folder to the root of your `hepa-summer23` respository clone, i.e. the same location as this data guide. 
 4. Confirm that the folder has the expected four subfolders and is named `data`. 
