@@ -94,7 +94,7 @@ graph_main_df
 pm25_indoor <- graph_main_df[graph_main_df$environment=='indoor' & graph_main_df$particle=='pm25',]
 pm_baseline <- pm25_indoor %>%
   group_by(case) %>%
-  summarise(mean = mean(median))
+  summarise(mean = mean(q25))
 pm_min_heights <- pm25_indoor %>%
   group_by(case) %>%
   summarise(mean = mean(mean))
@@ -301,7 +301,7 @@ plot(my_df_before$pm25,
   col = "navy")
   grid()
 points(peaks_b[, 2], peaks_b[, 1], pch = 20, col = "maroon")
-# points(peaks_b[, 3], my_df_before$pm25[peaks_b[, 3]], pch = 20, col = "yellow")
+points(peaks_b[, 3], my_df_before$pm25[peaks_b[, 3]+1], pch = 20, col = "yellow")
 points(peaks_b[, 4], my_df_before$pm25[peaks_b[, 4]], pch = 20, col = "green")
 ```
 

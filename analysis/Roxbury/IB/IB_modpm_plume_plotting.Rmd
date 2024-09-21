@@ -62,7 +62,9 @@ my_df <- main_df %>%
   # Classify as weekday or weekend
   mutate(is_wknd = wkdy %in% c(1, 7)) %>%
   # Extract time of the day from datetime
-  mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S"))
+  mutate(time = as.POSIXct(as.ITime(date_round), format = "%H:%M:%S")) %>%
+  # Arrange by date
+  arrange(dat)
 my_df
 ```
 

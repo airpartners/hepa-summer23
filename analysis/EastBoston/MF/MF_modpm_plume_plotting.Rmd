@@ -321,25 +321,7 @@ decays_after
 We can look at the plumes with the best fits for before and after to visualize
 the change of plumes from before and after the purifier was installed.
 
-```{r}
-# Before HEPA deployment
-peak_idxs <- c(
-  tail(decays_before, n=1)$valley_idx_b,
-  tail(decays_before, n=1)$valley_idx_a
-)
-my_df_before %>%
-  ggplot(aes(x = as.numeric(row.names(my_df_before)))) +
-  # Plot the highest pm1 plume
-  geom_line(aes(y = pm1)) +
-  # Labels
-  xlab('Time Since Sensor Deployment (10min)') + 
-  ylab('PM2.5 Levels') +
-  # ylim(0,200) +
-  # Add fun theme
-  theme_bw() +
-  # Scale to just around the plume
-  coord_cartesian(xlim = peak_idxs)
-```
+Below is a figure for demonstrating what these statistics mean for these curves.
 
 ```{r}
 # After HEPA deployment
@@ -382,8 +364,8 @@ plot_data %>%
   scale_fill_manual("", values = c("Exposure Area" = "#F8766D")) +
   # Labels
   xlab('Time (min)') + 
-  ylab(expression(paste(PM[2.5], " Concentration (", mu, "g/", m^3,")"))) +
-  ggtitle(expression(paste(PM[2.5], " Plume with Best Fit Decay Line"))) +
+  ylab(expression(paste(PM[1], " Concentration (", mu, "g/", m^3,")"))) +
+  ggtitle(expression(paste(PM[1], " Plume with Best Fit Decay Line"))) +
   ylim(0,35) +
   # Annotations
   annotate("text", x = 2215, y = 20, label = expression(paste(Lambda, " = ", -0.045)), size = 3.5) +
